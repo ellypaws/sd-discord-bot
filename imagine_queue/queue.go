@@ -583,20 +583,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "Re-roll",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.PrimaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_reroll",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "🎲",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "V1",
+						Label: "1",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -609,7 +596,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "V2",
+						Label: "2",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -622,7 +609,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "V3",
+						Label: "3",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -635,7 +622,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "V4",
+						Label: "4",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -646,13 +633,26 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 							Name: "♻️",
 						},
 					},
+					discordgo.Button{
+						// Label is what the user will see on the button.
+						Label: "Re-roll",
+						// Style provides coloring of the button. There are not so many styles tho.
+						Style: discordgo.PrimaryButton,
+						// Disabled allows bot to disable some buttons for users.
+						Disabled: false,
+						// CustomID is a thing telling Discord which data to send when this button will be pressed.
+						CustomID: "imagine_reroll",
+						Emoji: discordgo.ComponentEmoji{
+							Name: "🎲",
+						},
+					},
 				},
 			},
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "U1",
+						Label: "1",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -665,7 +665,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "U2",
+						Label: "2",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -678,7 +678,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "U3",
+						Label: "3",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
@@ -691,7 +691,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						// Label is what the user will see on the button.
-						Label: "U4",
+						Label: "4",
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
