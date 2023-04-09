@@ -340,8 +340,8 @@ func (q *queueImpl) processCurrentImagine() {
 		}
 
 		enableHR := false
-		hiresWidth := 0
-		hiresHeight := 0
+		hiresWidth := defaultWidth
+		hiresHeight := defaultHeight
 
 		if promptRes.Width > defaultWidth || promptRes.Height > defaultHeight {
 			enableHR = true
@@ -359,10 +359,13 @@ func (q *queueImpl) processCurrentImagine() {
 			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
-			Width:             defaultWidth,
-			Height:            defaultHeight,
+			Width:             hiresWidth,
+			Height:            hiresHeight,
 			RestoreFaces:      true,
 			EnableHR:          enableHR,
+			HRScale:           2,
+			HRUpscaler:        "ESRGAN_4x",
+			HRSecondPassSteps: 20,
 			HiresWidth:        hiresWidth,
 			HiresHeight:       hiresHeight,
 			DenoisingStrength: 0.7,
@@ -499,6 +502,9 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		Height:            newGeneration.Height,
 		RestoreFaces:      newGeneration.RestoreFaces,
 		EnableHR:          newGeneration.EnableHR,
+		HRScale:           newGeneration.HRScale,
+		HRUpscaler:        newGeneration.HRUpscaler,
+		HRSecondPassSteps: newGeneration.HRSecondPassSteps,
 		HRResizeX:         newGeneration.HiresWidth,
 		HRResizeY:         newGeneration.HiresHeight,
 		DenoisingStrength: newGeneration.DenoisingStrength,
@@ -825,6 +831,9 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			Height:            generation.Height,
 			RestoreFaces:      generation.RestoreFaces,
 			EnableHR:          generation.EnableHR,
+			HRScale:           generation.HRScale,
+			HRUpscaler:        generation.HRUpscaler,
+			HRSecondPassSteps: generation.HRSecondPassSteps,
 			HRResizeX:         generation.HiresWidth,
 			HRResizeY:         generation.HiresHeight,
 			DenoisingStrength: generation.DenoisingStrength,
