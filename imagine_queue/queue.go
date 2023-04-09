@@ -574,7 +574,8 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		Files: []*discordgo.File{
 			{
 				ContentType: "image/png",
-				Name:        "imagine.png",
+				// append timestamp for grid image result
+				Name:        "imagine_" + time.Now().Format("20060102150405") + ".png",
 				Reader:      compositeImage,
 			},
 		},
