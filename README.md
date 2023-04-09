@@ -2,7 +2,7 @@
 forked from https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot
 at 2023-04-08T07:10:00 (JST)
 
-## change button order and icon captions
+## changed button order and icon captions
 at iPhone Discord client, result buttons was not lined up
 
 ![alt text](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/001_change_button1.jpg?raw=true)
@@ -10,3 +10,10 @@ at iPhone Discord client, result buttons was not lined up
 shorten caption and swap button orders like midjourney/nijijourney
 
 ![alt text](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/001_change_button2.jpg?raw=true)
+
+## changed fonts
+
+prompt showing in monospace in Discord client
+
+![alt text](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/002_change_prompt_font.png?raw=true)
+
