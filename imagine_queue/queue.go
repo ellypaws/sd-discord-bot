@@ -296,6 +296,13 @@ func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsR
 	}, nil
 }
 
+
+func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
+	// backtick(code) is shown as monospace in Discord client
+	return "`" + promptIn + "`"
+}
+
+
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
 		defer func() {
@@ -341,6 +348,10 @@ func (q *queueImpl) processCurrentImagine() {
 			hiresWidth = promptRes.Width
 			hiresHeight = promptRes.Height
 		}
+
+		// prompt will displayed as Monospace in Discord
+		var quotedPrompt = quotePromptAsMonospace(promptRes.SanitizedPrompt)
+		promptRes.SanitizedPrompt = quotedPrompt
 
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
