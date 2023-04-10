@@ -14,9 +14,6 @@ type ImageGeneration struct {
 	Height            int       `json:"height"`
 	RestoreFaces      bool      `json:"restore_faces"`
 	EnableHR          bool      `json:"enable_hr"`
-	HRScale           int       `json:"hrscale"`
-	HRUpscaler        string    `json:"hr_upscaler"`
-	HRSecondPassSteps int       `json:"hr_second_pass_steps"`
 	HiresWidth        int       `json:"hr_resize_x"`
 	HiresHeight       int       `json:"hr_resize_y"`
 	DenoisingStrength float64   `json:"denoising_strength"`

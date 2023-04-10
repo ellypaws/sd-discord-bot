@@ -51,9 +51,6 @@ type TextToImageRequest struct {
 	Height            int     `json:"height"`
 	RestoreFaces      bool    `json:"restore_faces"`
 	EnableHR          bool    `json:"enable_hr"`
-	HRScale           int     `json:"hr_scale"`
-	HRUpscaler        string  `json:"hr_upscaler"`
-	HRSecondPassSteps int     `json:"hr_second_pass_steps"`
 	HRResizeX         int     `json:"hr_resize_x"`
 	HRResizeY         int     `json:"hr_resize_y"`
 	DenoisingStrength float64 `json:"denoising_strength"`
