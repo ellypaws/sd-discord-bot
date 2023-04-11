@@ -28,3 +28,18 @@ this is not using upscalers nor hires.fix, --ar 1:2 gives you 512x1024 so requir
 
 ### 1girl --ar 1:2
 ![sample for ar 1:2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/003_aspect_ratio_1_2.png?raw=true)
+
+
+## add sampling steps
+It seems difficult to add parameter like 'prompt:' on Discord ways, so I just copy & modified along --ar parameter.
+with --step X gives you result in X steps processed. 
+default value is 20, if not specified --step parameter. (sampling method is default Euler_a yet)
+
+### --step 7(512x512)
+low steps at 7, seems noisy but It works.
+![sample for step 7](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/004_steps_param_7.png?raw=true)
+
+### --step 50 --ar 2:1(1024x768)
+combo with aspect ratio, I could make AI output more detailed result. 
+![sample for ar 1:2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/004_steps_param_50.png?raw=true)
+

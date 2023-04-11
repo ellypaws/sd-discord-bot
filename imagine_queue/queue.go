@@ -242,6 +242,12 @@ type dimensionsResult struct {
 	Height          int
 }
 
+type stepsResult struct {
+	SanitizedPrompt string
+	Steps           int
+}
+
+
 const (
 	emdash = '\u2014'
 	hyphen = '\u002D'
@@ -302,6 +308,36 @@ func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
 	return "`" + promptIn + "`"
 }
 
+// recieve sampling process steps value
+var stepRegex = regexp.MustCompile(`\s?--step ([\d]*)\s?`)
+
+func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, error) {
+
+	stepMatches := stepRegex.FindStringSubmatch(prompt)
+	stepsValue  := defaultsteps
+
+	if len(stepMatches) == 2 {
+		log.Printf("steps overwrite: %#v", stepMatches)
+
+		prompt = stepRegex.ReplaceAllString(prompt, "")
+
+		s, err := strconv.Atoi(stepMatches[1])
+		if err != nil {
+			return nil, err
+		}
+		stepsValue = s
+
+		if s < 1 {
+			stepsValue = defaultsteps
+		}
+	}
+
+	return &stepsResult{
+		SanitizedPrompt: prompt,
+		Steps:           stepsValue,
+	}, nil
+}
+
 
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
@@ -349,8 +385,16 @@ func (q *queueImpl) processCurrentImagine() {
 			hiresHeight = promptRes.Height
 		}
 
+		stepValue := 20 // default steps value
+		promptRes2, err := extractStepsFromPrompt(promptRes.SanitizedPrompt, stepValue)
+		if err != nil {
+			log.Printf("Error extracting step from prompt: %v", err)
+		} else if promptRes2.Steps != stepValue {
+			stepValue = promptRes2.Steps
+		}
+
 		// prompt will displayed as Monospace in Discord
-		var quotedPrompt = quotePromptAsMonospace(promptRes.SanitizedPrompt)
+		var quotedPrompt = quotePromptAsMonospace(promptRes2.SanitizedPrompt)
 		promptRes.SanitizedPrompt = quotedPrompt
 
 		// new generation with defaults
@@ -372,7 +416,7 @@ func (q *queueImpl) processCurrentImagine() {
 			SubseedStrength:   0,
 			SamplerName:       "Euler a",
 			CfgScale:          9,
-			Steps:             20,
+			Steps:             stepValue,
 			Processed:         false,
 		}
 
@@ -432,9 +476,10 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
 			user.ID, generation.Prompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" with %d steps, here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
+			generation.Steps,
 		)
 	}
 }
