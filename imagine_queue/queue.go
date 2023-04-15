@@ -247,6 +247,11 @@ type stepsResult struct {
 	Steps           int
 }
 
+type cfgScaleResult struct {
+	SanitizedPrompt string
+	CFGScale        float64
+}
+
 
 const (
 	emdash = '\u2014'
@@ -338,6 +343,33 @@ func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, erro
 	}, nil
 }
 
+var cfgscaleRegex = regexp.MustCompile(`\s?--cfgscale (\d\d?\.?\d?)\s?`)
+func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleResult, error) {
+
+	cfgscaleMatches := cfgscaleRegex.FindStringSubmatch(prompt)
+	cfgValue  := defaultScale
+
+	if len(cfgscaleMatches) == 2 {
+		log.Printf("CFG Scale overwrite: %#v", cfgscaleMatches)
+
+		prompt = cfgscaleRegex.ReplaceAllString(prompt, "")
+		c, err := strconv.ParseFloat(cfgscaleMatches[1], 64)
+		if err != nil {
+			return nil, err
+		}
+		cfgValue = c
+
+		if c < 1.0 || c > 30.0 {
+			cfgValue = defaultScale
+		}
+	}
+
+	return &cfgScaleResult{
+		SanitizedPrompt: prompt,
+		CFGScale:        cfgValue,
+	}, nil
+}
+
 
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
@@ -393,8 +425,16 @@ func (q *queueImpl) processCurrentImagine() {
 			stepValue = promptRes2.Steps
 		}
 
+		cfgScaleValue := 9.0 // default CFG scale value
+		promptRes3, err := extractCFGScaleFromPrompt(promptRes2.SanitizedPrompt, cfgScaleValue)
+		if err != nil {
+			log.Printf("Error extracting cfg scale from prompt: %v", err)
+		} else if promptRes3.CFGScale != cfgScaleValue {
+			cfgScaleValue = promptRes3.CFGScale
+		}
+
 		// prompt will displayed as Monospace in Discord
-		var quotedPrompt = quotePromptAsMonospace(promptRes2.SanitizedPrompt)
+		var quotedPrompt = quotePromptAsMonospace(promptRes3.SanitizedPrompt)
 		promptRes.SanitizedPrompt = quotedPrompt
 
 		// new generation with defaults
@@ -415,7 +455,7 @@ func (q *queueImpl) processCurrentImagine() {
 			Subseed:           -1,
 			SubseedStrength:   0,
 			SamplerName:       "Euler a",
-			CfgScale:          9,
+			CfgScale:          cfgScaleValue,
 			Steps:             stepValue,
 			Processed:         false,
 		}
@@ -476,10 +516,11 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
 			user.ID, generation.Prompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" with %d steps, here is what I imagined for them.",
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at %d steps, %s CFGscale, here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
 			generation.Steps,
+			strconv.FormatFloat(generation.CfgScale,'f', 2, 64),
 		)
 	}
 }
