@@ -42,6 +42,7 @@ default value is 20, if not specified --step parameter. (sampling method is defa
 
 ### --step 7(512x512)
 low steps at 7, seems noisy but It works.
+
 ![sample for step 7](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/004_steps_param_7.png?raw=true)
 
 ### --step 50 --ar 2:1(1024x768)
