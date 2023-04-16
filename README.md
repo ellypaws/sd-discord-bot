@@ -81,7 +81,9 @@ seed値を渡せるようにした。StableDiffusionでの最大値を調べた�
 Go言語の実装でint型になっているようなのでその値を最大とした。
 実用上困らないと考えてがんばらないことにした。
 
+### --seed 111
 同じシード値で同じ結果が出ることが確認できた。
+
 ![sample for seed](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed.png?raw=true)
 
 
