@@ -72,3 +72,16 @@ seedの指定がまだできないので簡単には比較できないが、極�
 ### --cfgscale 15.3
 ![sample for CFG scale high](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/005_cfg_scale_15.png?raw=true)
 
+## 006. seed parameter
+passing seed parameter. default was -1(random); max value 12345678901234567890 is accepted by WebUI, but datatype of the code is int.
+valid range of this program should be 0 - 2147483647.(Golang int)
+
+seed値を渡せるようにした。StableDiffusionでの最大値を調べたが、はっきりしたことは不明だった。
+実際にWebUIで適当に長い数字を入れると 12345678901234567890 までは受け付けて、桁を増やすとPythonのlong型でオーバーフローしているようだった。
+Go言語の実装でint型になっているようなのでその値を最大とした。
+実用上困らないと考えてがんばらないことにした。
+
+同じシード値で同じ結果が出ることが確認できた。
+![sample for seed](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed.png?raw=true)
+
+

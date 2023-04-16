@@ -252,6 +252,11 @@ type cfgScaleResult struct {
 	CFGScale        float64
 }
 
+type seedResult struct {
+	SanitizedPrompt string
+	Seed            int
+}
+
 
 const (
 	emdash = '\u2014'
@@ -370,6 +375,37 @@ func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleRe
 	}, nil
 }
 
+var seedRegex = regexp.MustCompile(`\s?--seed ([\d]+)\s?`)
+func extractSeedFromPrompt(prompt string) (*seedResult, error) {
+
+	seedMatches := seedRegex.FindStringSubmatch(prompt)
+	var seedValue int = 0
+	var Seed_MaxValue int = 2147483647 // although SD accepts: 12345678901234567890
+
+	if len(seedMatches) == 2 {
+		log.Printf("Seed overwrite: %#v", seedMatches)
+
+		prompt = seedRegex.ReplaceAllString(prompt, "")
+		s, err := strconv.ParseInt(seedMatches[1], 10, 32)
+		if err != nil {
+			return nil, err
+		}		
+		if int(s) > Seed_MaxValue {
+			seedValue = Seed_MaxValue
+		} else {
+			seedValue = int(s)
+		}
+
+	} else {
+		seedValue = -1
+	}
+
+	return &seedResult{
+		SanitizedPrompt: prompt,
+		Seed:            seedValue,
+	}, nil
+}
+
 
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
@@ -433,8 +469,17 @@ func (q *queueImpl) processCurrentImagine() {
 			cfgScaleValue = promptRes3.CFGScale
 		}
 
+		seedValue := -1 // default seed is random
+		promptRes4, err := extractSeedFromPrompt(promptRes3.SanitizedPrompt)
+		if err != nil {
+			log.Printf("Error extracting seed from prompt: %v", err)
+		} else if promptRes4.Seed != seedValue {
+			seedValue = promptRes4.Seed
+		}
+
+
 		// prompt will displayed as Monospace in Discord
-		var quotedPrompt = quotePromptAsMonospace(promptRes3.SanitizedPrompt)
+		var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
 		promptRes.SanitizedPrompt = quotedPrompt
 
 		// new generation with defaults
@@ -451,7 +496,7 @@ func (q *queueImpl) processCurrentImagine() {
 			HiresHeight:       hiresHeight,
 			DenoisingStrength: 0.7,
 			BatchSize:         1,
-			Seed:              -1,
+			Seed:              seedValue,
 			Subseed:           -1,
 			SubseedStrength:   0,
 			SamplerName:       "Euler a",
@@ -516,11 +561,12 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
 			user.ID, generation.Prompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at %d steps, %s CFGscale, here is what I imagined for them.",
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at %d steps, %s CFGscale, seed: %d. here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
 			generation.Steps,
-			strconv.FormatFloat(generation.CfgScale,'f', 2, 64),
+			strconv.FormatFloat(generation.CfgScale,'f', 1, 64),
+			generation.Seed,
 		)
 	}
 }
@@ -958,7 +1004,8 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		Files: []*discordgo.File{
 			{
 				ContentType: "image/png",
-				Name:        "imagine.png",
+				// add timestamp to output file 
+				Name:        "imagine_" + time.Now().Format("20060102150405") + ".png",
 				Reader:      imageBuf,
 			},
 		},
