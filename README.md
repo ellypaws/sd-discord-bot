@@ -7,7 +7,7 @@ at 2023-04-08T07:10:00 (JST)
 ## 001. changed button order and icon captions
 at iPhone Discord client, result buttons was not lined up
 
-Dicordクライアントで見づらかったのでボタン配置とキャプションを変更した
+iPhoneの Dicordクライアントで見づらかったのでボタン配置とキャプションを変更した
 
 ![button orders before](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/001_change_button1.jpg?raw=true)
 
