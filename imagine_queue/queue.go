@@ -561,12 +561,16 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
 			user.ID, generation.Prompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at %d steps, %s CFGscale, seed: %d. here is what I imagined for them.",
+		seedString := fmt.Sprintf("%d", generation.Seed)
+		if seedString == "-1" {
+			seedString = "at ramdom(-1)"
+		}
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at %d steps, %s CFGscale, seed: %s. here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
 			generation.Steps,
 			strconv.FormatFloat(generation.CfgScale,'f', 1, 64),
-			generation.Seed,
+			seedString,
 		)
 	}
 }
@@ -996,8 +1000,9 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 		interactionID, messageID, imagine.InteractionIndex)
 
-	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
-		imagine.DiscordInteraction.Member.User.ID)
+	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:",
+		imagine.DiscordInteraction.Member.User.ID,
+		generation.Seed)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,

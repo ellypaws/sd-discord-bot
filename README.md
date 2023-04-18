@@ -86,4 +86,15 @@ Go言語の実装でint型になっているようなのでその値を最大と
 
 ![sample for seed](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed.png?raw=true)
 
+### display seed value when upscaled
+when no seed specified (at random), indicates clearly saying random
 
+シード値未指定のときに -1 の表示になっていたので作成後メッセージで random(-1)表記にした
+
+![indicate as random seed value](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed2.png?raw=true)
+
+when upscaling, display seed value at post-generate message
+
+アップスケールのときに作成後メッセージに seed を表示するようにした
+
+![show seed value at upscale](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed3.png?raw=true)
