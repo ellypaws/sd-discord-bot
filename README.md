@@ -108,14 +108,14 @@ default value is hard-coded one:
    body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
 
 ネガティブプロンプトを与えられるようにした。
+
+初期値（未指定）はハードコーディングされている上記の値とみなす。何か値を与えるとそれのみをネガティブプロンプトとする
+
 ![negative prompt param](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/007_negative_prompt.png?raw=true)
 
+最初は下のURLを参考に全部入れようとしたがうまくいかなかったので、まずネガティブプロンプトだけにした。
+
 https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot/pull/18/commits/cf6ec0d52461d0d2eaac2b5fd98316f88c14b43b
-
-最初はこのURLを参考に全部入れようとした。うまくいかなかったので、ネガティブプロンプトだけにした。
-
-初期値（未指定）はハードコーディングされている値
-与えるとその値のみをネガティブプロンプトとする
 
 
 
