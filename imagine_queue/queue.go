@@ -87,6 +87,7 @@ const (
 
 type QueueItem struct {
 	Prompt             string
+	NegativePrompt	   string
 	Type               ItemType
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
@@ -407,6 +408,11 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 }
 
 
+const defaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+
+
 func (q *queueImpl) processCurrentImagine() {
 	go func() {
 		defer func() {
@@ -434,6 +440,13 @@ func (q *queueImpl) processCurrentImagine() {
 			log.Printf("Error getting default height: %v", err)
 
 			return
+		}
+
+		// add optional parameter: Negative prompt	
+		negativePrompt := ""
+
+		if q.currentImagine.NegativePrompt == "" {
+			negativePrompt = defaultNegative
 		}
 
 		promptRes, err := extractDimensionsFromPrompt(q.currentImagine.Prompt, defaultWidth, defaultHeight)
@@ -485,9 +498,7 @@ func (q *queueImpl) processCurrentImagine() {
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
 			Prompt: promptRes.SanitizedPrompt,
-			NegativePrompt: "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-				"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-				"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy",
+			NegativePrompt:    negativePrompt,
 			Width:             hiresWidth,
 			Height:            hiresHeight,
 			RestoreFaces:      true,

@@ -208,6 +208,12 @@ func (b *botImpl) addImagineCommand() error {
 				Description: "The text prompt to imagine",
 				Required:    true,
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "negative_prompt",
+				Description: "Negative prompt",
+				Required:    false,
+			},
 		},
 	})
 	if err != nil {
@@ -312,12 +318,18 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var position int
 	var queueError error
 	var prompt string
+	negative := ""
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
 
+		if nopt, ok := optionMap["negative_prompt"]; ok {
+			negative = nopt.StringValue()
+		}
+
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
+			NegativePrompt:     negative,
 			Type:               imagine_queue.ItemTypeImagine,
 			DiscordInteraction: i.Interaction,
 		})

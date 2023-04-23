@@ -98,3 +98,24 @@ when upscaling, display seed value at post-generate message
 アップスケールのときに作成後メッセージに seed を表示するようにした
 
 ![show seed value at upscale](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed3.png?raw=true)
+
+## 007. negative_prompt: param
+
+passing negative_prompt as optional parameter.
+default value is hard-coded one: 
+  "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame,
+   mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye,
+   body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+
+ネガティブプロンプトを与えられるようにした。
+![negative prompt param](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/007_negative_prompt.png?raw=true)
+
+https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot/pull/18/commits/cf6ec0d52461d0d2eaac2b5fd98316f88c14b43b
+
+最初はこのURLを参考に全部入れようとした。うまくいかなかったので、ネガティブプロンプトだけにした。
+
+初期値（未指定）はハードコーディングされている値
+与えるとその値のみをネガティブプロンプトとする
+
+
+
