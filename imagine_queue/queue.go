@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"os/signal"
 	"regexp"
@@ -255,7 +256,7 @@ type cfgScaleResult struct {
 
 type seedResult struct {
 	SanitizedPrompt string
-	Seed            int
+	Seed            int64
 }
 
 
@@ -380,25 +381,25 @@ var seedRegex = regexp.MustCompile(`\s?--seed ([\d]+)\s?`)
 func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 
 	seedMatches := seedRegex.FindStringSubmatch(prompt)
-	var seedValue int = 0
-	var Seed_MaxValue int = 2147483647 // although SD accepts: 12345678901234567890
+	var seedValue int64 = 0
+	var Seed_MaxValue int64 = int64(math.MaxInt64) // although SD accepts: 12345678901234567890
 
 	if len(seedMatches) == 2 {
 		log.Printf("Seed overwrite: %#v", seedMatches)
 
 		prompt = seedRegex.ReplaceAllString(prompt, "")
-		s, err := strconv.ParseInt(seedMatches[1], 10, 32)
+		s, err := strconv.ParseInt(seedMatches[1], 10, 64)
 		if err != nil {
 			return nil, err
 		}		
-		if int(s) > Seed_MaxValue {
+		if int64(s) > Seed_MaxValue {
 			seedValue = Seed_MaxValue
 		} else {
-			seedValue = int(s)
+			seedValue = int64(s)
 		}
 
 	} else {
-		seedValue = -1
+		seedValue = int64(-1)
 	}
 
 	return &seedResult{
@@ -482,7 +483,7 @@ func (q *queueImpl) processCurrentImagine() {
 			cfgScaleValue = promptRes3.CFGScale
 		}
 
-		seedValue := -1 // default seed is random
+		seedValue := int64(-1) // default seed is random
 		promptRes4, err := extractSeedFromPrompt(promptRes3.SanitizedPrompt)
 		if err != nil {
 			log.Printf("Error extracting seed from prompt: %v", err)

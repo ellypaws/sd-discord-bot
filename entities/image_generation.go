@@ -18,7 +18,7 @@ type ImageGeneration struct {
 	HiresHeight       int       `json:"hr_resize_y"`
 	DenoisingStrength float64   `json:"denoising_strength"`
 	BatchSize         int       `json:"batch_size"`
-	Seed              int       `json:"seed"`
+	Seed              int64     `json:"seed"`
 	Subseed           int       `json:"subseed"`
 	SubseedStrength   float64   `json:"subseed_strength"`
 	SamplerName       string    `json:"sampler_name"`

@@ -118,4 +118,18 @@ default value is hard-coded one:
 https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot/pull/18/commits/cf6ec0d52461d0d2eaac2b5fd98316f88c14b43b
 
 
+## 008. BUGFIX: seed value for big int
+
+very few times SD api returns seed value as large int value which is over int32.
+
+seed未指定で生成していると intの最大値を超えるものが来たときbotが落ちるのを確認した。
+実害があったので直すことにした。
+
+Go言語における最大値　符号付きint64　9223372036854775807 (2 ^ 63 - 1)
+DBのSQLite3のint　　　INTEGERは、値に応じて 0～8byteの符号付き整数
+
+ということで、データベースのアップグレード処理は書かなくても大丈夫だった。
+
+![seed on bigint](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/008_seed_bigint.png?raw=true)
+
 
