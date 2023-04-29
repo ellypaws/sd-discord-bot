@@ -159,6 +159,6 @@ sampler指定ができるようにした。未指定のときはEuler_aが指定
 
 ` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: UniPC `
 
-![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/0009_sampler_UniPC.png?raw=true)
+![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_UniPC.png?raw=true)
 
 
