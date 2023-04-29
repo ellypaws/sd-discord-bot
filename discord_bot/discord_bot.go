@@ -214,6 +214,94 @@ func (b *botImpl) addImagineCommand() error {
 				Description: "Negative prompt",
 				Required:    false,
 			},
+			{
+				Type:	     discordgo.ApplicationCommandOptionString,
+				Name:	     "sampler_name",
+				Description: "sampler",
+				Required:    false,
+				Choices: []*discordgo.ApplicationCommandOptionChoice {
+					{
+						Name: "Euler a",
+						Value:"Euler a",
+					},
+					{
+						Name: "DDIM",
+						Value:"DDIM",
+					},
+					{
+						Name: "PLMS",
+						Value:"PLMS",
+					},
+					{
+						Name: "UniPC",
+						Value:"UniPC",
+					},
+					{
+						Name: "Heun",
+						Value:"Heun",
+					},
+					{
+						Name: "Euler",
+						Value:"Euler",
+					},
+					{
+						Name: "LMS",
+						Value:"LMS",
+					},
+					{
+						Name: "LMS Karras",
+						Value:"LMS Karras",
+					},
+					{
+						Name: "DPM2 a",
+						Value:"DPM2 a",
+					},
+					{
+						Name: "DPM2 a Karras",
+						Value:"DPM2 a Karras",
+					},
+					{
+						Name: "DPM2",
+						Value:"DPM2",
+					},
+					{
+						Name: "DPM2 Karras",
+						Value:"DPM2 Karras",
+					},
+					{
+						Name: "DPM fast",
+						Value:"DPM fast",
+					},
+					{
+						Name: "DPM adaptive",
+						Value:"DPM adaptive",
+					},
+					{
+						Name: "DPM++ 2S a",
+						Value:"DPM++ 2S a",
+					},
+					{
+						Name: "DPM++ 2M",
+						Value:"DPM++ 2M",
+					},
+					{
+						Name: "DPM++ SDE",
+						Value:"DPM++ SDE",
+					},
+					{
+						Name: "DPM++ 2S a Karras",
+						Value:"DPM++ 2S a Karras",
+					},
+					{
+						Name: "DPM++ 2M Karras",
+						Value:"DPM++ 2M Karras",
+					},
+					{
+						Name: "DPM++ SDE Karras",
+						Value:"DPM++ SDE Karras",
+					},
+				},
+			},
 		},
 	})
 	if err != nil {
@@ -319,6 +407,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var queueError error
 	var prompt string
 	negative := ""
+	sampler := "Euler a"
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
@@ -327,9 +416,14 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			negative = nopt.StringValue()
 		}
 
+		if smpl, ok := optionMap["sampler_name"]; ok {
+			sampler = smpl.StringValue()
+		}
+
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
 			NegativePrompt:     negative,
+			SamplerName1:	    sampler,
 			Type:               imagine_queue.ItemTypeImagine,
 			DiscordInteraction: i.Interaction,
 		})
@@ -342,10 +436,11 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf(
-				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\".",
+				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\", with sampler: %s",
 				position,
 				i.Member.User.ID,
-				prompt),
+				prompt,
+				sampler),
 		},
 	})
 }

@@ -134,3 +134,31 @@ DBのSQLite3のint　　　INTEGERは、値に応じて 0～8byteの符号付き
 ![seed on bigint](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/008_seed_bigint.png?raw=true)
 
 
+## 009. selection pop-up for sampler
+you can select a sampler for image generation (optional, default is Euler_a)
+
+sampler指定ができるようにした。未指定のときはEuler_aが指定されたものとみなす。
+
+サンプラーの順番は自分で使いやすいように並べた。
+
+![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_selection.png?raw=true)
+
+### Sampler: DPM++ S2 a Karras
+
+` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: DPM++ S2 a Karras `
+
+![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_DPMppS2aKarras.png?raw=true)
+
+### Sampler: DPM Adaptive
+
+` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: DPM Adaptive `
+
+![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_DPMAdaptive.png?raw=true)
+
+### Sampler: UniPC
+
+` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: UniPC `
+
+![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/0009_sampler_UniPC.png?raw=true)
+
+

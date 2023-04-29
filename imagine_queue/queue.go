@@ -89,6 +89,7 @@ const (
 type QueueItem struct {
 	Prompt             string
 	NegativePrompt	   string
+	SamplerName1       string
 	Type               ItemType
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
@@ -450,6 +451,14 @@ func (q *queueImpl) processCurrentImagine() {
 			negativePrompt = defaultNegative
 		}
 
+		// add optional parameter: sampler
+		samplerName1 := ""
+		if q.currentImagine.SamplerName1 == "" {
+			samplerName1 = "Euler a"
+		} else {
+			samplerName1 = q.currentImagine.SamplerName1
+		}
+
 		promptRes, err := extractDimensionsFromPrompt(q.currentImagine.Prompt, defaultWidth, defaultHeight)
 		if err != nil {
 			log.Printf("Error extracting dimensions from prompt: %v", err)
@@ -511,7 +520,7 @@ func (q *queueImpl) processCurrentImagine() {
 			Seed:              seedValue,
 			Subseed:           -1,
 			SubseedStrength:   0,
-			SamplerName:       "Euler a",
+			SamplerName:       samplerName1,
 			CfgScale:          cfgScaleValue,
 			Steps:             stepValue,
 			Processed:         false,
@@ -577,12 +586,13 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		if seedString == "-1" {
 			seedString = "at ramdom(-1)"
 		}
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at %d steps, %s CFGscale, seed: %s. here is what I imagined for them.",
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
 			generation.Steps,
 			strconv.FormatFloat(generation.CfgScale,'f', 1, 64),
 			seedString,
+			generation.SamplerName,
 		)
 	}
 }
