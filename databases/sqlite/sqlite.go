@@ -73,6 +73,11 @@ width INTEGER NOT NULL,
 height INTEGER NOT NULL
 );`
 
+const addHiresMissingColumnsQuery string = `
+ALTER TABLE image_generations ADD COLUMN hr_scale REAL NOT NULL DEFAULT 1;
+ALTER TABLE image_generations ADD COLUMN hr_upscaler TEXT NOT NULL DEFAULT 'Latent';
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -86,6 +91,7 @@ var migrations = []migration{
 	{migrationName: "drop hires firstpass columns", migrationQuery: dropHiresFirstPassDimensionColumnsQuery},
 	{migrationName: "add hires resize columns", migrationQuery: addHiresResizeColumnsQuery},
 	{migrationName: "create default settings table", migrationQuery: createDefaultSettingsTableIfNotExistsQuery},
+	{migrationName: "add hires reisze columns2", migrationQuery: addHiresMissingColumnsQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {

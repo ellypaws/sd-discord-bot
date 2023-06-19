@@ -161,4 +161,23 @@ sampler指定ができるようにした。未指定のときはEuler_aが指定
 
 ![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_UniPC.png?raw=true)
 
+## 010. Hires.fix
+hires.fix に部分的に対応した。
+hr_scale（拡大率） とhr_upscaler（アップスケーラー名）をテーブルに追加した。
+縦長などの時の破綻がなくなった。
+
+` prompt: <lora:Trude0:1> anime screencap style, megami magazine, masterpiece, best quality, detailed, uhd, Strike Witches, Trude in german military gray jacket and bottomless, white panties stands in a backside garage`
+
+![hiresfix](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/010_hiresfix.png?raw=true)
+
+実際の拡大率指定は未実装。
+
+EXEを再実行するとき、SQLiteのマイグレーションで項目が追加される。
+なので、それ以前の結果を選択して再生成・アップスケールを行うと、該当項目がないのでエラーになる。
+imagineコマンドのリンクをクリックしてDBから再度プロンプトなどの内容を取得して、作り直せばよい。
+
+強制的にHiresFixはONにしてある。
+拡大率は2にしてあるが、--ar の指定で自動計算された縦横サイズのまま出力される。（そこから拡大はされない）
+WebUIの動作を見ると拡大率を指定するか、または完成サイズを指定するようになっている。
+元ソースの作りのまま、--ar 指定に応じて完成サイズを固定している。
 
