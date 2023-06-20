@@ -181,3 +181,8 @@ imagineコマンドのリンクをクリックしてDBから再度プロンプ�
 WebUIの動作を見ると拡大率を指定するか、または完成サイズを指定するようになっている。
 元ソースの作りのまま、--ar 指定に応じて完成サイズを固定している。
 
+## 011. BUGFIX: NegativePrompt
+NegativePrompt didn't applied, have fixed it.
+ネガティブプロンプトが反映されていなかったのに気付いたので確認して直した。
+
+

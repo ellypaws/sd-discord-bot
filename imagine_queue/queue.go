@@ -449,6 +449,8 @@ func (q *queueImpl) processCurrentImagine() {
 
 		if q.currentImagine.NegativePrompt == "" {
 			negativePrompt = defaultNegative
+		} else {
+			negativePrompt = q.currentImagine.NegativePrompt
 		}
 
 		// add optional parameter: sampler
