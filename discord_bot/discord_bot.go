@@ -302,6 +302,22 @@ func (b *botImpl) addImagineCommand() error {
 					},
 				},
 			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "use_hires_fix",
+				Description: "use hires.fix or not. default=No for better performance",
+				Required:    false,
+				Choices: []*discordgo.ApplicationCommandOptionChoice {
+					{
+						Name: "Yes",
+						Value: "true",
+					},
+					{
+						Name: "No",
+						Value: "false",
+					},
+				},
+			},
 		},
 	})
 	if err != nil {
@@ -407,7 +423,8 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var queueError error
 	var prompt string
 	negative := ""
-	sampler := "Euler a"
+	sampler  := "Euler a"
+	hiresfix := false
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
@@ -420,11 +437,16 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			sampler = smpl.StringValue()
 		}
 
+		if hires, ok := optionMap["use_hires_fix"]; ok {
+			hiresfix, _ = strconv.ParseBool(hires.StringValue())
+		}
+
 		position, queueError = b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 			Prompt:             prompt,
 			NegativePrompt:     negative,
-			SamplerName1:	    sampler,
+			SamplerName1:       sampler,
 			Type:               imagine_queue.ItemTypeImagine,
+			UseHiresFix:        hiresfix,
 			DiscordInteraction: i.Interaction,
 		})
 		if queueError != nil {

@@ -166,10 +166,6 @@ hires.fix に部分的に対応した。
 hr_scale（拡大率） とhr_upscaler（アップスケーラー名）をテーブルに追加した。
 縦長などの時の破綻がなくなった。
 
-` prompt: <lora:Trude0:1> anime screencap style, megami magazine, masterpiece, best quality, detailed, uhd, Strike Witches, Trude in german military gray jacket and bottomless, white panties stands in a backside garage`
-
-![hiresfix](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/010_hiresfix.png?raw=true)
-
 実際の拡大率指定は未実装。
 
 EXEを再実行するとき、SQLiteのマイグレーションで項目が追加される。
@@ -185,4 +181,24 @@ WebUIの動作を見ると拡大率を指定するか、または完成サイズ
 NegativePrompt didn't applied, have fixed it.
 ネガティブプロンプトが反映されていなかったのに気付いたので確認して直した。
 
+
+## 012. Hires.fix with Zoom Rate (param: --zoom)
+to switch hires.fix ON/OFF with Discord choice way. default: OFF for better generation performance.
+you can specify the ratio with '--zoom x.x' (default: 2.0) param only if hires_fix=YES
+
+APIに渡すパラメータを修正して、hires.fix をオプションでON-OFF できるようにした。
+![hiresfix1](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix1.png?raw=true)
+
+hires.fix のオプションをYESにしているとき、`--zoom 1.2` のように指定すると元サイズから拡大される。
+初期値は AUTO1111 WebUIにあわせて 2倍にした。
+![hiresfix2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix2.png?raw=true)
+
+### hires.fix あり
+![hiresfix3](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix3.png?raw=true)
+![hiresfix3](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/imagine_20230624195929.jpg)
+
+### hires.fix なし
+hires.fix のオプションが未指定、またはNOのときは、zoom指定をしても無視される。
+
+![hiresfix4](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix4.png?raw=true)
 

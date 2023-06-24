@@ -88,9 +88,10 @@ const (
 
 type QueueItem struct {
 	Prompt             string
-	NegativePrompt	   string
+	NegativePrompt     string
 	SamplerName1       string
 	Type               ItemType
+	UseHiresFix        bool
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 }
@@ -260,6 +261,12 @@ type seedResult struct {
 	Seed            int64
 }
 
+type zoomScaleResult struct {
+	SanitizedPrompt string
+	ZoomScale       float64
+}
+
+
 
 const (
 	emdash = '\u2014'
@@ -409,6 +416,35 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 	}, nil
 }
 
+// hires.fix upscaleby 
+var zoomRegex = regexp.MustCompile(`\s?--zoom (\d\d?\.?\d?)\s?`)
+func extractZoomScaleFromPrompt(prompt string, defaultZoomScale float64) (*zoomScaleResult, error) {
+
+	zoomMatches := zoomRegex.FindStringSubmatch(prompt)
+	zoomValue  := defaultZoomScale
+
+	if len(zoomMatches) == 2 {
+		log.Printf("Zoom Scale overwrite: %#v", zoomMatches)
+
+		prompt = zoomRegex.ReplaceAllString(prompt, "")
+		z, err := strconv.ParseFloat(zoomMatches[1], 64)
+		if err != nil {
+			return nil, err
+		}
+		zoomValue = z
+
+		if z < 1.0 || z > 4.0 {
+			zoomValue = defaultZoomScale
+		}
+	}
+
+	return &zoomScaleResult{
+		SanitizedPrompt: prompt,
+		ZoomScale:        zoomValue,
+	}, nil
+}
+
+
 
 const defaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
@@ -468,18 +504,50 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		enableHR := false
+		scaledWidth := defaultWidth
+		scaledHeight := defaultHeight
 		hiresWidth := defaultWidth
 		hiresHeight := defaultHeight
-
+	
 		if promptRes.Width > defaultWidth || promptRes.Height > defaultHeight {
-			enableHR = true
+			scaledWidth = promptRes.Width
+			scaledHeight = promptRes.Height
 			hiresWidth = promptRes.Width
 			hiresHeight = promptRes.Height
 		}
+		
+		// add optional parameter: enable hires.fix
+		enableHR1 := false
+		upscaleRate1  := 1.0
+		upscalerName1 := ""
+
+		// extract --zoom parameter
+
+		defaultZoomValue1 := 2.0
+		promptResZ, errZ := extractZoomScaleFromPrompt(promptRes.SanitizedPrompt, defaultZoomValue1)
+		if errZ != nil {
+			log.Printf("Error extracting zoom scale from prompt: %v", errZ)
+
+			return
+		}
+
+		enableHR1 = q.currentImagine.UseHiresFix 
+		if enableHR1 == true {
+			upscaleRate1 = promptResZ.ZoomScale
+			upscalerName1 = "Latent"
+			hiresWidth = 0
+			hiresHeight = 0
+			// hrSecondPassSteps = 10
+		} else {
+			enableHR1 = false
+			upscaleRate1 = 1.0
+			upscalerName1 = ""
+			hiresWidth = scaledWidth
+			hiresHeight = scaledHeight
+		}
 
 		stepValue := 20 // default steps value
-		promptRes2, err := extractStepsFromPrompt(promptRes.SanitizedPrompt, stepValue)
+		promptRes2, err := extractStepsFromPrompt(promptResZ.SanitizedPrompt, stepValue)
 		if err != nil {
 			log.Printf("Error extracting step from prompt: %v", err)
 		} else if promptRes2.Steps != stepValue {
@@ -511,12 +579,12 @@ func (q *queueImpl) processCurrentImagine() {
 		newGeneration := &entities.ImageGeneration{
 			Prompt: promptRes.SanitizedPrompt,
 			NegativePrompt:    negativePrompt,
-			Width:             hiresWidth,
-			Height:            hiresHeight,
+			Width:             scaledWidth,
+			Height:            scaledHeight,
 			RestoreFaces:      true,
-			EnableHR:          enableHR,
-			HRUpscaleRate:     2.0,
-			HRUpscaler:        "Latent",
+			EnableHR:          enableHR1,
+			HRUpscaleRate:     upscaleRate1,
+			HRUpscaler:        upscalerName1,
 			HiresWidth:        hiresWidth,
 			HiresHeight:       hiresHeight,
 			DenoisingStrength: 0.7,
@@ -590,13 +658,26 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		if seedString == "-1" {
 			seedString = "at ramdom(-1)"
 		}
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. here is what I imagined for them.",
+
+		sizeString := ""
+		if generation.EnableHR == true {
+			sizeString = fmt.Sprintf("%d x %d -> (x %s by hires.fix)",
+						generation.Width,
+						generation.Height,
+						strconv.FormatFloat(generation.HRUpscaleRate,'f', 1, 64))
+		} else {
+			sizeString = fmt.Sprintf("%d x %d",
+						generation.Width,
+						generation.Height)
+		}
+		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
 			generation.Steps,
 			strconv.FormatFloat(generation.CfgScale,'f', 1, 64),
 			seedString,
 			generation.SamplerName,
+			sizeString,
 		)
 	}
 }
