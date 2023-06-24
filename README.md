@@ -189,13 +189,16 @@ you can specify the ratio with '--zoom x.x' (default: 2.0) param only if hires_f
 APIに渡すパラメータを修正して、hires.fix をオプションでON-OFF できるようにした。
 ![hiresfix1](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix1.png?raw=true)
 
-hires.fix のオプションをYESにしているとき、`--zoom 1.2` のように指定すると元サイズから拡大される。
+hires.fix のオプションをYESにしているとき、--zoom 1.2 のように指定すると元サイズから拡大される。
+
 初期値は AUTO1111 WebUIにあわせて 2倍にした。
+
 ![hiresfix2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix2.png?raw=true)
+![hiresfix4](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/imagine_20230624195929.jpg)
 
 ### hires.fix あり
+
 ![hiresfix3](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix3.png?raw=true)
-![hiresfix3](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/imagine_20230624195929.jpg)
 
 ### hires.fix なし
 hires.fix のオプションが未指定、またはNOのときは、zoom指定をしても無視される。
