@@ -3,6 +3,7 @@ forked from https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot
 at 2023-04-08T07:10:00 (JST)
 
 この時点のやつをフォークした。Go言語もDiscordクライアントも初なので分かるところだけ自分用に進める
+
 I'm new on Go programming language and Discord client development.
 
 Update: my version is not compatible with the upstream version, especially database columns.
@@ -212,6 +213,7 @@ hires.fix のオプションが未指定、またはNOのときは、zoom指定�
 
 ## 013. apply upstream update
 フォーク元が更新されていたので取り込んだ。バッチサイズが設定できるらしい。他に変更は特になし。（興味もない）
-incuded upstream(AndBobsYourUncle's) update. It seems to change batch_size and program code improvements.
+
+included upstream(AndBobsYourUncle's) update. It seems to change batch_size and program code improvements.
 but I don't care about that.
 
