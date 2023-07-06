@@ -3,6 +3,10 @@ forked from https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot
 at 2023-04-08T07:10:00 (JST)
 
 この時点のやつをフォークした。Go言語もDiscordクライアントも初なので分かるところだけ自分用に進める
+I'm new on Go programming language and Discord client development.
+
+Update: my version is not compatible with the upstream version, especially database columns.
+        (if you have switched from his version, put my version to another folder.) 
 
 ## 001. changed button order and icon captions
 at iPhone Discord client, result buttons was not lined up
@@ -204,4 +208,10 @@ hires.fix のオプションをYESにしているとき、--zoom 1.2 のよう�
 hires.fix のオプションが未指定、またはNOのときは、zoom指定をしても無視される。
 
 ![hiresfix4](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix4.png?raw=true)
+
+
+## 013. apply upstream update
+フォーク元が更新されていたので取り込んだ。バッチサイズが設定できるらしい。他に変更は特になし。（興味もない）
+incuded upstream(AndBobsYourUncle's) update. It seems to change batch_size and program code improvements.
+but I don't care about that.
 

@@ -30,6 +30,8 @@ const (
 
 	initializedWidth  = 512
 	initializedHeight = 512
+	initializedBatchCount = 4
+	initializedBatchSize  = 1
 )
 
 type queueImpl struct {
@@ -154,18 +156,48 @@ func (q *queueImpl) pullNextInQueue() {
 	}
 }
 
+func (q *queueImpl) fillInBotDefaults(settings *entities.DefaultSettings) (*entities.DefaultSettings, bool) {
+	updated := false
+
+	if settings == nil {
+		settings = &entities.DefaultSettings{
+			MemberID: botID,
+		}
+	}
+
+	if settings.Width == 0 {
+		settings.Width = initializedWidth
+		updated = true
+	}
+
+	if settings.Height == 0 {
+		settings.Height = initializedHeight
+		updated = true
+	}
+
+	if settings.BatchCount == 0 {
+		settings.BatchCount = initializedBatchCount
+		updated = true
+	}
+
+	if settings.BatchSize == 0 {
+		settings.BatchSize = initializedBatchSize
+		updated = true
+	}
+
+	return settings, updated
+}
+
+
 func (q *queueImpl) initializeOrGetBotDefaults() (*entities.DefaultSettings, error) {
-	botDefaultSettings, err := q.getBotDefaultSettings()
+	botDefaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil && !errors.Is(err, &repositories.NotFoundError{}) {
 		return nil, err
 	}
 
-	if botDefaultSettings == nil {
-		botDefaultSettings, err = q.defaultSettingsRepo.Upsert(context.Background(), &entities.DefaultSettings{
-			MemberID: botID,
-			Width:    initializedWidth,
-			Height:   initializedHeight,
-		})
+	botDefaultSettings, updated := q.fillInBotDefaults(botDefaultSettings)
+	if updated {
+		botDefaultSettings, err = q.defaultSettingsRepo.Upsert(context.Background(), botDefaultSettings)
 		if err != nil {
 			return nil, err
 		}
@@ -178,7 +210,7 @@ func (q *queueImpl) initializeOrGetBotDefaults() (*entities.DefaultSettings, err
 	return botDefaultSettings, nil
 }
 
-func (q *queueImpl) getBotDefaultSettings() (*entities.DefaultSettings, error) {
+func (q *queueImpl) GetBotDefaultSettings() (*entities.DefaultSettings, error) {
 	if q.botDefaultSettings != nil {
 		return q.botDefaultSettings, nil
 	}
@@ -194,7 +226,7 @@ func (q *queueImpl) getBotDefaultSettings() (*entities.DefaultSettings, error) {
 }
 
 func (q *queueImpl) defaultWidth() (int, error) {
-	defaultSettings, err := q.getBotDefaultSettings()
+	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
 	}
@@ -203,7 +235,7 @@ func (q *queueImpl) defaultWidth() (int, error) {
 }
 
 func (q *queueImpl) defaultHeight() (int, error) {
-	defaultSettings, err := q.getBotDefaultSettings()
+	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
 	}
@@ -211,18 +243,29 @@ func (q *queueImpl) defaultHeight() (int, error) {
 	return defaultSettings.Height, nil
 }
 
-func (q *queueImpl) GetDefaultBotWidth() (int, error) {
-	return q.defaultWidth()
-}
-
-func (q *queueImpl) GetDefaultBotHeight() (int, error) {
-	return q.defaultHeight()
-}
-
-func (q *queueImpl) UpdateDefaultDimensions(width, height int) error {
-	defaultSettings, err := q.getBotDefaultSettings()
+func (q *queueImpl) defaultBatchCount() (int, error) {
+	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
-		return err
+		return 0, err
+	}
+
+	return defaultSettings.BatchCount, nil
+}
+
+func (q *queueImpl) defaultBatchSize() (int, error) {
+	defaultSettings, err := q.GetBotDefaultSettings()
+	if err != nil {
+		return 0, err
+	}
+
+	return defaultSettings.BatchSize, nil
+}
+
+
+func (q *queueImpl) UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error) {
+	defaultSettings, err := q.GetBotDefaultSettings()
+	if err != nil {
+		return nil, err
 	}
 
 	defaultSettings.Width = width
@@ -230,14 +273,35 @@ func (q *queueImpl) UpdateDefaultDimensions(width, height int) error {
 
 	newDefaultSettings, err := q.defaultSettingsRepo.Upsert(context.Background(), defaultSettings)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	q.botDefaultSettings = newDefaultSettings
 
 	log.Printf("Updated default dimensions to: %dx%d\n", width, height)
 
-	return nil
+	return newDefaultSettings, nil
+}
+
+func (q *queueImpl) UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error) {
+	defaultSettings, err := q.GetBotDefaultSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	defaultSettings.BatchCount = batchCount
+	defaultSettings.BatchSize = batchSize
+
+	newDefaultSettings, err := q.defaultSettingsRepo.Upsert(context.Background(), defaultSettings)
+	if err != nil {
+		return nil, err
+	}
+
+	q.botDefaultSettings = newDefaultSettings
+
+	log.Printf("Updated default batch count/size to: %d/%d\n", batchCount, batchSize)
+
+	return newDefaultSettings, nil
 }
 
 type dimensionsResult struct {
@@ -588,7 +652,6 @@ func (q *queueImpl) processCurrentImagine() {
 			HiresWidth:        hiresWidth,
 			HiresHeight:       hiresHeight,
 			DenoisingStrength: 0.7,
-			BatchSize:         1,
 			Seed:              seedValue,
 			Subseed:           -1,
 			SubseedStrength:   0,
@@ -694,10 +757,27 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		log.Printf("Error editing interaction: %v", err)
 	}
 
+	defaultBatchCount, err := q.defaultBatchCount()
+	if err != nil {
+		log.Printf("Error getting default batch count: %v", err)
+
+		return err
+	}
+
+	defaultBatchSize, err := q.defaultBatchSize()
+	if err != nil {
+		log.Printf("Error getting default batch size: %v", err)
+
+		return err
+	}
+
 	newGeneration.InteractionID = imagine.DiscordInteraction.ID
 	newGeneration.MessageID = message.ID
 	newGeneration.MemberID = imagine.DiscordInteraction.Member.User.ID
 	newGeneration.SortOrder = 0
+	newGeneration.BatchCount = defaultBatchCount
+	newGeneration.BatchSize = defaultBatchSize
+	newGeneration.Processed = true
 
 	_, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
 	if err != nil {
@@ -754,7 +834,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		SamplerName:       newGeneration.SamplerName,
 		CfgScale:          newGeneration.CfgScale,
 		Steps:             newGeneration.Steps,
-		NIter:             4,
+		NIter:             newGeneration.BatchCount,
 	})
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
@@ -804,6 +884,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			HiresWidth:        newGeneration.HiresWidth,
 			HiresHeight:       newGeneration.HiresHeight,
 			DenoisingStrength: newGeneration.DenoisingStrength,
+			BatchCount:	   newGeneration.BatchCount,
 			BatchSize:         newGeneration.BatchSize,
 			Seed:              resp.Seeds[idx],
 			Subseed:           resp.Subseeds[idx],
@@ -1077,7 +1158,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			HRResizeX:         generation.HiresWidth,
 			HRResizeY:         generation.HiresHeight,
 			DenoisingStrength: generation.DenoisingStrength,
-			BatchSize:         generation.BatchSize,
+			BatchSize:         1,
 			Seed:              generation.Seed,
 			Subseed:           generation.Subseed,
 			SubseedStrength:   generation.SubseedStrength,
