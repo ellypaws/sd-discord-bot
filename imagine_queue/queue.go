@@ -690,18 +690,18 @@ func (q *queueImplementation) processCurrentImagine() {
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
 		additionalScript["ADetailer"] = &stable_diffusion_api.ADetailer{
-			Args: []stable_diffusion_api.AdetailerParameters{},
+			Args: []stable_diffusion_api.ADetailerParameters{},
 		}
 
 		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
 
-		segmModelOptions := q.currentImagine.ADetailerModel
+		segModelOptions := q.currentImagine.ADetailerModel
 
-		fmt.Println("segmModelOptions: ", segmModelOptions)
+		fmt.Println("segModelOptions: ", segModelOptions)
 
-		for _, eachModel := range segmModelOptions {
-			parametersToAppend := stable_diffusion_api.SegmModelParameters(eachModel, newGeneration)
-			additionalScript["ADetailer"].AppendSegmModel(parametersToAppend)
+		for _, eachModel := range segModelOptions {
+			parametersToAppend := stable_diffusion_api.SegModelParameters(eachModel, newGeneration)
+			additionalScript["ADetailer"].AppendSegModel(parametersToAppend)
 		}
 
 		jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
@@ -954,7 +954,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		CfgScale:          newGeneration.CfgScale,
 		Steps:             newGeneration.Steps,
 		NIter:             newGeneration.BatchCount,
-		AlwaysonScripts:   newGeneration.AlwaysonScripts,
+		AlwaysOnScripts:   newGeneration.AlwaysonScripts,
 	})
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
@@ -1275,12 +1275,12 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		}
 	}()
 
-	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendSegmModel
+	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendSegModel
 	_, exist := generation.AlwaysonScripts["ADetailer"]
 	if !exist {
-		model := stable_diffusion_api.AdetailerParameters{AdModel: "face_yolov8n.pt"}
+		model := stable_diffusion_api.ADetailerParameters{AdModel: "face_yolov8n.pt"}
 		generation.AlwaysonScripts["ADetailer"] = &stable_diffusion_api.ADetailer{}
-		generation.AlwaysonScripts["ADetailer"].AppendSegmModel(model)
+		generation.AlwaysonScripts["ADetailer"].AppendSegModel(model)
 	}
 
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
@@ -1307,7 +1307,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			CfgScale:          generation.CfgScale,
 			Steps:             generation.Steps,
 			NIter:             1,
-			AlwaysonScripts:   generation.AlwaysonScripts,
+			AlwaysOnScripts:   generation.AlwaysonScripts,
 		},
 	})
 	if err != nil {

@@ -76,23 +76,23 @@ type TextToImageRequest struct {
 	CfgScale          float64               `json:"cfg_scale"`
 	Steps             int                   `json:"steps"`
 	NIter             int                   `json:"n_iter"`
-	Adetailer         bool                  `json:"adetailer"`
-	AdetailerModel    string                `json:"ad_model"`
-	AlwaysonScripts   map[string]*ADetailer `json:"alwayson_scripts,omitempty"`
+	ADetailer         bool                  `json:"adetailer"`
+	ADetailerModel    string                `json:"ad_model"`
+	AlwaysOnScripts   map[string]*ADetailer `json:"alwayson_scripts,omitempty"`
 }
 
 type ADetailer struct {
-	Args []AdetailerParameters `json:"args,omitempty"`
+	Args []ADetailerParameters `json:"args,omitempty"`
 }
 
-// SegmModelParameters is a function that takes in a segmentation model name
-// and returns an AdetailerParameters instance with the default parameters
+// SegModelParameters is a function that takes in a segmentation model name
+// and returns an ADetailerParameters instance with the default parameters
 // for that segmentation model. It is used to simplify the process of
 // creating an ADetailer instance.
-func SegmModelParameters(segmModel string, genProperties *entities.ImageGeneration) AdetailerParameters {
-	parameters := AdetailerParameters{AdModel: segmModel}
+func SegModelParameters(segModel string, genProperties *entities.ImageGeneration) ADetailerParameters {
+	parameters := ADetailerParameters{AdModel: segModel}
 
-	switch segmModel {
+	switch segModel {
 	case "person_yolov8n-seg.pt":
 		parameters.AdInpaintWidth = 768
 		parameters.AdInpaintHeight = 1152
@@ -113,16 +113,16 @@ func SegmModelParameters(segmModel string, genProperties *entities.ImageGenerati
 	return parameters
 }
 
-// AppendSegmModel is a method for the ADetailer struct that takes in
-// an AdetailerParameters instance as an argument. It appends the provided
+// AppendSegModel is a method for the ADetailer struct that takes in
+// an ADetailerParameters instance as an argument. It appends the provided
 // segmentation model to the existing list of segmentation models (Args)
 // maintained within the ADetailer instance. This enables dynamic addition
 // of segmentation models to an ADetailer without modifying pre-existing data.
-func (detailer *ADetailer) AppendSegmModel(parameters AdetailerParameters) {
+func (detailer *ADetailer) AppendSegModel(parameters ADetailerParameters) {
 	detailer.Args = append(detailer.Args, parameters)
 }
 
-type AdetailerParameters struct {
+type ADetailerParameters struct {
 	AdModel                    string  `json:"ad_model,omitempty"`
 	AdPrompt                   string  `json:"ad_prompt,omitempty"`
 	AdNegativePrompt           string  `json:"ad_negative_prompt,omitempty"`
