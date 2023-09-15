@@ -1,8 +1,8 @@
 package imagine_queue
 
 import (
-	"stable_diffusion_bot/entities"
 	"github.com/bwmarrin/discordgo"
+	"stable_diffusion_bot/entities"
 )
 
 type Queue interface {
@@ -11,4 +11,5 @@ type Queue interface {
 	GetBotDefaultSettings() (*entities.DefaultSettings, error)
 	UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error)
 	UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error)
+	UpdateModelName(modelName string) (*entities.DefaultSettings, error)
 }

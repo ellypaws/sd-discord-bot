@@ -23,6 +23,9 @@ var (
 )
 
 func main() {
+	//tools.ImageToBase64()
+	//tools.Base64ToImage()
+	//return
 	flag.Parse()
 
 	if guildID == nil || *guildID == "" {
@@ -47,6 +50,9 @@ func main() {
 		devMode = *devModeFlag
 
 		log.Printf("Starting in development mode.. all commands prefixed with \"dev_\"")
+	} else {
+		// add code to remove dev_ prefixed commands in discordgo
+
 	}
 
 	removeCommands := false
@@ -89,12 +95,13 @@ func main() {
 	}
 
 	bot, err := discord_bot.New(discord_bot.Config{
-		DevelopmentMode: devMode,
-		BotToken:        *botToken,
-		GuildID:         *guildID,
-		ImagineQueue:    imagineQueue,
-		ImagineCommand:  *imagineCommand,
-		RemoveCommands:  removeCommands,
+		DevelopmentMode:    devMode,
+		BotToken:           *botToken,
+		GuildID:            *guildID,
+		ImagineQueue:       imagineQueue,
+		ImagineCommand:     *imagineCommand,
+		RemoveCommands:     removeCommands,
+		StableDiffusionApi: stableDiffusionAPI,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)
