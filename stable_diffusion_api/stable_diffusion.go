@@ -84,6 +84,30 @@ type ADetailer struct {
 	Args []AdetailerParameters `json:"args,omitempty"`
 }
 
+func SegmModelParameters(segmModel string, samplerName1 string, CfgScale float64) AdetailerParameters {
+	parameters := AdetailerParameters{AdModel: segmModel}
+
+	switch segmModel {
+	case "person_yolov8n-seg.pt":
+		parameters.AdInpaintWidth = 768
+		parameters.AdInpaintHeight = 1152
+	case "face_yolov8n.pt":
+		parameters.AdInpaintWidth = 768
+		parameters.AdInpaintHeight = 768
+	}
+
+	if samplerName1 != "" {
+		parameters.AdUseSampler = true
+		parameters.AdSampler = samplerName1
+	}
+
+	if CfgScale != 0 {
+		parameters.AdCfgScale = CfgScale
+	}
+
+	return parameters
+}
+
 // AppendSegmModel is a method for the ADetailer struct that takes in
 // an AdetailerParameters instance as an argument. It appends the provided
 // segmentation model to the existing list of segmentation models (Args)

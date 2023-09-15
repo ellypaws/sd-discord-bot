@@ -628,38 +628,6 @@ func (q *queueImplementation) processCurrentImagine() {
 			hiresHeight = scaledHeight
 		}
 
-		additionalScript := make(map[string]*stable_diffusion_api.ADetailer)
-
-		additionalScript["ADetailer"] = &stable_diffusion_api.ADetailer{
-			Args: []stable_diffusion_api.AdetailerParameters{},
-		}
-
-		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
-
-		segmModelOptions := q.currentImagine.AdetailerModel
-
-		var segmModel []string
-
-		if segmModelOptions == "Both" {
-			segmModel = []string{"person_yolov8n-seg.pt", "face_yolov8n.pt"}
-		} else {
-			segmModel = []string{segmModelOptions}
-		}
-		fmt.Println("segmModelOptions: ", segmModelOptions)
-
-		for _, eachModel := range segmModel {
-			model := stable_diffusion_api.AdetailerParameters{AdModel: eachModel}
-			additionalScript["ADetailer"].AppendSegmModel(model)
-		}
-
-		jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
-
-		if err != nil {
-			log.Printf("Error marshalling scripts: %v", err)
-		} else {
-			fmt.Println("Final scripts: ", string(jsonMarshalScripts))
-		}
-
 		stepValue := 20 // default steps value
 		promptRes2, err := extractStepsFromPrompt(promptResZ.SanitizedPrompt, stepValue)
 		if err != nil {
@@ -689,7 +657,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			restoreFaces = q.currentImagine.RestoreFaces
 		}
 
-		// prompt will displayed as Monospace in Discord
+		// prompt will display as Monospace in Discord
 		var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
 		promptRes.SanitizedPrompt = quotedPrompt
 
