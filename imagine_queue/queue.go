@@ -99,7 +99,7 @@ type QueueItem struct {
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
-	AdetailerModel     string
+	ADetailerModel     []string
 }
 
 func (q *queueImplementation) AddImagine(item *QueueItem) (int, error) {
@@ -695,18 +695,11 @@ func (q *queueImplementation) processCurrentImagine() {
 
 		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
 
-		segmModelOptions := q.currentImagine.AdetailerModel
+		segmModelOptions := q.currentImagine.ADetailerModel
 
-		var segmModel []string
-
-		if segmModelOptions == "Both" {
-			segmModel = []string{"person_yolov8n-seg.pt", "face_yolov8n.pt"}
-		} else {
-			segmModel = []string{segmModelOptions}
-		}
 		fmt.Println("segmModelOptions: ", segmModelOptions)
 
-		for _, eachModel := range segmModel {
+		for _, eachModel := range segmModelOptions {
 			parametersToAppend := stable_diffusion_api.SegmModelParameters(eachModel, samplerName1, cfgScaleValue)
 			additionalScript["ADetailer"].AppendSegmModel(parametersToAppend)
 		}

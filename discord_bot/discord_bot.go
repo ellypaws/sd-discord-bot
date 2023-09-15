@@ -353,6 +353,22 @@ func (b *botImpl) addImagineCommand() error {
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "restoreFaces",
+				Description: "Use Codeformer to restore faces",
+				Required:    false,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Yes",
+						Value: "true",
+					},
+					{
+						Name:  "No",
+						Value: "false",
+					},
+				},
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        "ad_model",
 				Description: "The model to use for adetailer",
 				Required:    false,
@@ -367,7 +383,7 @@ func (b *botImpl) addImagineCommand() error {
 					},
 					{
 						Name:  "Both",
-						Value: "Both",
+						Value: "person_yolov8n-seg.pt,face_yolov8n.pt",
 					},
 				},
 			},
@@ -477,9 +493,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var prompt string
 	negative := ""
 	sampler := "Euler a"
-	hiresfix := false
-	restorefaces := false
-	ad_model := ""
+	hiresFix := false
+	restoreFaces := false
+	var adModel []string
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
@@ -493,11 +509,16 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		if hires, ok := optionMap["use_hires_fix"]; ok {
-			hiresfix, _ = strconv.ParseBool(hires.StringValue())
+			hiresFix, _ = strconv.ParseBool(hires.StringValue())
 		}
 
-		if adetail, ok := optionMap["ad_model"]; ok {
-			ad_model = adetail.StringValue()
+		if hires, ok := optionMap["restoreFaces"]; ok {
+			restoreFaces, _ = strconv.ParseBool(hires.StringValue())
+		}
+
+		if aDetailOpt, ok := optionMap["ad_model"]; ok {
+			stringValue := aDetailOpt.StringValue()
+			adModel = strings.Split(stringValue, ",")
 		}
 
 		imagine := &imagine_queue.QueueItem{
@@ -505,10 +526,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			NegativePrompt:     negative,
 			SamplerName1:       sampler,
 			Type:               imagine_queue.ItemTypeImagine,
-			UseHiresFix:        hiresfix,
-			RestoreFaces:       restorefaces,
+			UseHiresFix:        hiresFix,
+			RestoreFaces:       restoreFaces,
 			DiscordInteraction: i.Interaction,
-			AdetailerModel:     ad_model,
+			ADetailerModel:     adModel,
 		}
 
 		if restoreFacesOption, ok := optionMap["restoreFaces"]; ok {
