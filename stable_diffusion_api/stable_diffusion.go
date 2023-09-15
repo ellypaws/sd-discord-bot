@@ -76,8 +76,6 @@ type TextToImageRequest struct {
 	CfgScale          float64               `json:"cfg_scale"`
 	Steps             int                   `json:"steps"`
 	NIter             int                   `json:"n_iter"`
-	ADetailer         bool                  `json:"adetailer"`
-	ADetailerModel    string                `json:"ad_model"`
 	AlwaysOnScripts   map[string]*ADetailer `json:"alwayson_scripts,omitempty"`
 }
 
