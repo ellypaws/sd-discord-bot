@@ -663,6 +663,29 @@ func (q *queueImplementation) processCurrentImagine() {
 
 		defaultSettings, _ := q.GetBotDefaultSettings()
 
+		// new generation with defaults
+		newGeneration := &entities.ImageGeneration{
+			Prompt:            promptRes.SanitizedPrompt,
+			NegativePrompt:    negativePrompt,
+			Width:             scaledWidth,
+			Height:            scaledHeight,
+			RestoreFaces:      restoreFaces,
+			EnableHR:          enableHR1,
+			HRUpscaleRate:     upscaleRate1,
+			HRUpscaler:        upscalerName1,
+			HiresWidth:        hiresWidth,
+			HiresHeight:       hiresHeight,
+			DenoisingStrength: 0.7,
+			Seed:              seedValue,
+			Subseed:           -1,
+			SubseedStrength:   0,
+			SamplerName:       samplerName1,
+			CfgScale:          cfgScaleValue,
+			Steps:             stepValue,
+			Processed:         false,
+			ExtraSDModelName:  defaultSettings.SDModelName,
+		}
+
 		additionalScript := make(map[string]*stable_diffusion_api.ADetailer)
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
@@ -696,29 +719,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			fmt.Println("Final scripts: ", string(jsonMarshalScripts))
 		}
 
-		// new generation with defaults
-		newGeneration := &entities.ImageGeneration{
-			Prompt:            promptRes.SanitizedPrompt,
-			NegativePrompt:    negativePrompt,
-			Width:             scaledWidth,
-			Height:            scaledHeight,
-			RestoreFaces:      restoreFaces,
-			EnableHR:          enableHR1,
-			HRUpscaleRate:     upscaleRate1,
-			HRUpscaler:        upscalerName1,
-			HiresWidth:        hiresWidth,
-			HiresHeight:       hiresHeight,
-			DenoisingStrength: 0.7,
-			Seed:              seedValue,
-			Subseed:           -1,
-			SubseedStrength:   0,
-			SamplerName:       samplerName1,
-			CfgScale:          cfgScaleValue,
-			Steps:             stepValue,
-			Processed:         false,
-			ExtraSDModelName:  defaultSettings.SDModelName,
-			AlwaysonScripts:   additionalScript,
-		}
+		newGeneration.AlwaysonScripts = additionalScript
 
 		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
 			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)

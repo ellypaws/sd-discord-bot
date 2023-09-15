@@ -84,6 +84,10 @@ type ADetailer struct {
 	Args []AdetailerParameters `json:"args,omitempty"`
 }
 
+// SegmModelParameters is a function that takes in a segmentation model name
+// and returns an AdetailerParameters instance with the default parameters
+// for that segmentation model. It is used to simplify the process of
+// creating an ADetailer instance.
 func SegmModelParameters(segmModel string, samplerName1 string, CfgScale float64) AdetailerParameters {
 	parameters := AdetailerParameters{AdModel: segmModel}
 
