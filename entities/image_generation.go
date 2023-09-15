@@ -76,11 +76,23 @@ type ADetailerParameters struct {
 	AdControlnetGuidanceEnd    float64 `json:"ad_controlnet_guidance_end,omitempty"`
 }
 
-// AppendSegModel is a method for the ADetailer struct that takes in
-// an ADetailerParameters instance as an argument. It appends the provided
-// segmentation model to the existing list of segmentation models (Args)
-// maintained within the ADetailer instance. This enables dynamic addition
-// of segmentation models to an ADetailer without modifying pre-existing data.
+// AppendSegModel is a function that adds a new segmentation model to the ADetailer's current list of models.
 func (detailer *ADetailer) AppendSegModel(parameters ADetailerParameters) {
 	detailer.Args = append(detailer.Args, parameters)
+}
+
+var segModelDimensions = map[string][]int{
+	"person_yolov8n-seg.pt": {768, 1152},
+	"face_yolov8n.pt":       {768, 768},
+}
+
+// SetAdInpaintWidthAndHeight is a function that add width and height based on the segment model
+func (parameters *ADetailerParameters) SetAdInpaintWidthAndHeight(segModel string, genProperties *ImageGeneration) {
+	calculatedWidth := int(genProperties.HRUpscaleRate * float64(genProperties.Width))
+	calculatedHeight := int(genProperties.HRUpscaleRate * float64(genProperties.Height))
+
+	if defaultDimensions, exist := segModelDimensions[segModel]; exist {
+		parameters.AdInpaintWidth = max(defaultDimensions[0], genProperties.Width, genProperties.HiresWidth, calculatedWidth)
+		parameters.AdInpaintHeight = max(defaultDimensions[1], genProperties.Height, genProperties.HiresHeight, calculatedHeight)
+	}
 }

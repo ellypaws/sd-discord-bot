@@ -79,29 +79,12 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   map[string]*entities.ADetailer `json:"alwayson_scripts,omitempty"`
 }
 
-var segModelDimensions = map[string][]int{
-	"person_yolov8n-seg.pt": {768, 1152},
-	"face_yolov8n.pt":       {768, 768},
-}
-
-// setAdInpaintWidthAndHeight is a function that add width and height based on the segment model
-func setAdInpaintWidthAndHeight(parameters *entities.ADetailerParameters, segModel string, genProps *entities.ImageGeneration) {
-	calculatedWidth := int(genProps.HRUpscaleRate * float64(genProps.Width))
-	calculatedHeight := int(genProps.HRUpscaleRate * float64(genProps.Height))
-
-	defaultDimensions, ok := segModelDimensions[segModel]
-	if ok {
-		parameters.AdInpaintWidth = max(defaultDimensions[0], genProps.Width, genProps.HiresWidth, calculatedWidth)
-		parameters.AdInpaintHeight = max(defaultDimensions[1], genProps.Height, genProps.HiresHeight, calculatedHeight)
-	}
-}
-
 // SegModelParameters creates an ADetailerParameters for a given segmentation model.
 // It uses information from an ImageGeneration instance to configure the parameters.
 func SegModelParameters(segModel string, genProperties *entities.ImageGeneration) entities.ADetailerParameters {
 	parameters := entities.ADetailerParameters{AdModel: segModel}
 
-	setAdInpaintWidthAndHeight(&parameters, segModel, genProperties)
+	parameters.SetAdInpaintWidthAndHeight(segModel, genProperties)
 
 	if genProperties.SamplerName != "" {
 		parameters.AdUseSampler = true
