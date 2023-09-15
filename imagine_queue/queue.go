@@ -306,6 +306,25 @@ func (q *queueImplementation) UpdateDefaultBatch(batchCount, batchSize int) (*en
 	return newDefaultSettings, nil
 }
 
+func (q *queueImplementation) UpdateModelName(modelName string) (*entities.DefaultSettings, error) {
+	defaultSettings, err := q.GetBotDefaultSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	defaultSettings.SDModelName = modelName
+
+	newDefaultSettings, err := q.defaultSettingsRepo.Upsert(context.Background(), defaultSettings)
+	if err != nil {
+		return nil, err
+	}
+
+	q.botDefaultSettings = newDefaultSettings
+
+	log.Printf("Updated model to: %d\n", modelName)
+	return newDefaultSettings, nil
+}
+
 type dimensionsResult struct {
 	SanitizedPrompt string
 	Width           int
@@ -674,6 +693,41 @@ func (q *queueImplementation) processCurrentImagine() {
 		var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
 		promptRes.SanitizedPrompt = quotedPrompt
 
+		defaultSettings, _ := q.GetBotDefaultSettings()
+
+		additionalScript := make(map[string]*stable_diffusion_api.ADetailer)
+		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
+
+		additionalScript["ADetailer"] = &stable_diffusion_api.ADetailer{
+			Args: []stable_diffusion_api.AdetailerParameters{},
+		}
+
+		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
+
+		segmModelOptions := q.currentImagine.AdetailerModel
+
+		var segmModel []string
+
+		if segmModelOptions == "Both" {
+			segmModel = []string{"person_yolov8n-seg.pt", "face_yolov8n.pt"}
+		} else {
+			segmModel = []string{segmModelOptions}
+		}
+		fmt.Println("segmModelOptions: ", segmModelOptions)
+
+		for _, eachModel := range segmModel {
+			parametersToAppend := stable_diffusion_api.SegmModelParameters(eachModel, samplerName1, cfgScaleValue)
+			additionalScript["ADetailer"].AppendSegmModel(parametersToAppend)
+		}
+
+		jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
+
+		if err != nil {
+			log.Printf("Error marshalling scripts: %v", err)
+		} else {
+			fmt.Println("Final scripts: ", string(jsonMarshalScripts))
+		}
+
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
 			Prompt:            promptRes.SanitizedPrompt,
@@ -764,6 +818,16 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 	}
 
 	if progress >= 0 && progress < 1 {
+		/*		if generation.ExtraSDModelName != "" {
+				return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Using model: `%v`. Progress: %.0f%%",
+					user.ID, generation.Prompt, generation.ExtraSDModelName, progress*100)
+			}*/
+
+		if scriptsString != "" {
+			return fmt.Sprintf("<@%s> asked me to imagine \"%s\". With script: ```json\n%v\n``` Currently dreaming it up for them. Progress: %.0f%%",
+				user.ID, generation.Prompt, scriptsString, progress*100)
+		}
+
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
 			user.ID, generation.Prompt, progress*100)
 	} else {
@@ -782,6 +846,31 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 			sizeString = fmt.Sprintf("%d x %d",
 				generation.Width,
 				generation.Height)
+		}
+
+		/*		if generation.ExtraSDModelName != "" {
+				return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. model: %s.",
+					user.ID,
+					generation.Prompt,
+					generation.Steps,
+					strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
+					seedString,
+					generation.SamplerName,
+					sizeString,
+					generation.ExtraSDModelName,
+				)
+			}*/
+		if scriptsString != "" {
+			return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.\n\n Scripts: ```json\n%v\n```",
+				user.ID,
+				generation.Prompt,
+				generation.Steps,
+				strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
+				seedString,
+				generation.SamplerName,
+				sizeString,
+				scriptsString,
+			)
 		}
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.",
 			user.ID,
@@ -805,6 +894,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	})
 	if err != nil {
 		log.Printf("Error editing interaction: %v", err)
+		return err
 	}
 
 	defaultBatchCount, err := q.defaultBatchCount()
@@ -820,7 +910,6 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 		return err
 	}
-
 	newGeneration.InteractionID = imagine.DiscordInteraction.ID
 	newGeneration.MessageID = message.ID
 	newGeneration.MemberID = imagine.DiscordInteraction.Member.User.ID
@@ -864,6 +953,24 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			}
 		}
 	}()
+
+	// Insert code to update the configuration here
+	if newGeneration.ExtraSDModelName != "" {
+		fmt.Println("Loading Model:", newGeneration.ExtraSDModelName)
+		// lookup from the list of models
+		models, err := q.stableDiffusionAPI.SDModels()
+		var model stable_diffusion_api.StableDiffusionModel
+		for _, m := range models {
+			if strings.HasPrefix(m.Title, newGeneration.ExtraSDModelName) {
+				model = m
+			}
+		}
+
+		err = q.stableDiffusionAPI.UpdateConfiguration("sd_model_checkpoint", model.ModelName)
+		if err != nil {
+			fmt.Println("Failed to update model:", err)
+		}
+	}
 
 	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
 		Prompt:            newGeneration.Prompt,

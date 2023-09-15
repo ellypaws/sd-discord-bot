@@ -6,6 +6,7 @@ import (
 	"log"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,7 @@ type botImpl struct {
 	registeredCommands []*discordgo.ApplicationCommand
 	imagineCommand     string
 	removeCommands     bool
+	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 }
 
 type Config struct {
@@ -85,6 +87,7 @@ func New(cfg Config) (Bot, error) {
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 		imagineCommand:     cfg.ImagineCommand,
 		removeCommands:     cfg.RemoveCommands,
+		StableDiffusionApi: cfg.StableDiffusionApi,
 	}
 
 	err = bot.addImagineCommand()
@@ -161,6 +164,13 @@ func New(cfg Config) (Bot, error) {
 				}
 
 				bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
+			case customID == "imagine_sd_model_name_menu":
+				if len(i.MessageComponentData().Values) == 0 {
+					log.Printf("No values for imagine sd model name setting menu")
+					return
+				}
+				newModel := i.MessageComponentData().Values[0]
+				bot.processImagineSDModelNameSetting(s, i, newModel)
 
 			// patch from upstream
 			case customID == "imagine_batch_count_setting_menu":
@@ -531,11 +541,45 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	}
 }
 
+func shortenString(s string) string {
+	if len(s) > 90 {
+		return s[:90]
+	}
+	return s
+}
+
 // patch from upstream
-func settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
+func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
 	minValues := 1
 
+	models, err := b.StableDiffusionApi.SDModels()
+	if err != nil {
+		fmt.Printf("Failed to retrieve list of models: %v\n", err)
+	}
+	var modelOptions []discordgo.SelectMenuOption
+
+	for i, model := range models {
+		if i > 20 {
+			break
+		}
+		modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+			Label:   shortenString(model.ModelName),
+			Value:   shortenString(model.Title),
+			Default: settings.SDModelName == model.Title,
+		})
+	}
+
 	return []discordgo.MessageComponent{
+		discordgo.ActionsRow{
+			Components: []discordgo.MessageComponent{
+				discordgo.SelectMenu{
+					CustomID:  "imagine_sd_model_name_menu",
+					MinValues: &minValues,
+					MaxValues: 1,
+					Options:   modelOptions,
+				},
+			},
+		},
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.SelectMenu{
@@ -653,7 +697,7 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 		return
 	}
 
-	messageComponents := settingsMessageComponents(botSettings)
+	messageComponents := b.settingsMessageComponents(botSettings)
 
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
@@ -685,7 +729,7 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	messageComponents := settingsMessageComponents(botSettings)
+	messageComponents := b.settingsMessageComponents(botSettings)
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
@@ -699,3 +743,34 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 	}
 }
 
+func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *discordgo.InteractionCreate, newModelName string) {
+	botSettings, err := b.imagineQueue.UpdateModelName(newModelName)
+	if err != nil {
+		log.Printf("error updating sd model name settings: %v", err)
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error updating sd model name settings...",
+			},
+		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
+
+		return
+	}
+
+	messageComponents := b.settingsMessageComponents(botSettings)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
