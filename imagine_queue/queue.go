@@ -700,7 +700,7 @@ func (q *queueImplementation) processCurrentImagine() {
 		fmt.Println("segmModelOptions: ", segmModelOptions)
 
 		for _, eachModel := range segmModelOptions {
-			parametersToAppend := stable_diffusion_api.SegmModelParameters(eachModel, samplerName1, cfgScaleValue)
+			parametersToAppend := stable_diffusion_api.SegmModelParameters(eachModel, newGeneration)
 			additionalScript["ADetailer"].AppendSegmModel(parametersToAppend)
 		}
 

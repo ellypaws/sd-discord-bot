@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"stable_diffusion_bot/entities"
 )
 
 type apiImplementation struct {
@@ -88,7 +89,7 @@ type ADetailer struct {
 // and returns an AdetailerParameters instance with the default parameters
 // for that segmentation model. It is used to simplify the process of
 // creating an ADetailer instance.
-func SegmModelParameters(segmModel string, samplerName1 string, CfgScale float64) AdetailerParameters {
+func SegmModelParameters(segmModel string, genProperties *entities.ImageGeneration) AdetailerParameters {
 	parameters := AdetailerParameters{AdModel: segmModel}
 
 	switch segmModel {
@@ -100,13 +101,13 @@ func SegmModelParameters(segmModel string, samplerName1 string, CfgScale float64
 		parameters.AdInpaintHeight = 768
 	}
 
-	if samplerName1 != "" {
+	if genProperties.SamplerName != "" {
 		parameters.AdUseSampler = true
-		parameters.AdSampler = samplerName1
+		parameters.AdSampler = genProperties.SamplerName
 	}
 
-	if CfgScale != 0 {
-		parameters.AdCfgScale = CfgScale
+	if genProperties.CfgScale != 0 {
+		parameters.AdCfgScale = genProperties.CfgScale
 	}
 
 	return parameters
