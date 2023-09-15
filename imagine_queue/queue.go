@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -1335,7 +1334,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	imageBuf := bytes.NewBuffer(decodedImage)
 
 	// save imageBuf to disk
-	err = ioutil.WriteFile("upscaled.png", imageBuf.Bytes(), 0644)
+	//err = ioutil.WriteFile("upscaled.png", imageBuf.Bytes(), 0644)
 
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 		interactionID, messageID, imagine.InteractionIndex)

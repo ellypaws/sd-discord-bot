@@ -353,7 +353,7 @@ func (b *botImpl) addImagineCommand() error {
 			},
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "restoreFaces",
+				Name:        "restore_faces",
 				Description: "Use Codeformer to restore faces",
 				Required:    false,
 				Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -532,7 +532,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			ADetailerModel:     adModel,
 		}
 
-		if restoreFacesOption, ok := optionMap["restoreFaces"]; ok {
+		if restoreFacesOption, ok := optionMap["restore_faces"]; ok {
 			restoreFacesValue, err := strconv.ParseBool(restoreFacesOption.StringValue())
 			if err != nil {
 				log.Printf("Error parsing restoreFaces value: %v.", err)

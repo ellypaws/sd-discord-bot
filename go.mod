@@ -1,6 +1,6 @@
 module stable_diffusion_bot
 
-go 1.19
+go 1.21
 
 require (
 	github.com/bwmarrin/discordgo v0.26.1
