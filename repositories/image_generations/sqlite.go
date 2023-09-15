@@ -7,7 +7,6 @@ import (
 	"errors"
 	"stable_diffusion_bot/clock"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/stable_diffusion_api"
 )
 
 const insertGenerationQuery string = `
@@ -88,7 +87,7 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 		return nil, err
 	}
 
-	generation.AlwaysonScripts = make(map[string]*stable_diffusion_api.ADetailer)
+	generation.AlwaysonScripts = make(map[string]*entities.ADetailer)
 	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
 	if err != nil {
 		return nil, err
@@ -113,7 +112,7 @@ func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID strin
 		return nil, err
 	}
 
-	generation.AlwaysonScripts = make(map[string]*stable_diffusion_api.ADetailer)
+	generation.AlwaysonScripts = make(map[string]*entities.ADetailer)
 	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
 	if err != nil {
 		return nil, err

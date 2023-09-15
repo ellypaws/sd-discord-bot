@@ -686,11 +686,11 @@ func (q *queueImplementation) processCurrentImagine() {
 			ExtraSDModelName:  defaultSettings.SDModelName,
 		}
 
-		additionalScript := make(map[string]*stable_diffusion_api.ADetailer)
+		additionalScript := make(map[string]*entities.ADetailer)
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
-		additionalScript["ADetailer"] = &stable_diffusion_api.ADetailer{
-			Args: []stable_diffusion_api.ADetailerParameters{},
+		additionalScript["ADetailer"] = &entities.ADetailer{
+			Args: []entities.ADetailerParameters{},
 		}
 
 		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
@@ -1278,8 +1278,8 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendSegModel
 	_, exist := generation.AlwaysonScripts["ADetailer"]
 	if !exist {
-		model := stable_diffusion_api.ADetailerParameters{AdModel: "face_yolov8n.pt"}
-		generation.AlwaysonScripts["ADetailer"] = &stable_diffusion_api.ADetailer{}
+		model := entities.ADetailerParameters{AdModel: "face_yolov8n.pt"}
+		generation.AlwaysonScripts["ADetailer"] = &entities.ADetailer{}
 		generation.AlwaysonScripts["ADetailer"].AppendSegModel(model)
 	}
 
