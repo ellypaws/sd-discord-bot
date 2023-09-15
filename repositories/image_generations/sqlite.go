@@ -3,21 +3,23 @@ package image_generations
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"stable_diffusion_bot/clock"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/stable_diffusion_api"
 )
 
 const insertGenerationQuery string = `
-INSERT INTO image_generations (interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO image_generations (interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `
 
 const getGenerationByMessageID string = `
-SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at FROM image_generations WHERE message_id = ?;
+SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts FROM image_generations WHERE message_id = ?;
 `
 
 const getGenerationByMessageIDAndSortOrder string = `
-SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at FROM image_generations WHERE message_id = ? AND sort_order = ?;
+SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts FROM image_generations WHERE message_id = ? AND sort_order = ?;
 `
 
 type sqliteRepo struct {
@@ -45,12 +47,18 @@ func NewRepository(cfg *Config) (Repository, error) {
 func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGeneration) (*entities.ImageGeneration, error) {
 	generation.CreatedAt = repo.clock.Now()
 
+	marshalAlwaysonScripts, err := json.Marshal(generation.AlwaysonScripts)
+	if err != nil {
+		marshalAlwaysonScripts = []byte("{}")
+	}
+	marshalAlwaysonScriptstoString := string(marshalAlwaysonScripts)
 	res, err := repo.dbConn.ExecContext(ctx, insertGenerationQuery,
 		generation.InteractionID, generation.MessageID, generation.MemberID, generation.SortOrder, generation.Prompt,
 		generation.NegativePrompt, generation.Width, generation.Height, generation.RestoreFaces,
 		generation.EnableHR, generation.HRUpscaleRate, generation.HRUpscaler, generation.HiresWidth, generation.HiresHeight, generation.DenoisingStrength,
 		generation.BatchCount, generation.BatchSize, generation.Seed, generation.Subseed,
-		generation.SubseedStrength, generation.SamplerName, generation.CfgScale, generation.Steps, generation.Processed, generation.CreatedAt)
+		generation.SubseedStrength, generation.SamplerName, generation.CfgScale, generation.Steps, generation.Processed, generation.CreatedAt,
+		marshalAlwaysonScriptstoString)
 	if err != nil {
 		return nil, err
 	}
@@ -67,13 +75,21 @@ func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGe
 
 func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*entities.ImageGeneration, error) {
 	var generation entities.ImageGeneration
+	var alwaysonScriptsString string
 
 	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageID, messageID).Scan(
 		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
 		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
 		&generation.EnableHR, &generation.HRUpscaleRate, &generation.HRUpscaler, &generation.HiresWidth, &generation.HiresHeight, &generation.DenoisingStrength,
 		&generation.BatchCount, &generation.BatchSize, &generation.Seed, &generation.Subseed,
-		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt)
+		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
+		&alwaysonScriptsString)
+	if err != nil {
+		return nil, err
+	}
+
+	generation.AlwaysonScripts = make(map[string]*stable_diffusion_api.ADetailer)
+	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
 	if err != nil {
 		return nil, err
 	}
@@ -83,13 +99,22 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 
 func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID string, sortOrder int) (*entities.ImageGeneration, error) {
 	var generation entities.ImageGeneration
+	var alwaysonScriptsString string
 
 	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageIDAndSortOrder, messageID, sortOrder).Scan(
 		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
 		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
 		&generation.EnableHR, &generation.HRUpscaleRate, &generation.HRUpscaler, &generation.HiresWidth, &generation.HiresHeight, &generation.DenoisingStrength,
 		&generation.BatchCount, &generation.BatchSize, &generation.Seed, &generation.Subseed,
-		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt)
+		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
+		&alwaysonScriptsString)
+
+	if err != nil {
+		return nil, err
+	}
+
+	generation.AlwaysonScripts = make(map[string]*stable_diffusion_api.ADetailer)
+	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
 	if err != nil {
 		return nil, err
 	}

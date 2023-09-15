@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"math"
 	"os"
@@ -28,13 +30,13 @@ import (
 const (
 	botID = "bot"
 
-	initializedWidth  = 512
-	initializedHeight = 512
+	initializedWidth      = 512
+	initializedHeight     = 512
 	initializedBatchCount = 4
 	initializedBatchSize  = 1
 )
 
-type queueImpl struct {
+type queueImplementation struct {
 	botSession          *discordgo.Session
 	stableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
 	queue               chan *QueueItem
@@ -70,7 +72,7 @@ func New(cfg Config) (Queue, error) {
 		return nil, err
 	}
 
-	return &queueImpl{
+	return &queueImplementation{
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
 		imageGenerationRepo: cfg.ImageGenerationRepo,
 		queue:               make(chan *QueueItem, 100),
@@ -96,9 +98,11 @@ type QueueItem struct {
 	UseHiresFix        bool
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
+	RestoreFaces       bool
+	AdetailerModel     string
 }
 
-func (q *queueImpl) AddImagine(item *QueueItem) (int, error) {
+func (q *queueImplementation) AddImagine(item *QueueItem) (int, error) {
 	q.queue <- item
 
 	linePosition := len(q.queue)
@@ -106,7 +110,7 @@ func (q *queueImpl) AddImagine(item *QueueItem) (int, error) {
 	return linePosition, nil
 }
 
-func (q *queueImpl) StartPolling(botSession *discordgo.Session) {
+func (q *queueImplementation) StartPolling(botSession *discordgo.Session) {
 	q.botSession = botSession
 
 	botDefaultSettings, err := q.initializeOrGetBotDefaults()
@@ -143,7 +147,7 @@ func (q *queueImpl) StartPolling(botSession *discordgo.Session) {
 	log.Printf("Polling stopped...\n")
 }
 
-func (q *queueImpl) pullNextInQueue() {
+func (q *queueImplementation) pullNextInQueue() {
 	if len(q.queue) > 0 {
 		element := <-q.queue
 
@@ -156,7 +160,7 @@ func (q *queueImpl) pullNextInQueue() {
 	}
 }
 
-func (q *queueImpl) fillInBotDefaults(settings *entities.DefaultSettings) (*entities.DefaultSettings, bool) {
+func (q *queueImplementation) fillInBotDefaults(settings *entities.DefaultSettings) (*entities.DefaultSettings, bool) {
 	updated := false
 
 	if settings == nil {
@@ -188,8 +192,7 @@ func (q *queueImpl) fillInBotDefaults(settings *entities.DefaultSettings) (*enti
 	return settings, updated
 }
 
-
-func (q *queueImpl) initializeOrGetBotDefaults() (*entities.DefaultSettings, error) {
+func (q *queueImplementation) initializeOrGetBotDefaults() (*entities.DefaultSettings, error) {
 	botDefaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil && !errors.Is(err, &repositories.NotFoundError{}) {
 		return nil, err
@@ -210,7 +213,7 @@ func (q *queueImpl) initializeOrGetBotDefaults() (*entities.DefaultSettings, err
 	return botDefaultSettings, nil
 }
 
-func (q *queueImpl) GetBotDefaultSettings() (*entities.DefaultSettings, error) {
+func (q *queueImplementation) GetBotDefaultSettings() (*entities.DefaultSettings, error) {
 	if q.botDefaultSettings != nil {
 		return q.botDefaultSettings, nil
 	}
@@ -225,7 +228,7 @@ func (q *queueImpl) GetBotDefaultSettings() (*entities.DefaultSettings, error) {
 	return defaultSettings, nil
 }
 
-func (q *queueImpl) defaultWidth() (int, error) {
+func (q *queueImplementation) defaultWidth() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -234,7 +237,7 @@ func (q *queueImpl) defaultWidth() (int, error) {
 	return defaultSettings.Width, nil
 }
 
-func (q *queueImpl) defaultHeight() (int, error) {
+func (q *queueImplementation) defaultHeight() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -243,7 +246,7 @@ func (q *queueImpl) defaultHeight() (int, error) {
 	return defaultSettings.Height, nil
 }
 
-func (q *queueImpl) defaultBatchCount() (int, error) {
+func (q *queueImplementation) defaultBatchCount() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -252,7 +255,7 @@ func (q *queueImpl) defaultBatchCount() (int, error) {
 	return defaultSettings.BatchCount, nil
 }
 
-func (q *queueImpl) defaultBatchSize() (int, error) {
+func (q *queueImplementation) defaultBatchSize() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -261,8 +264,7 @@ func (q *queueImpl) defaultBatchSize() (int, error) {
 	return defaultSettings.BatchSize, nil
 }
 
-
-func (q *queueImpl) UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error) {
+func (q *queueImplementation) UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return nil, err
@@ -283,7 +285,7 @@ func (q *queueImpl) UpdateDefaultDimensions(width, height int) (*entities.Defaul
 	return newDefaultSettings, nil
 }
 
-func (q *queueImpl) UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error) {
+func (q *queueImplementation) UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return nil, err
@@ -329,8 +331,6 @@ type zoomScaleResult struct {
 	SanitizedPrompt string
 	ZoomScale       float64
 }
-
-
 
 const (
 	emdash = '\u2014'
@@ -386,7 +386,6 @@ func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsR
 	}, nil
 }
 
-
 func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
 	// backtick(code) is shown as monospace in Discord client
 	return "`" + promptIn + "`"
@@ -398,7 +397,7 @@ var stepRegex = regexp.MustCompile(`\s?--step ([\d]*)\s?`)
 func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, error) {
 
 	stepMatches := stepRegex.FindStringSubmatch(prompt)
-	stepsValue  := defaultsteps
+	stepsValue := defaultsteps
 
 	if len(stepMatches) == 2 {
 		log.Printf("steps overwrite: %#v", stepMatches)
@@ -423,10 +422,11 @@ func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, erro
 }
 
 var cfgscaleRegex = regexp.MustCompile(`\s?--cfgscale (\d\d?\.?\d?)\s?`)
+
 func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleResult, error) {
 
 	cfgscaleMatches := cfgscaleRegex.FindStringSubmatch(prompt)
-	cfgValue  := defaultScale
+	cfgValue := defaultScale
 
 	if len(cfgscaleMatches) == 2 {
 		log.Printf("CFG Scale overwrite: %#v", cfgscaleMatches)
@@ -450,6 +450,7 @@ func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleRe
 }
 
 var seedRegex = regexp.MustCompile(`\s?--seed ([\d]+)\s?`)
+
 func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 
 	seedMatches := seedRegex.FindStringSubmatch(prompt)
@@ -463,7 +464,7 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 		s, err := strconv.ParseInt(seedMatches[1], 10, 64)
 		if err != nil {
 			return nil, err
-		}		
+		}
 		if int64(s) > Seed_MaxValue {
 			seedValue = Seed_MaxValue
 		} else {
@@ -480,12 +481,13 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 	}, nil
 }
 
-// hires.fix upscaleby 
+// hires.fix upscaleby
 var zoomRegex = regexp.MustCompile(`\s?--zoom (\d\d?\.?\d?)\s?`)
+
 func extractZoomScaleFromPrompt(prompt string, defaultZoomScale float64) (*zoomScaleResult, error) {
 
 	zoomMatches := zoomRegex.FindStringSubmatch(prompt)
-	zoomValue  := defaultZoomScale
+	zoomValue := defaultZoomScale
 
 	if len(zoomMatches) == 2 {
 		log.Printf("Zoom Scale overwrite: %#v", zoomMatches)
@@ -504,18 +506,15 @@ func extractZoomScaleFromPrompt(prompt string, defaultZoomScale float64) (*zoomS
 
 	return &zoomScaleResult{
 		SanitizedPrompt: prompt,
-		ZoomScale:        zoomValue,
+		ZoomScale:       zoomValue,
 	}, nil
 }
 
-
-
 const defaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+	"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+	"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
 
-
-func (q *queueImpl) processCurrentImagine() {
+func (q *queueImplementation) processCurrentImagine() {
 	go func() {
 		defer func() {
 			q.mu.Lock()
@@ -544,7 +543,7 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		// add optional parameter: Negative prompt	
+		// add optional parameter: Negative prompt
 		negativePrompt := ""
 
 		if q.currentImagine.NegativePrompt == "" {
@@ -572,17 +571,17 @@ func (q *queueImpl) processCurrentImagine() {
 		scaledHeight := defaultHeight
 		hiresWidth := defaultWidth
 		hiresHeight := defaultHeight
-	
+
 		if promptRes.Width > defaultWidth || promptRes.Height > defaultHeight {
 			scaledWidth = promptRes.Width
 			scaledHeight = promptRes.Height
 			hiresWidth = promptRes.Width
 			hiresHeight = promptRes.Height
 		}
-		
+
 		// add optional parameter: enable hires.fix
 		enableHR1 := false
-		upscaleRate1  := 1.0
+		upscaleRate1 := 1.0
 		upscalerName1 := ""
 
 		// extract --zoom parameter
@@ -595,10 +594,10 @@ func (q *queueImpl) processCurrentImagine() {
 			return
 		}
 
-		enableHR1 = q.currentImagine.UseHiresFix 
+		enableHR1 = q.currentImagine.UseHiresFix
 		if enableHR1 == true {
 			upscaleRate1 = promptResZ.ZoomScale
-			upscalerName1 = "Latent"
+			upscalerName1 = "R-ESRGAN 2x+"
 			hiresWidth = 0
 			hiresHeight = 0
 			// hrSecondPassSteps = 10
@@ -608,6 +607,38 @@ func (q *queueImpl) processCurrentImagine() {
 			upscalerName1 = ""
 			hiresWidth = scaledWidth
 			hiresHeight = scaledHeight
+		}
+
+		additionalScript := make(map[string]*stable_diffusion_api.ADetailer)
+
+		additionalScript["ADetailer"] = &stable_diffusion_api.ADetailer{
+			Args: []stable_diffusion_api.AdetailerParameters{},
+		}
+
+		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
+
+		segmModelOptions := q.currentImagine.AdetailerModel
+
+		var segmModel []string
+
+		if segmModelOptions == "Both" {
+			segmModel = []string{"person_yolov8n-seg.pt", "face_yolov8n.pt"}
+		} else {
+			segmModel = []string{segmModelOptions}
+		}
+		fmt.Println("segmModelOptions: ", segmModelOptions)
+
+		for _, eachModel := range segmModel {
+			model := stable_diffusion_api.AdetailerParameters{AdModel: eachModel}
+			additionalScript["ADetailer"].AppendSegmModel(model)
+		}
+
+		jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
+
+		if err != nil {
+			log.Printf("Error marshalling scripts: %v", err)
+		} else {
+			fmt.Println("Final scripts: ", string(jsonMarshalScripts))
 		}
 
 		stepValue := 20 // default steps value
@@ -634,6 +665,10 @@ func (q *queueImpl) processCurrentImagine() {
 			seedValue = promptRes4.Seed
 		}
 
+		restoreFaces := false
+		if q.currentImagine.RestoreFaces != false {
+			restoreFaces = q.currentImagine.RestoreFaces
+		}
 
 		// prompt will displayed as Monospace in Discord
 		var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
@@ -641,11 +676,11 @@ func (q *queueImpl) processCurrentImagine() {
 
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
-			Prompt: promptRes.SanitizedPrompt,
+			Prompt:            promptRes.SanitizedPrompt,
 			NegativePrompt:    negativePrompt,
 			Width:             scaledWidth,
 			Height:            scaledHeight,
-			RestoreFaces:      true,
+			RestoreFaces:      restoreFaces,
 			EnableHR:          enableHR1,
 			HRUpscaleRate:     upscaleRate1,
 			HRUpscaler:        upscalerName1,
@@ -659,6 +694,8 @@ func (q *queueImpl) processCurrentImagine() {
 			CfgScale:          cfgScaleValue,
 			Steps:             stepValue,
 			Processed:         false,
+			ExtraSDModelName:  defaultSettings.SDModelName,
+			AlwaysonScripts:   additionalScript,
 		}
 
 		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
@@ -690,7 +727,7 @@ func (q *queueImpl) processCurrentImagine() {
 	}()
 }
 
-func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*entities.ImageGeneration, error) {
+func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*entities.ImageGeneration, error) {
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
@@ -713,31 +750,44 @@ func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*e
 }
 
 func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo.User, progress float64) string {
+
+	var scriptsString string
+
+	if len(generation.AlwaysonScripts["ADetailer"].Args) > 0 {
+		scripts, err := json.MarshalIndent(generation.AlwaysonScripts, "", "  ")
+		if err != nil {
+			log.Printf("Error marshalling scripts: %v", err)
+			return fmt.Sprintf("Error marshalling scripts: %v", err)
+		} else {
+			scriptsString = string(scripts)
+		}
+	}
+
 	if progress >= 0 && progress < 1 {
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
 			user.ID, generation.Prompt, progress*100)
 	} else {
 		seedString := fmt.Sprintf("%d", generation.Seed)
 		if seedString == "-1" {
-			seedString = "at ramdom(-1)"
+			seedString = "at random(-1)"
 		}
 
 		sizeString := ""
 		if generation.EnableHR == true {
 			sizeString = fmt.Sprintf("%d x %d -> (x %s by hires.fix)",
-						generation.Width,
-						generation.Height,
-						strconv.FormatFloat(generation.HRUpscaleRate,'f', 1, 64))
+				generation.Width,
+				generation.Height,
+				strconv.FormatFloat(generation.HRUpscaleRate, 'f', 1, 64))
 		} else {
 			sizeString = fmt.Sprintf("%d x %d",
-						generation.Width,
-						generation.Height)
+				generation.Width,
+				generation.Height)
 		}
 		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.",
 			user.ID,
 			generation.Prompt,
 			generation.Steps,
-			strconv.FormatFloat(generation.CfgScale,'f', 1, 64),
+			strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
 			seedString,
 			generation.SamplerName,
 			sizeString,
@@ -745,7 +795,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 	}
 }
 
-func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
+func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
 	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
 
 	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
@@ -835,6 +885,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		CfgScale:          newGeneration.CfgScale,
 		Steps:             newGeneration.Steps,
 		NIter:             newGeneration.BatchCount,
+		AlwaysonScripts:   newGeneration.AlwaysonScripts,
 	})
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
@@ -884,7 +935,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			HiresWidth:        newGeneration.HiresWidth,
 			HiresHeight:       newGeneration.HiresHeight,
 			DenoisingStrength: newGeneration.DenoisingStrength,
-			BatchCount:	   newGeneration.BatchCount,
+			BatchCount:        newGeneration.BatchCount,
 			BatchSize:         newGeneration.BatchSize,
 			Seed:              resp.Seeds[idx],
 			Subseed:           resp.Subseeds[idx],
@@ -893,6 +944,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			CfgScale:          newGeneration.CfgScale,
 			Steps:             newGeneration.Steps,
 			Processed:         true,
+			AlwaysonScripts:   newGeneration.AlwaysonScripts,
 		}
 
 		_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
@@ -914,8 +966,8 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			{
 				ContentType: "image/png",
 				// append timestamp for grid image result
-				Name:        "imagine_" + time.Now().Format("20060102150405") + ".png",
-				Reader:      compositeImage,
+				Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
+				Reader: compositeImage,
 			},
 		},
 		Components: &[]discordgo.MessageComponent{
@@ -1069,7 +1121,7 @@ func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress 
 	}
 }
 
-func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
+func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
@@ -1104,6 +1156,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		lastProgress := float64(0)
 		fetchProgress := float64(0)
 		upscaleProgress := float64(0)
+		elapsedTime := 0
 
 		for {
 			select {
@@ -1113,6 +1166,17 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 				if progressErr != nil {
 					log.Printf("Error getting current progress: %v", progressErr)
+					return
+				}
+				elapsedTime += 1
+
+				if elapsedTime > 60 {
+					msg := "Upscale timed out after 60 seconds"
+					log.Printf(msg)
+
+					_, _ = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+						Content: &msg,
+					})
 
 					return
 				}
@@ -1142,10 +1206,18 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		}
 	}()
 
+	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendSegmModel
+	_, exist := generation.AlwaysonScripts["ADetailer"]
+	if !exist {
+		model := stable_diffusion_api.AdetailerParameters{AdModel: "face_yolov8n.pt"}
+		generation.AlwaysonScripts["ADetailer"] = &stable_diffusion_api.ADetailer{}
+		generation.AlwaysonScripts["ADetailer"].AppendSegmModel(model)
+	}
+
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
 		ResizeMode:      0,
 		UpscalingResize: 2,
-		Upscaler1:       "ESRGAN_4x",
+		Upscaler1:       "R-ESRGAN 2x+",
 		TextToImageRequest: &stable_diffusion_api.TextToImageRequest{
 			Prompt:            generation.Prompt,
 			NegativePrompt:    generation.NegativePrompt,
@@ -1166,6 +1238,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			CfgScale:          generation.CfgScale,
 			Steps:             generation.Steps,
 			NIter:             1,
+			AlwaysonScripts:   generation.AlwaysonScripts,
 		},
 	})
 	if err != nil {
@@ -1177,6 +1250,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			Content: &errorContent,
 		})
 
+		generationDone <- true
 		return
 	}
 
@@ -1191,21 +1265,26 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 
 	imageBuf := bytes.NewBuffer(decodedImage)
 
+	// save imageBuf to disk
+	err = ioutil.WriteFile("upscaled.png", imageBuf.Bytes(), 0644)
+
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 		interactionID, messageID, imagine.InteractionIndex)
 
-	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:",
+	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",
 		imagine.DiscordInteraction.Member.User.ID,
-		generation.Seed)
+		generation.Seed,
+		generation.AlwaysonScripts,
+	)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
 		Files: []*discordgo.File{
 			{
 				ContentType: "image/png",
-				// add timestamp to output file 
-				Name:        "imagine_" + time.Now().Format("20060102150405") + ".png",
-				Reader:      imageBuf,
+				// add timestamp to output file
+				Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
+				Reader: imageBuf,
 			},
 		},
 	})
