@@ -247,7 +247,10 @@ func New(cfg Config) (Bot, error) {
 	})
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if i.MessageComponentData().CustomID == "delete_error_message" {
-			s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
+			err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
+			if err != nil {
+				return
+			}
 		}
 	})
 
@@ -726,7 +729,7 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 
 	messageComponents := b.settingsMessageComponents(botSettings)
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
 			Content:    "Choose defaults settings for the imagine command:",
@@ -735,6 +738,7 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 	})
 	if err != nil {
 		log.Printf("Error responding to interaction: %v", err)
+		return
 	}
 }
 
