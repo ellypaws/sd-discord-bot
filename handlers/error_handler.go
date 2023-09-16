@@ -2,7 +2,7 @@ package handlers
 
 import "github.com/bwmarrin/discordgo"
 
-// errorHandler responds to the interaction with an error message and a deletion button.
+// ErrorHandler responds to the interaction with an error message and a deletion button.
 func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent interface{}) {
 	var errorString string
 
