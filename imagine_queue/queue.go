@@ -474,7 +474,7 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 
 	seedMatches := seedRegex.FindStringSubmatch(prompt)
 	var seedValue int64 = 0
-	var Seed_MaxValue int64 = int64(math.MaxInt64) // although SD accepts: 12345678901234567890
+	var SeedMaxvalue int64 = int64(math.MaxInt64) // although SD accepts: 12345678901234567890
 
 	if len(seedMatches) == 2 {
 		log.Printf("Seed overwrite: %#v", seedMatches)
@@ -484,11 +484,7 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 		if err != nil {
 			return nil, err
 		}
-		if int64(s) > Seed_MaxValue {
-			seedValue = Seed_MaxValue
-		} else {
-			seedValue = int64(s)
-		}
+		seedValue = min(SeedMaxvalue, s)
 
 	} else {
 		seedValue = int64(-1)
