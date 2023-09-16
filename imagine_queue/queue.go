@@ -321,7 +321,7 @@ func (q *queueImplementation) UpdateModelName(modelName string) (*entities.Defau
 
 	q.botDefaultSettings = newDefaultSettings
 
-	log.Printf("Updated model to: %d\n", modelName)
+	log.Printf("Updated model to: %s\n", modelName)
 	return newDefaultSettings, nil
 }
 
@@ -360,7 +360,7 @@ func fixEmDash(prompt string) string {
 	return strings.ReplaceAll(prompt, string(emdash), string(hyphen)+string(hyphen))
 }
 
-var arRegex = regexp.MustCompile(`\s?--ar ([\d]*):([\d]*)\s?`)
+var arRegex = regexp.MustCompile(`\s?--ar (\d*):(\d*)\s?`)
 
 func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsResult, error) {
 	// Sanitize em dashes. Some phones will autocorrect to em dashes
@@ -411,7 +411,7 @@ func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
 }
 
 // recieve sampling process steps value
-var stepRegex = regexp.MustCompile(`\s?--step ([\d]*)\s?`)
+var stepRegex = regexp.MustCompile(`\s?--step (\d*)\s?`)
 
 func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, error) {
 
@@ -468,13 +468,13 @@ func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleRe
 	}, nil
 }
 
-var seedRegex = regexp.MustCompile(`\s?--seed ([\d]+)\s?`)
+var seedRegex = regexp.MustCompile(`\s?--seed (\d+)\s?`)
 
 func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 
 	seedMatches := seedRegex.FindStringSubmatch(prompt)
 	var seedValue int64 = 0
-	var SeedMaxvalue int64 = int64(math.MaxInt64) // although SD accepts: 12345678901234567890
+	var SeedMaxvalue = int64(math.MaxInt64) // although SD accepts: 12345678901234567890
 
 	if len(seedMatches) == 2 {
 		log.Printf("Seed overwrite: %#v", seedMatches)
