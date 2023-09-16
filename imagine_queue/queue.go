@@ -768,7 +768,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 
 	var scriptsString string
 
-	if len(generation.AlwaysonScripts["ADetailer"].Args) > 0 {
+	if _, ok := generation.AlwaysonScripts["ADetailer"]; ok {
 		scripts, err := json.MarshalIndent(generation.AlwaysonScripts, "", "  ")
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
@@ -1339,10 +1339,21 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 		interactionID, messageID, imagine.InteractionIndex)
 
+	var scriptsString string
+
+	if _, ok := generation.AlwaysonScripts["ADetailer"]; ok {
+		scripts, err := json.MarshalIndent(generation.AlwaysonScripts, "", "  ")
+		if err != nil {
+			log.Printf("Error marshalling scripts: %v", err)
+		} else {
+			scriptsString = string(scripts)
+		}
+	}
+
 	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",
 		imagine.DiscordInteraction.Member.User.ID,
 		generation.Seed,
-		generation.AlwaysonScripts,
+		scriptsString,
 	)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
