@@ -769,7 +769,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 	var scriptsString string
 
 	if _, ok := generation.AlwaysonScripts["ADetailer"]; ok {
-		scripts, err := json.MarshalIndent(generation.AlwaysonScripts, "", "  ")
+		scripts, err := json.Marshal(generation.AlwaysonScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
 			return fmt.Sprintf("Error marshalling scripts: %v", err)
@@ -785,7 +785,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 			}*/
 
 		if scriptsString != "" {
-			return fmt.Sprintf("<@%s> asked me to imagine \"%s\". With script: ```json\n%v\n``` Currently dreaming it up for them. Progress: %.0f%%",
+			return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Script: ```json\n%v\n``` Currently dreaming it up for them. Progress: %.0f%%",
 				user.ID, generation.Prompt, scriptsString, progress*100)
 		}
 
@@ -822,7 +822,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 				)
 			}*/
 		if scriptsString != "" {
-			return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.\n\n Scripts: ```json\n%v\n```",
+			return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.\n Scripts: ```json\n%v\n```",
 				user.ID,
 				generation.Prompt,
 				generation.Steps,
@@ -1342,7 +1342,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	var scriptsString string
 
 	if _, ok := generation.AlwaysonScripts["ADetailer"]; ok {
-		scripts, err := json.MarshalIndent(generation.AlwaysonScripts, "", "  ")
+		scripts, err := json.Marshal(generation.AlwaysonScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
 		} else {
