@@ -245,6 +245,11 @@ func New(cfg Config) (Bot, error) {
 			}
 		}
 	})
+	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if i.MessageComponentData().CustomID == "delete_error_message" {
+			s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
+		}
+	})
 
 	return bot, nil
 }
@@ -425,6 +430,7 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 	})
 	if queueError != nil {
 		log.Printf("Error adding imagine to queue: %v\n", queueError)
+		//b.errorHandler(s, i, queueError)
 	}
 
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{

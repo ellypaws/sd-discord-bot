@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/handlers"
 	"stable_diffusion_bot/repositories"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
@@ -960,9 +961,11 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 		errorContent := "I'm sorry, but I had a problem imagining your image."
 
-		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-			Content: &errorContent,
-		})
+		//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		//	Content: &errorContent,
+		//})
+
+		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, &errorContent)
 
 		return err
 	}
@@ -1314,9 +1317,11 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 		errorContent := "I'm sorry, but I had a problem upscaling your image."
 
-		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-			Content: &errorContent,
-		})
+		//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		//	Content: &errorContent,
+		//})
+
+		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, &errorContent)
 
 		generationDone <- true
 		return
