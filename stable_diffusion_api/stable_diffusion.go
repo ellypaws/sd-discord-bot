@@ -127,6 +127,10 @@ func (api *apiImplementation) TextToImage(req *TextToImageRequest) (*TextToImage
 		return nil, err
 	}
 
+	if !checkAPIAlive(api.host) {
+		return nil, fmt.Errorf(deadAPI)
+	}
+
 	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
@@ -193,6 +197,21 @@ type UpscaleResponse struct {
 	Image string `json:"image"`
 }
 
+func checkAPIAlive(apiHost string) bool {
+	resp, err := http.Get(apiHost)
+	if err != nil {
+		return false
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	return true
+}
+
+const deadAPI = "API is not running"
+
 func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error) {
 	if upscaleReq == nil {
 		return nil, errors.New("missing request")
@@ -231,6 +250,10 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 	jsonData, err := json.Marshal(jsonReq)
 	if err != nil {
 		return nil, err
+	}
+
+	if !checkAPIAlive(api.host) {
+		return nil, fmt.Errorf(deadAPI)
 	}
 
 	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
@@ -320,6 +343,10 @@ func (api *apiImplementation) UpdateConfiguration(key, value string) error {
 
 	body := []byte(fmt.Sprintf(`{"%v": "%v"}`, key, value))
 	fmt.Printf("Passing '%v' to sdapi/v1/options", string(body))
+
+	if !checkAPIAlive(api.host) {
+		return fmt.Errorf(deadAPI)
+	}
 
 	req, err := http.NewRequest("POST", api.host+"/sdapi/v1/options", bytes.NewBuffer(body))
 	if err != nil {
