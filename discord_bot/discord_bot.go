@@ -246,10 +246,12 @@ func New(cfg Config) (Bot, error) {
 		}
 	})
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.MessageComponentData().CustomID == "delete_error_message" {
-			err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
-			if err != nil {
-				return
+		if i.Type == discordgo.InteractionMessageComponent { // Validate the interaction type
+			if i.MessageComponentData().CustomID == "delete_error_message" {
+				err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
+				if err != nil {
+					return
+				}
 			}
 		}
 	})
