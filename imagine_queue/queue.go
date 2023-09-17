@@ -955,13 +955,13 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
 
-		errorContent := "I'm sorry, but I had a problem imagining your image."
+		errorContent := fmt.Sprint("I'm sorry, but I had a problem imagining your image. ", err)
 
 		//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		//	Content: &errorContent,
 		//})
 
-		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, &errorContent)
+		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
 
 		return err
 	}
@@ -1311,13 +1311,13 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	if err != nil {
 		log.Printf("Error processing image upscale: %v\n", err)
 
-		errorContent := "I'm sorry, but I had a problem upscaling your image."
+		errorContent := fmt.Sprint("I'm sorry, but I had a problem upscaling your image. ", err)
 
 		//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		//	Content: &errorContent,
 		//})
 
-		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, &errorContent)
+		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
 
 		generationDone <- true
 		return

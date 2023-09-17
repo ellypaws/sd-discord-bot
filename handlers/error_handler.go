@@ -1,16 +1,20 @@
 package handlers
 
-import "github.com/bwmarrin/discordgo"
+import (
+	"fmt"
+	"github.com/bwmarrin/discordgo"
+	"net/http"
+)
 
 // ErrorHandler responds to the interaction with an error message and a deletion button.
-func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent interface{}) {
+func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent any) {
 	var errorString string
 
-	switch v := errorContent.(type) {
+	switch content := errorContent.(type) {
 	case string:
-		errorString = v
+		errorString = content
 	case error:
-		errorString = v.Error() // Convert the error to a string
+		errorString = fmt.Sprint(content) // Convert the error to a string
 	default:
 		errorString = "An unknown error has occurred"
 	}
@@ -31,3 +35,18 @@ func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent i
 		Components: &components,
 	})
 }
+
+func CheckAPIAlive(apiHost string) bool {
+	resp, err := http.Get(apiHost)
+	if err != nil {
+		return false
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return false
+	}
+
+	return true
+}
+
+const DeadAPI = "API is not running"

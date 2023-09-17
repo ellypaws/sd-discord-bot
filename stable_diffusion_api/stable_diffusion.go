@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/handlers"
 )
 
 type apiImplementation struct {
@@ -127,8 +128,8 @@ func (api *apiImplementation) TextToImage(req *TextToImageRequest) (*TextToImage
 		return nil, err
 	}
 
-	if !checkAPIAlive(api.host) {
-		return nil, fmt.Errorf(deadAPI)
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
 	}
 
 	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
@@ -197,21 +198,6 @@ type UpscaleResponse struct {
 	Image string `json:"image"`
 }
 
-func checkAPIAlive(apiHost string) bool {
-	resp, err := http.Get(apiHost)
-	if err != nil {
-		return false
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
-	return true
-}
-
-const deadAPI = "API is not running"
-
 func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error) {
 	if upscaleReq == nil {
 		return nil, errors.New("missing request")
@@ -252,8 +238,8 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		return nil, err
 	}
 
-	if !checkAPIAlive(api.host) {
-		return nil, fmt.Errorf(deadAPI)
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
 	}
 
 	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
@@ -344,8 +330,8 @@ func (api *apiImplementation) UpdateConfiguration(key, value string) error {
 	body := []byte(fmt.Sprintf(`{"%v": "%v"}`, key, value))
 	fmt.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
-	if !checkAPIAlive(api.host) {
-		return fmt.Errorf(deadAPI)
+	if !handlers.CheckAPIAlive(api.host) {
+		return fmt.Errorf(handlers.DeadAPI)
 	}
 
 	req, err := http.NewRequest("POST", api.host+"/sdapi/v1/options", bytes.NewBuffer(body))
