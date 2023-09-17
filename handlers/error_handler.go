@@ -38,14 +38,9 @@ func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent a
 
 func CheckAPIAlive(apiHost string) bool {
 	resp, err := http.Get(apiHost)
-	if err != nil {
+	if err != nil || resp.StatusCode != http.StatusOK {
 		return false
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return false
-	}
-
 	return true
 }
 
