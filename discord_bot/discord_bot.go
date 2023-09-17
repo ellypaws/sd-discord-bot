@@ -435,7 +435,6 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 	})
 	if queueError != nil {
 		log.Printf("Error adding imagine to queue: %v\n", queueError)
-		//b.errorHandler(s, i, queueError)
 	}
 
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
