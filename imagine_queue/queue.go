@@ -682,33 +682,40 @@ func (q *queueImplementation) processCurrentImagine() {
 			ExtraSDModelName:  defaultSettings.SDModelName,
 		}
 
+		segModelOptions := q.currentImagine.ADetailerModel
 		additionalScript := make(map[string]*entities.ADetailer)
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
-		additionalScript["ADetailer"] = &entities.ADetailer{
-			Args: []entities.ADetailerParameters{},
+		if len(segModelOptions) > 0 {
+			fmt.Println("segModelOptions: ", segModelOptions)
+
+			additionalScript["ADetailer"] = &entities.ADetailer{}
+			fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
+
+			for _, eachModel := range segModelOptions {
+				parametersToAppend := stable_diffusion_api.SegModelParameters(eachModel, newGeneration)
+				additionalScript["ADetailer"].AppendSegModel(parametersToAppend)
+			}
 		}
 
-		fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
+		//check if we have any scripts to add
+		if len(newGeneration.AlwaysonScripts) > 0 {
+			jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
 
-		segModelOptions := q.currentImagine.ADetailerModel
-
-		fmt.Println("segModelOptions: ", segModelOptions)
-
-		for _, eachModel := range segModelOptions {
-			parametersToAppend := stable_diffusion_api.SegModelParameters(eachModel, newGeneration)
-			additionalScript["ADetailer"].AppendSegModel(parametersToAppend)
+			if err != nil {
+				log.Printf("Error marshalling scripts: %v", err)
+			} else {
+				fmt.Println("Final scripts: ", string(jsonMarshalScripts))
+			}
 		}
 
-		jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
-
-		if err != nil {
-			log.Printf("Error marshalling scripts: %v", err)
-		} else {
-			fmt.Println("Final scripts: ", string(jsonMarshalScripts))
+		if newGeneration.AlwaysonScripts == nil {
+			newGeneration.AlwaysonScripts = make(map[string]*entities.ADetailer)
 		}
 
-		newGeneration.AlwaysonScripts = additionalScript
+		if additionalScript["ADetailer"] != nil {
+			newGeneration.AlwaysonScripts["ADetailer"] = additionalScript["ADetailer"]
+		}
 
 		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
 			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
@@ -1273,7 +1280,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		}
 	}()
 
-	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendSegModel
+	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendToArgs
 	_, exist := generation.AlwaysonScripts["ADetailer"]
 	if !exist {
 		model := entities.ADetailerParameters{AdModel: "face_yolov8n.pt"}
