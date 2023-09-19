@@ -505,7 +505,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	sampler := "Euler a"
 	hiresFix := false
 	restoreFaces := false
-	var adModel []string
+	var stringValue string
 
 	if option, ok := optionMap["prompt"]; ok {
 		prompt = option.StringValue()
@@ -527,8 +527,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		if aDetailOpt, ok := optionMap["ad_model"]; ok {
-			stringValue := aDetailOpt.StringValue()
-			adModel = strings.Split(stringValue, ",")
+			stringValue = aDetailOpt.StringValue()
+			// adModel = strings.Split(stringValue, ",")
+			// use AppendSegModelByString instead
 		}
 
 		imagine := &imagine_queue.QueueItem{
@@ -539,7 +540,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			UseHiresFix:        hiresFix,
 			RestoreFaces:       restoreFaces,
 			DiscordInteraction: i.Interaction,
-			ADetailerModel:     adModel,
+			ADetailerString:    stringValue,
 		}
 
 		if restoreFacesOption, ok := optionMap["restore_faces"]; ok {

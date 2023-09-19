@@ -1,8 +1,8 @@
 package entities
 
-type ADetailer struct {
-	Args []ADetailerParameters `json:"args,omitempty"`
-}
+import (
+	"strings"
+)
 
 type ADetailerParameters struct {
 	AdModel                    string  `json:"ad_model,omitempty"`
@@ -41,9 +41,30 @@ type ADetailerParameters struct {
 	AdControlnetGuidanceEnd    float64 `json:"ad_controlnet_guidance_end,omitempty"`
 }
 
+func (detailer *ADetailer) CreateArgs() ADetailerParameters {
+	detailer.Args = []*ADetailerParameters{}
+	return ADetailerParameters{}
+}
+
+func (detailer *ADetailer) InsertArgs(params ...*ADetailerParameters) ADetailerParameters {
+	if len(params) > 0 {
+		detailer.Args = append(detailer.Args, params...)
+	}
+	detailer.Args = []*ADetailerParameters{}
+	return ADetailerParameters{}
+}
+
 // AppendSegModel is a function that adds a new segmentation model to the ADetailer's current list of models.
 func (detailer *ADetailer) AppendSegModel(parameters ADetailerParameters) {
-	detailer.Args = append(detailer.Args, parameters)
+	detailer.Args = append(detailer.Args, &parameters)
+}
+
+func (detailer *ADetailer) AppendSegModelByString(segmModelName string, genProperties *ImageGeneration) {
+	stringsToSlice := strings.Split(segmModelName, ",")
+	for _, eachModel := range stringsToSlice {
+		convertToParams := SegModelParameters(eachModel, genProperties) // SegModelParameters also sets the width and height
+		detailer.AppendSegModel(convertToParams)
+	}
 }
 
 var segModelDimensions = map[string][]int{
@@ -60,4 +81,23 @@ func (parameters *ADetailerParameters) SetAdInpaintWidthAndHeight(segModel strin
 		parameters.AdInpaintWidth = max(defaultDimensions[0], genProperties.Width, genProperties.HiresWidth, calculatedWidth)
 		parameters.AdInpaintHeight = max(defaultDimensions[1], genProperties.Height, genProperties.HiresHeight, calculatedHeight)
 	}
+}
+
+// SegModelParameters creates an ADetailerParameters for a given segmentation model.
+// It uses information from an ImageGeneration instance to configure the parameters.
+func SegModelParameters(segModel string, genProperties *ImageGeneration) ADetailerParameters {
+	parameters := ADetailerParameters{AdModel: segModel}
+
+	parameters.SetAdInpaintWidthAndHeight(segModel, genProperties)
+
+	if genProperties.SamplerName != "" {
+		parameters.AdUseSampler = true
+		parameters.AdSampler = genProperties.SamplerName
+	}
+
+	if genProperties.CfgScale != 0 {
+		parameters.AdCfgScale = genProperties.CfgScale
+	}
+
+	return parameters
 }

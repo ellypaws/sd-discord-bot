@@ -99,7 +99,7 @@ type QueueItem struct {
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
-	ADetailerModel     []string
+	ADetailerString    string // use AppendSegModelByString
 }
 
 func (q *queueImplementation) AddImagine(item *QueueItem) (int, error) {
@@ -682,26 +682,25 @@ func (q *queueImplementation) processCurrentImagine() {
 			ExtraSDModelName:  defaultSettings.SDModelName,
 		}
 
-		segModelOptions := q.currentImagine.ADetailerModel
-		additionalScript := make(map[string]*entities.ADetailer)
+		segModelOptions := q.currentImagine.ADetailerString
+
+		// segModelOptions will never be nil and at least an empty string in the slice [""]
+		// because of strings.Split() in discord_bot.go
+
+		//additionalScript := make(map[string]*entities.ADetailer)
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
-		if len(segModelOptions) > 0 {
+		if segModelOptions != "" {
 			fmt.Println("segModelOptions: ", segModelOptions)
 
-			additionalScript["ADetailer"] = &entities.ADetailer{}
-			fmt.Println("Constructed ADetailer container: ", additionalScript["ADetailer"])
+			newGeneration.NewADetailer()
+			fmt.Println("Constructed ADetailer container: ", newGeneration.AlwaysOnScripts.ADetailer)
 
-			for _, eachModel := range segModelOptions {
-				parametersToAppend := stable_diffusion_api.SegModelParameters(eachModel, newGeneration)
-				additionalScript["ADetailer"].AppendSegModel(parametersToAppend)
-			}
+			newGeneration.AlwaysOnScripts.ADetailer.AppendSegModelByString(segModelOptions, newGeneration)
 		}
 
-		//check if we have any scripts to add
-		if len(newGeneration.AlwaysonScripts) > 0 {
-			jsonMarshalScripts, err := json.MarshalIndent(additionalScript, "", "  ")
-
+		if newGeneration.AlwaysOnScripts != nil {
+			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysOnScripts, "", "  ")
 			if err != nil {
 				log.Printf("Error marshalling scripts: %v", err)
 			} else {
@@ -709,13 +708,14 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 		}
 
-		if newGeneration.AlwaysonScripts == nil {
-			newGeneration.AlwaysonScripts = make(map[string]*entities.ADetailer)
-		}
+		// Should not create a new map here, because it will be overwritten by the map in newGeneration
+		// if newGeneration.AlwaysOnScripts == nil {
+		// 	newGeneration.AlwaysOnScripts = make(map[string]*entities.ADetailer)
+		// }
 
-		if additionalScript["ADetailer"] != nil {
-			newGeneration.AlwaysonScripts["ADetailer"] = additionalScript["ADetailer"]
-		}
+		//if additionalScript["ADetailer"] != nil {
+		//	newGeneration.AlwaysOnScripts["ADetailer"] = additionalScript["ADetailer"]
+		//}
 
 		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
 			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
@@ -772,8 +772,8 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 
 	var scriptsString string
 
-	if _, ok := generation.AlwaysonScripts["ADetailer"]; ok {
-		scripts, err := json.Marshal(generation.AlwaysonScripts)
+	if generation.AlwaysOnScripts.ADetailer != nil {
+		scripts, err := json.Marshal(generation.AlwaysOnScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
 			return fmt.Sprintf("Error marshalling scripts: %v", err)
@@ -957,7 +957,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		CfgScale:          newGeneration.CfgScale,
 		Steps:             newGeneration.Steps,
 		NIter:             newGeneration.BatchCount,
-		AlwaysOnScripts:   newGeneration.AlwaysonScripts,
+		AlwaysOnScripts:   newGeneration.AlwaysOnScripts,
 	})
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
@@ -1018,7 +1018,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			CfgScale:          newGeneration.CfgScale,
 			Steps:             newGeneration.Steps,
 			Processed:         true,
-			AlwaysonScripts:   newGeneration.AlwaysonScripts,
+			AlwaysOnScripts:   newGeneration.AlwaysOnScripts,
 		}
 
 		_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
@@ -1280,12 +1280,18 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		}
 	}()
 
-	// Check if ADetailer is in the scripts and add it to the object generation with method  by using AppendToArgs
-	_, exist := generation.AlwaysonScripts["ADetailer"]
-	if !exist {
-		model := entities.ADetailerParameters{AdModel: "face_yolov8n.pt"}
-		generation.AlwaysonScripts["ADetailer"] = &entities.ADetailer{}
-		generation.AlwaysonScripts["ADetailer"].AppendSegModel(model)
+	//// Check if ADetailer is in the scripts and add it to the object generation with method by using AppendToArgs
+	//_, exist := generation.AlwaysOnScripts["ADetailer"]
+	//if !exist {
+	//	model := entities.ADetailerParameters{AdModel: "face_yolov8n.pt"}
+	//	generation.AlwaysOnScripts["ADetailer"] = &entities.ADetailer{}
+	//	generation.AlwaysOnScripts["ADetailer"].AppendSegModel(model)
+	//}
+
+	// Use face segm model if we're upscaling but there's no ADetailer models
+	if generation.AlwaysOnScripts.ADetailer == nil {
+		generation.AlwaysOnScripts.NewADetailerWithArgs()
+		generation.AlwaysOnScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
 	}
 
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
@@ -1312,7 +1318,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			CfgScale:          generation.CfgScale,
 			Steps:             generation.Steps,
 			NIter:             1,
-			AlwaysOnScripts:   generation.AlwaysonScripts,
+			AlwaysOnScripts:   generation.AlwaysOnScripts,
 		},
 	})
 	if err != nil {
@@ -1349,8 +1355,8 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 	var scriptsString string
 
-	if _, ok := generation.AlwaysonScripts["ADetailer"]; ok {
-		scripts, err := json.Marshal(generation.AlwaysonScripts)
+	if generation.AlwaysOnScripts != nil {
+		scripts, err := json.Marshal(generation.AlwaysOnScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
 		} else {

@@ -46,7 +46,7 @@ func NewRepository(cfg *Config) (Repository, error) {
 func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGeneration) (*entities.ImageGeneration, error) {
 	generation.CreatedAt = repo.clock.Now()
 
-	marshalAlwaysonScripts, err := json.Marshal(generation.AlwaysonScripts)
+	marshalAlwaysonScripts, err := json.Marshal(generation.AlwaysOnScripts)
 	if err != nil {
 		marshalAlwaysonScripts = []byte("{}")
 	}
@@ -87,8 +87,8 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 		return nil, err
 	}
 
-	generation.AlwaysonScripts = make(map[string]*entities.ADetailer)
-	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
+	generation.NewADetailer()
+	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysOnScripts)
 	if err != nil {
 		return nil, err
 	}
@@ -112,8 +112,8 @@ func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID strin
 		return nil, err
 	}
 
-	generation.AlwaysonScripts = make(map[string]*entities.ADetailer)
-	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
+	// generation.NewADetailer()
+	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysOnScripts)
 	if err != nil {
 		return nil, err
 	}

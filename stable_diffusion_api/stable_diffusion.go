@@ -58,45 +58,26 @@ type StableDiffusionModel struct {
 }
 
 type TextToImageRequest struct {
-	Prompt            string                         `json:"prompt"`
-	NegativePrompt    string                         `json:"negative_prompt"`
-	Width             int                            `json:"width"`
-	Height            int                            `json:"height"`
-	RestoreFaces      bool                           `json:"restore_faces"`
-	EnableHR          bool                           `json:"enable_hr"`
-	HRUpscaleRate     float64                        `json:"hr_scale"`
-	HRUpscaler        string                         `json:"hr_upscaler"`
-	HRResizeX         int                            `json:"hr_resize_x"`
-	HRResizeY         int                            `json:"hr_resize_y"`
-	DenoisingStrength float64                        `json:"denoising_strength"`
-	BatchSize         int                            `json:"batch_size"`
-	Seed              int64                          `json:"seed"`
-	Subseed           int                            `json:"subseed"`
-	SubseedStrength   float64                        `json:"subseed_strength"`
-	SamplerName       string                         `json:"sampler_name"`
-	CfgScale          float64                        `json:"cfg_scale"`
-	Steps             int                            `json:"steps"`
-	NIter             int                            `json:"n_iter"`
-	AlwaysOnScripts   map[string]*entities.ADetailer `json:"alwayson_scripts,omitempty"`
-}
-
-// SegModelParameters creates an ADetailerParameters for a given segmentation model.
-// It uses information from an ImageGeneration instance to configure the parameters.
-func SegModelParameters(segModel string, genProperties *entities.ImageGeneration) entities.ADetailerParameters {
-	parameters := entities.ADetailerParameters{AdModel: segModel}
-
-	parameters.SetAdInpaintWidthAndHeight(segModel, genProperties)
-
-	if genProperties.SamplerName != "" {
-		parameters.AdUseSampler = true
-		parameters.AdSampler = genProperties.SamplerName
-	}
-
-	if genProperties.CfgScale != 0 {
-		parameters.AdCfgScale = genProperties.CfgScale
-	}
-
-	return parameters
+	Prompt            string            `json:"prompt"`
+	NegativePrompt    string            `json:"negative_prompt"`
+	Width             int               `json:"width"`
+	Height            int               `json:"height"`
+	RestoreFaces      bool              `json:"restore_faces"`
+	EnableHR          bool              `json:"enable_hr"`
+	HRUpscaleRate     float64           `json:"hr_scale"`
+	HRUpscaler        string            `json:"hr_upscaler"`
+	HRResizeX         int               `json:"hr_resize_x"`
+	HRResizeY         int               `json:"hr_resize_y"`
+	DenoisingStrength float64           `json:"denoising_strength"`
+	BatchSize         int               `json:"batch_size"`
+	Seed              int64             `json:"seed"`
+	Subseed           int               `json:"subseed"`
+	SubseedStrength   float64           `json:"subseed_strength"`
+	SamplerName       string            `json:"sampler_name"`
+	CfgScale          float64           `json:"cfg_scale"`
+	Steps             int               `json:"steps"`
+	NIter             int               `json:"n_iter"`
+	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
 func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
