@@ -772,7 +772,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 
 	var scriptsString string
 
-	if generation.AlwaysOnScripts.ADetailer != nil {
+	if generation.AlwaysOnScripts != nil && generation.AlwaysOnScripts.ADetailer != nil {
 		scripts, err := json.Marshal(generation.AlwaysOnScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
