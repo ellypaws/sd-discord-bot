@@ -1289,6 +1289,9 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	//}
 
 	// Use face segm model if we're upscaling but there's no ADetailer models
+	if generation.AlwaysOnScripts == nil {
+		generation.NewScripts()
+	}
 	if generation.AlwaysOnScripts.ADetailer == nil {
 		generation.AlwaysOnScripts.NewADetailerWithArgs()
 		generation.AlwaysOnScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
