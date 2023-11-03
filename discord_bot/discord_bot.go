@@ -312,6 +312,7 @@ const (
 	hiresFixSize       = "hires_fix_size"
 	restoreFacesOption = "restore_faces"
 	adModelOption      = "ad_model"
+	cfgScaleOption     = "cfg_scale"
 )
 
 func (b *botImpl) addImagineCommand() error {
@@ -442,6 +443,18 @@ func (b *botImpl) addImagineCommand() error {
 				{
 					Name:  "2",
 					Value: "2",
+				},
+			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionInteger,
+			Name:        cfgScaleOption,
+			Description: "upscale multiplier for cfg. default=7",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "7",
+					Value: "7",
 				},
 			},
 		},
@@ -657,6 +670,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		if hiresFixSize, ok := optionMap[hiresFixSize]; ok {
 			prompt += " --zoom " + hiresFixSize.StringValue()
+		}
+
+		if cfgScaleOption, ok := optionMap[cfgScaleOption]; ok {
+			prompt += " --cfgscale " + fmt.Sprintf("%v", cfgScaleOption.IntValue())
 		}
 
 		imagine := &imagine_queue.QueueItem{
