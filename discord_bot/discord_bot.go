@@ -648,7 +648,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		for i := 0; i < extraLoras+1; i++ {
 			loraKey := loraOption
-			if i != 1 {
+			if i != 0 {
 				loraKey += fmt.Sprintf("%d", i+1)
 			}
 
@@ -659,7 +659,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 					if !strength.MatchString(loraValue) {
 						loraValue += ":1"
 					}
-					prompt += ", <lora:" + loraValue + ">"
+					lora := ", <lora:" + loraValue + ">"
+					log.Println("Adding lora: ", lora)
+					prompt += lora
 				}
 			}
 		}
