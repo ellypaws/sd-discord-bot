@@ -300,6 +300,8 @@ func (b *botImpl) teardown() error {
 	return b.botSession.Close()
 }
 
+const extraLoras = 3
+
 func (b *botImpl) addImagineCommand() error {
 	log.Printf("Adding command '%s'...", b.imagineCommandString())
 
@@ -417,7 +419,6 @@ func (b *botImpl) addImagineCommand() error {
 		},
 	}
 
-	const extraLoras = 3
 	for i := 0; i < extraLoras; i++ {
 		options = append(options, &discordgo.ApplicationCommandOption{
 			Type:         discordgo.ApplicationCommandOptionString,
@@ -564,6 +565,32 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			stringValue = aDetailOpt.StringValue()
 			// adModel = strings.Split(stringValue, ",")
 			// use AppendSegModelByString instead
+		}
+
+		strength := regexp.MustCompile(`:([\d\.]+)$`)
+
+		if lora, ok := optionMap["lora"]; ok {
+			loraValue := lora.StringValue()
+			if loraValue != "" {
+				// add :1 if no strength is specified
+				if !strength.MatchString(loraValue) {
+					loraValue += ":1"
+				}
+				prompt += ", <lora:" + loraValue + ">"
+			}
+		}
+
+		for i := 0; i < extraLoras; i++ {
+			if lora, ok := optionMap[fmt.Sprintf("lora%d", i+2)]; ok {
+				loraValue := lora.StringValue()
+				if loraValue != "" {
+					// add :1 if no strength is specified
+					if !strength.MatchString(loraValue) {
+						loraValue += ":1"
+					}
+					prompt += ", <lora:" + loraValue + ">"
+				}
+			}
 		}
 
 		imagine := &imagine_queue.QueueItem{
