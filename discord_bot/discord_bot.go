@@ -709,10 +709,11 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.SelectMenu{
-					CustomID:  "imagine_sd_model_name_menu",
-					MinValues: &minValues,
-					MaxValues: 1,
-					Options:   modelOptions,
+					CustomID:    "imagine_sd_model_name_menu",
+					Placeholder: "Change SD Model",
+					MinValues:   &minValues,
+					MaxValues:   1,
+					Options:     modelOptions,
 				},
 			},
 		},
