@@ -80,6 +80,107 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
+var sdModels []StableDiffusionModel
+
+func (api *apiImplementation) SDModelsCache() (sdModels []StableDiffusionModel, err error) {
+	if sdModels != nil {
+		return sdModels, nil
+	}
+	// Make an HTTP request to fetch the stable diffusion models
+	postURL := api.host + "/sdapi/v1/txt2img"
+
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
+
+	request, err := http.NewRequest("GET", postURL, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Error with API Request: %s", postURL)
+
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	sdModelStruct := &StableDiffusionModel{}
+
+	err = json.Unmarshal(body, sdModelStruct)
+	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, err
+	}
+
+	sdModels = append(sdModels, *sdModelStruct)
+	return
+}
+
+var LoraCache LoraModels
+
+func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
+	if LoraCache != nil {
+		log.Println("Using cached Lora models")
+		return LoraCache, nil
+	}
+	return api.sdLoraApi()
+}
+
+func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
+	// Make an HTTP request to fetch the stable diffusion models
+	postURL := api.host + "/sdapi/v1/loras"
+
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
+
+	request, err := http.NewRequest("GET", postURL, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return nil, err
+	}
+
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Error with API Request: %s", postURL)
+
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	LoraCache, err = UnmarshalLoraModels(body)
+	if err != nil {
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, err
+	}
+
+	if len(LoraCache) > 5 {
+		log.Printf("Successfully cached loras from api: %v...", LoraCache[:5])
+	}
+	return LoraCache, nil
+}
+
 func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
 	// Make an HTTP request to fetch the stable diffusion models
 	handle, err := os.Open("available_models.json")

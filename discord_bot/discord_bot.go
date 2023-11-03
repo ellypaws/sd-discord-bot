@@ -3,7 +3,9 @@ package discord_bot
 import (
 	"errors"
 	"fmt"
+	"github.com/sahilm/fuzzy"
 	"log"
+	"regexp"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
@@ -243,6 +245,11 @@ func New(cfg Config) (Bot, error) {
 			default:
 				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 			}
+		case discordgo.InteractionApplicationCommandAutocomplete:
+			switch i.ApplicationCommandData().Name {
+			case bot.imagineCommandString():
+				bot.processImagineAutocomplete(s, i)
+			}
 		}
 	})
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -289,115 +296,135 @@ func (b *botImpl) teardown() error {
 func (b *botImpl) addImagineCommand() error {
 	log.Printf("Adding command '%s'...", b.imagineCommandString())
 
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
-		Name:        b.imagineCommandString(),
-		Description: "Ask the bot to imagine something",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "prompt",
-				Description: "The text prompt to imagine",
-				Required:    true,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "negative_prompt",
-				Description: "Negative prompt",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "sampler_name",
-				Description: "sampler",
-				Required:    false,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Euler a",
-						Value: "Euler a",
-					},
-					{
-						Name:  "DDIM",
-						Value: "DDIM",
-					},
-					{
-						Name:  "UniPC",
-						Value: "UniPC",
-					},
-					{
-						Name:  "Euler",
-						Value: "Euler",
-					},
-					{
-						Name:  "DPM2 a Karras",
-						Value: "DPM2 a Karras",
-					},
-					{
-						Name:  "DPM++ 2S a Karras",
-						Value: "DPM++ 2S a Karras",
-					},
-					{
-						Name:  "DPM++ 2M Karras",
-						Value: "DPM++ 2M Karras",
-					},
-					{
-						Name:  "DPM++ 3M SDE Karras",
-						Value: "DPM++ 3M SDE Karras",
-					},
+	options := []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "prompt",
+			Description: "The text prompt to imagine",
+			Required:    true,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "negative_prompt",
+			Description: "Negative prompt",
+			Required:    false,
+		},
+		{
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         "lora",
+			Description:  "The lora(s) to apply",
+			Required:     false,
+			Autocomplete: true,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "sampler_name",
+			Description: "sampler",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "Euler a",
+					Value: "Euler a",
 				},
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "use_hires_fix",
-				Description: "use hires.fix or not. default=No for better performance",
-				Required:    false,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Yes",
-						Value: "true",
-					},
-					{
-						Name:  "No",
-						Value: "false",
-					},
+				{
+					Name:  "DDIM",
+					Value: "DDIM",
 				},
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "restore_faces",
-				Description: "Use Codeformer to restore faces",
-				Required:    false,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Yes",
-						Value: "true",
-					},
-					{
-						Name:  "No",
-						Value: "false",
-					},
+				{
+					Name:  "UniPC",
+					Value: "UniPC",
 				},
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "ad_model",
-				Description: "The model to use for adetailer",
-				Required:    false,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Face",
-						Value: "face_yolov8n.pt",
-					},
-					{
-						Name:  "Body",
-						Value: "person_yolov8n-seg.pt",
-					},
-					{
-						Name:  "Both",
-						Value: "person_yolov8n-seg.pt,face_yolov8n.pt",
-					},
+				{
+					Name:  "Euler",
+					Value: "Euler",
+				},
+				{
+					Name:  "DPM2 a Karras",
+					Value: "DPM2 a Karras",
+				},
+				{
+					Name:  "DPM++ 2S a Karras",
+					Value: "DPM++ 2S a Karras",
+				},
+				{
+					Name:  "DPM++ 2M Karras",
+					Value: "DPM++ 2M Karras",
+				},
+				{
+					Name:  "DPM++ 3M SDE Karras",
+					Value: "DPM++ 3M SDE Karras",
 				},
 			},
 		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "use_hires_fix",
+			Description: "use hires.fix or not. default=No for better performance",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "Yes",
+					Value: "true",
+				},
+				{
+					Name:  "No",
+					Value: "false",
+				},
+			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "restore_faces",
+			Description: "Use Codeformer to restore faces",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "Yes",
+					Value: "true",
+				},
+				{
+					Name:  "No",
+					Value: "false",
+				},
+			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        "ad_model",
+			Description: "The model to use for adetailer",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "Face",
+					Value: "face_yolov8n.pt",
+				},
+				{
+					Name:  "Body",
+					Value: "person_yolov8n-seg.pt",
+				},
+				{
+					Name:  "Both",
+					Value: "person_yolov8n-seg.pt,face_yolov8n.pt",
+				},
+			},
+		},
+	}
+
+	const extraLoras = 3
+	for i := 0; i < extraLoras; i++ {
+		options = append(options, &discordgo.ApplicationCommandOption{
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         fmt.Sprintf("lora%d", i+2),
+			Description:  "The lora(s) to apply",
+			Required:     false,
+			Autocomplete: true,
+		})
+	}
+
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
+		Name:        b.imagineCommandString(),
+		Description: "Ask the bot to imagine something",
+		Options:     options,
 	})
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", b.imagineCommandString(), err)
@@ -570,6 +597,83 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	})
 	if err != nil {
 		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	data := i.ApplicationCommandData()
+	log.Printf("running autocomplete handler")
+	var input string
+	for index, opt := range data.Options {
+		if opt.Focused {
+			log.Printf("Focused option (%v): %v", index, opt.Name)
+			input = opt.StringValue()
+
+			var choices []*discordgo.ApplicationCommandOptionChoice
+
+			if input != "" {
+				log.Printf("Autocompleting '%v'", input)
+				cache, err := b.StableDiffusionApi.SDLorasCache()
+				if err != nil {
+					log.Printf("Error retrieving loras cache: %v", err)
+				}
+				results := fuzzy.FindFrom(input, cache)
+
+				for index, result := range results {
+					if index > 25 {
+						break
+					}
+					regExp := regexp.MustCompile(`(?:models\\\\)?Lora\\\\(.*)`)
+
+					alias := regExp.FindStringSubmatch(cache[result.Index].Path)
+
+					var nameToUse string
+					switch {
+					case alias != nil && alias[1] != "":
+						// replace double slash with single slash
+						regExp := regexp.MustCompile(`\\{2,}`)
+						nameToUse = regExp.ReplaceAllString(alias[1], `\`)
+					default:
+						nameToUse = cache[result.Index].Name
+					}
+
+					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+						Name:  nameToUse,
+						Value: cache[result.Index].Name,
+					})
+				}
+			} else {
+				choices = []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Type a lora name. Add a colon after to specify the strenth. (e.g. \"clay:0.5\")",
+						Value: "placeholder",
+					},
+				}
+			}
+
+			if input != "" {
+				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+					Name:  input,
+					Value: input,
+				})
+			}
+
+			// make sure we're under 100 char limit and under 25 choices
+			for i, choice := range choices {
+				if len(choice.Name) > 100 {
+					// TODO: check if discord counts bytes or chars
+					choices[i].Name = choice.Name[:100]
+				}
+			}
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+				Data: &discordgo.InteractionResponseData{
+					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
+				},
+			})
+			break
+		}
+
 	}
 }
 

@@ -4,6 +4,7 @@ go 1.21
 
 require (
 	github.com/bwmarrin/discordgo v0.26.1
+	github.com/sahilm/fuzzy v0.1.0
 	modernc.org/sqlite v1.20.1
 )
 
@@ -12,6 +13,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
+	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-sqlite3 v1.14.16 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
