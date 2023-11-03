@@ -329,6 +329,42 @@ func (b *botImpl) addImagineCommand() error {
 			Required:    false,
 		},
 		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        aspectRatio,
+			Description: "The aspect ratio to use. Default is 1:1 (note: you can specify your own aspect ratio)",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "1:1",
+					Value: "1:1",
+				},
+				{
+					Name:  "2:3",
+					Value: "2:3",
+				},
+				{
+					Name:  "3:2",
+					Value: "3:2",
+				},
+				{
+					Name:  "3:4",
+					Value: "3:4",
+				},
+				{
+					Name:  "4:3",
+					Value: "4:3",
+				},
+				{
+					Name:  "16:9",
+					Value: "16:9",
+				},
+				{
+					Name:  "9:16",
+					Value: "9:16",
+				},
+			},
+		},
+		{
 			Type:         discordgo.ApplicationCommandOptionString,
 			Name:         "lora",
 			Description:  "The lora(s) to apply",
