@@ -603,6 +603,13 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 }
 
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+
 	options := i.ApplicationCommandData().Options
 
 	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
@@ -703,19 +710,27 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf(
-				"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\", with sampler: %s",
-				position,
-				i.Member.User.ID,
-				prompt,
-				sampler),
-		},
+	var snowflake string
+
+	switch {
+	case i.Member != nil:
+		snowflake = i.Member.User.ID
+	case i.User != nil:
+		snowflake = i.User.ID
+	}
+
+	queueString := fmt.Sprintf(
+		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \"%s\", with sampler: %s",
+		position,
+		snowflake,
+		prompt,
+		sampler)
+
+	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &queueString,
 	})
 	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
+		log.Printf("Error editing interaction: %v", err)
 	}
 }
 
