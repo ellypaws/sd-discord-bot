@@ -307,6 +307,7 @@ const (
 	negativeOption     = "negative_prompt"
 	samplerOption      = "sampler_name"
 	aspectRatio        = "aspect_ratio"
+	loraOption         = "lora"
 	hiresFixOption     = "use_hires_fix"
 	hiresFixSize       = "hires_fix_size"
 	restoreFacesOption = "restore_faces"
@@ -367,7 +368,7 @@ func (b *botImpl) addImagineCommand() error {
 		},
 		{
 			Type:         discordgo.ApplicationCommandOptionString,
-			Name:         "lora",
+			Name:         loraOption,
 			Description:  "The lora(s) to apply",
 			Required:     false,
 			Autocomplete: true,
@@ -485,7 +486,7 @@ func (b *botImpl) addImagineCommand() error {
 	for i := 0; i < extraLoras; i++ {
 		options = append(options, &discordgo.ApplicationCommandOption{
 			Type:         discordgo.ApplicationCommandOptionString,
-			Name:         fmt.Sprintf("lora%d", i+2),
+			Name:         loraOption + fmt.Sprintf("%d", i+2),
 			Description:  "The lora(s) to apply",
 			Required:     false,
 			Autocomplete: true,
@@ -633,9 +634,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		strength := regexp.MustCompile(`:([\d\.]+)$`)
 
 		for i := 0; i < extraLoras+1; i++ {
-			loraKey := "lora"
+			loraKey := loraOption
 			if i != 1 {
-				loraKey = fmt.Sprintf("lora%d", i+1)
+				loraKey += fmt.Sprintf("%d", i+1)
 			}
 
 			if lora, ok := optionMap[loraKey]; ok {
