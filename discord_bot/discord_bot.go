@@ -429,6 +429,22 @@ func (b *botImpl) addImagineCommand() error {
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        hiresFixSize,
+			Description: "upscale multiplier for hires.fix. default=2",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "1.5",
+					Value: "1.5",
+				},
+				{
+					Name:  "2",
+					Value: "2",
+				},
+			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
 			Name:        "restore_faces",
 			Description: "Use Codeformer to restore faces",
 			Required:    false,
