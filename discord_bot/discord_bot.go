@@ -310,6 +310,7 @@ const (
 	hiresFixOption     = "use_hires_fix"
 	hiresFixSize       = "hires_fix_size"
 	restoreFacesOption = "restore_faces"
+	adModelOption      = "ad_model"
 )
 
 func (b *botImpl) addImagineCommand() error {
@@ -445,7 +446,7 @@ func (b *botImpl) addImagineCommand() error {
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "restore_faces",
+			Name:        restoreFacesOption,
 			Description: "Use Codeformer to restore faces",
 			Required:    false,
 			Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -461,7 +462,7 @@ func (b *botImpl) addImagineCommand() error {
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "ad_model",
+			Name:        adModelOption,
 			Description: "The model to use for adetailer",
 			Required:    false,
 			Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -623,7 +624,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			restoreFaces, _ = strconv.ParseBool(hires.StringValue())
 		}
 
-		if aDetailOpt, ok := optionMap["ad_model"]; ok {
+		if aDetailOpt, ok := optionMap[adModelOption]; ok {
 			stringValue = aDetailOpt.StringValue()
 			// adModel = strings.Split(stringValue, ",")
 			// use AppendSegModelByString instead
