@@ -52,6 +52,13 @@ func (b *botImpl) imagineSettingsCommandString() string {
 	return b.imagineCommand + "_settings"
 }
 
+const (
+	checkpointSelect = "imagine_sd_model_name_menu"
+	dimensionSelect  = "imagine_dimension_setting_menu"
+	batchCountSelect = "imagine_batch_count_setting_menu"
+	batchSizeSelect  = "imagine_batch_size_setting_menu"
+)
+
 func New(cfg Config) (Bot, error) {
 	if cfg.BotToken == "" {
 		return nil, errors.New("missing bot token")
@@ -139,7 +146,7 @@ func New(cfg Config) (Bot, error) {
 				}
 
 				bot.processImagineVariation(s, i, interactionIndexInt)
-			case customID == "imagine_dimension_setting_menu":
+			case customID == dimensionSelect:
 				if len(i.MessageComponentData().Values) == 0 {
 					log.Printf("No values for imagine dimension setting menu")
 
@@ -166,7 +173,7 @@ func New(cfg Config) (Bot, error) {
 				}
 
 				bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
-			case customID == "imagine_sd_model_name_menu":
+			case customID == checkpointSelect:
 				if len(i.MessageComponentData().Values) == 0 {
 					log.Printf("No values for imagine sd model name setting menu")
 					return
@@ -175,7 +182,7 @@ func New(cfg Config) (Bot, error) {
 				bot.processImagineSDModelNameSetting(s, i, newModel)
 
 			// patch from upstream
-			case customID == "imagine_batch_count_setting_menu":
+			case customID == batchCountSelect:
 				if len(i.MessageComponentData().Values) == 0 {
 					log.Printf("No values for imagine batch count setting menu")
 
@@ -208,7 +215,7 @@ func New(cfg Config) (Bot, error) {
 				}
 
 				bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
-			case customID == "imagine_batch_size_setting_menu":
+			case customID == batchSizeSelect:
 				if len(i.MessageComponentData().Values) == 0 {
 					log.Printf("No values for imagine batch count setting menu")
 
@@ -709,7 +716,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.SelectMenu{
-					CustomID:    "imagine_sd_model_name_menu",
+					CustomID:    checkpointSelect,
 					Placeholder: "Change SD Model",
 					MinValues:   &minValues,
 					MaxValues:   1,
@@ -720,7 +727,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.SelectMenu{
-					CustomID:  "imagine_dimension_setting_menu",
+					CustomID:  dimensionSelect,
 					MinValues: &minValues,
 					MaxValues: 1,
 					Options: []discordgo.SelectMenuOption{
@@ -741,7 +748,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.SelectMenu{
-					CustomID:  "imagine_batch_count_setting_menu",
+					CustomID:  batchCountSelect,
 					MinValues: &minValues,
 					MaxValues: 1,
 					Options: []discordgo.SelectMenuOption{
@@ -767,7 +774,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		discordgo.ActionsRow{
 			Components: []discordgo.MessageComponent{
 				discordgo.SelectMenu{
-					CustomID:  "imagine_batch_size_setting_menu",
+					CustomID:  batchSizeSelect,
 					MinValues: &minValues,
 					MaxValues: 1,
 					Options: []discordgo.SelectMenuOption{
