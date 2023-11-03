@@ -302,19 +302,29 @@ func (b *botImpl) teardown() error {
 
 const extraLoras = 3
 
+const (
+	promptOption       = "prompt"
+	negativeOption     = "negative_prompt"
+	samplerOption      = "sampler_name"
+	aspectRatio        = "aspect_ratio"
+	hiresFixOption     = "use_hires_fix"
+	hiresFixSize       = "hires_fix_size"
+	restoreFacesOption = "restore_faces"
+)
+
 func (b *botImpl) addImagineCommand() error {
 	log.Printf("Adding command '%s'...", b.imagineCommandString())
 
 	options := []*discordgo.ApplicationCommandOption{
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "prompt",
+			Name:        promptOption,
 			Description: "The text prompt to imagine",
 			Required:    true,
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "negative_prompt",
+			Name:        negativeOption,
 			Description: "Negative prompt",
 			Required:    false,
 		},
@@ -327,7 +337,7 @@ func (b *botImpl) addImagineCommand() error {
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "sampler_name",
+			Name:        samplerOption,
 			Description: "sampler",
 			Required:    false,
 			Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -367,7 +377,7 @@ func (b *botImpl) addImagineCommand() error {
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        "use_hires_fix",
+			Name:        hiresFixOption,
 			Description: "use hires.fix or not. default=No for better performance",
 			Required:    false,
 			Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -542,22 +552,22 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	restoreFaces := false
 	var stringValue string
 
-	if option, ok := optionMap["prompt"]; ok {
+	if option, ok := optionMap[promptOption]; ok {
 		prompt = option.StringValue()
 
-		if nopt, ok := optionMap["negative_prompt"]; ok {
+		if nopt, ok := optionMap[negativeOption]; ok {
 			negative = nopt.StringValue()
 		}
 
-		if smpl, ok := optionMap["sampler_name"]; ok {
+		if smpl, ok := optionMap[samplerOption]; ok {
 			sampler = smpl.StringValue()
 		}
 
-		if hires, ok := optionMap["use_hires_fix"]; ok {
+		if hires, ok := optionMap[hiresFixOption]; ok {
 			hiresFix, _ = strconv.ParseBool(hires.StringValue())
 		}
 
-		if hires, ok := optionMap["restoreFaces"]; ok {
+		if hires, ok := optionMap[restoreFacesOption]; ok {
 			restoreFaces, _ = strconv.ParseBool(hires.StringValue())
 		}
 
