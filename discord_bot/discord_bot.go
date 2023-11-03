@@ -569,19 +569,13 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		strength := regexp.MustCompile(`:([\d\.]+)$`)
 
-		if lora, ok := optionMap["lora"]; ok {
-			loraValue := lora.StringValue()
-			if loraValue != "" {
-				// add :1 if no strength is specified
-				if !strength.MatchString(loraValue) {
-					loraValue += ":1"
-				}
-				prompt += ", <lora:" + loraValue + ">"
+		for i := 0; i < extraLoras+1; i++ {
+			loraKey := "lora"
+			if i != 1 {
+				loraKey = fmt.Sprintf("lora%d", i+1)
 			}
-		}
 
-		for i := 0; i < extraLoras; i++ {
-			if lora, ok := optionMap[fmt.Sprintf("lora%d", i+2)]; ok {
+			if lora, ok := optionMap[loraKey]; ok {
 				loraValue := lora.StringValue()
 				if loraValue != "" {
 					// add :1 if no strength is specified
