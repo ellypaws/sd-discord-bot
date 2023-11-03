@@ -80,14 +80,20 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
-var sdModels []StableDiffusionModel
+var CheckpointCache SDModels
 
-func (api *apiImplementation) SDModelsCache() (sdModels []StableDiffusionModel, err error) {
-	if sdModels != nil {
-		return sdModels, nil
+// TODO: SDModelsCache and SDLorasCache are identical except for the endpoint they hit and the cache they write to.
+func (api *apiImplementation) SDModelsCache() (SDModels, error) {
+	if CheckpointCache != nil {
+		log.Println("Using cached SD models")
+		return CheckpointCache, nil
 	}
+	return api.checkpointsApi()
+}
+
+func (api *apiImplementation) checkpointsApi() (SDModels, error) {
 	// Make an HTTP request to fetch the stable diffusion models
-	postURL := api.host + "/sdapi/v1/txt2img"
+	postURL := api.host + "/sdapi/v1/sd-models"
 
 	if !handlers.CheckAPIAlive(api.host) {
 		return nil, fmt.Errorf(handlers.DeadAPI)
@@ -114,9 +120,7 @@ func (api *apiImplementation) SDModelsCache() (sdModels []StableDiffusionModel, 
 
 	body, _ := io.ReadAll(response.Body)
 
-	sdModelStruct := &StableDiffusionModel{}
-
-	err = json.Unmarshal(body, sdModelStruct)
+	CheckpointCache, err = UnmarshalSDModels(body)
 	if err != nil {
 		log.Printf("API URL: %s", postURL)
 		log.Printf("Unexpected API response: %s", string(body))
@@ -124,8 +128,10 @@ func (api *apiImplementation) SDModelsCache() (sdModels []StableDiffusionModel, 
 		return nil, err
 	}
 
-	sdModels = append(sdModels, *sdModelStruct)
-	return
+	if len(CheckpointCache) > 5 {
+		log.Printf("Successfully cached checkpoints from api: %v...", CheckpointCache[:5])
+	}
+	return CheckpointCache, nil
 }
 
 var LoraCache LoraModels
