@@ -651,6 +651,14 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
+		if aspectRatio, ok := optionMap[aspectRatio]; ok {
+			prompt += " --ar " + aspectRatio.StringValue()
+		}
+
+		if hiresFixSize, ok := optionMap[hiresFixSize]; ok {
+			prompt += " --zoom " + hiresFixSize.StringValue()
+		}
+
 		imagine := &imagine_queue.QueueItem{
 			Prompt:             prompt,
 			NegativePrompt:     negative,
