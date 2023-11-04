@@ -373,6 +373,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		if cpkt, ok := optionMap[checkpointOption]; ok {
 			checkpoint = cpkt.StringValue()
+			log.Printf("user wants to change checkpoint to %v", checkpoint)
 		}
 
 		strength := regexp.MustCompile(`:([\d\.]+)$`)
@@ -568,13 +569,13 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 
 					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
 						Name:  nameToUse,
-						Value: cache[result.Index].ModelName,
+						Value: cache[result.Index].Title,
 					})
 				}
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
-						Name:  "Type a lora name. Add a colon after to specify the strenth. (e.g. \"clay:0.5\")",
+						Name:  "Type a checkpoint name. You can also attempt to fuzzy match a checkpoint name.",
 						Value: "placeholder",
 					},
 				}

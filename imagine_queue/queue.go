@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/sahilm/fuzzy"
 	"log"
 	"math"
 	"os"
@@ -660,6 +661,14 @@ func (q *queueImplementation) processCurrentImagine() {
 
 		defaultSettings, _ := q.GetBotDefaultSettings()
 
+		var checkpoint string
+
+		if q.currentImagine.Checkpoint != "" {
+			checkpoint = q.currentImagine.Checkpoint
+		} else {
+			checkpoint = defaultSettings.SDModelName
+		}
+
 		// new generation with defaults
 		newGeneration := &entities.ImageGeneration{
 			Prompt:            promptRes.SanitizedPrompt,
@@ -680,7 +689,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			CfgScale:          cfgScaleValue,
 			Steps:             stepValue,
 			Processed:         false,
-			ExtraSDModelName:  defaultSettings.SDModelName,
+			ExtraSDModelName:  checkpoint,
 		}
 
 		segModelOptions := q.currentImagine.ADetailerString
@@ -921,20 +930,24 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	}()
 
 	// Insert code to update the configuration here
-	if newGeneration.ExtraSDModelName != "" {
+	if newGeneration.ExtraSDModelName != "" { // || q.currentImagine.Checkpoint != ""
 		fmt.Println("Loading Model:", newGeneration.ExtraSDModelName)
-		// lookup from the list of models
-		models, err := q.stableDiffusionAPI.SDModels()
-		var model stable_diffusion_api.StableDiffusionModel
-		for _, m := range models {
-			if strings.HasPrefix(m.Title, newGeneration.ExtraSDModelName) {
-				model = m
-			}
-		}
 
-		err = q.stableDiffusionAPI.UpdateConfiguration("sd_model_checkpoint", model.ModelName)
-		if err != nil {
-			fmt.Println("Failed to update model:", err)
+		// lookup from the list of models
+		cachedModels, err := q.stableDiffusionAPI.SDModelsCache()
+
+		var modelToUse stable_diffusion_api.SDModel
+		results := fuzzy.FindFrom(newGeneration.ExtraSDModelName, cachedModels)
+
+		if len(results) > 0 {
+			modelToUse = cachedModels[results[0].Index]
+			log.Printf("Changing model to: %v\n", modelToUse)
+			err = q.stableDiffusionAPI.UpdateConfiguration("sd_model_checkpoint", modelToUse.ModelName)
+			if err != nil {
+				fmt.Println("Failed to update model:", err)
+			}
+		} else {
+			log.Printf("Couldn't find model %v", newGeneration.ExtraSDModelName)
 		}
 	}
 
