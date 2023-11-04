@@ -404,6 +404,14 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			prompt += " --cfgscale " + fmt.Sprintf("%v", cfgScaleOption.IntValue())
 		}
 
+		if restoreFacesOption, ok := optionMap[restoreFacesOption]; ok {
+			restoreFacesValue, err := strconv.ParseBool(restoreFacesOption.StringValue())
+			if err != nil {
+				log.Printf("Error parsing restoreFaces value: %v.", err)
+			}
+			restoreFaces = restoreFacesValue
+		}
+
 		imagine := &imagine_queue.QueueItem{
 			Prompt:             prompt,
 			NegativePrompt:     negative,
@@ -413,14 +421,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			RestoreFaces:       restoreFaces,
 			DiscordInteraction: i.Interaction,
 			ADetailerString:    stringValue,
-		}
-
-		if restoreFacesOption, ok := optionMap["restore_faces"]; ok {
-			restoreFacesValue, err := strconv.ParseBool(restoreFacesOption.StringValue())
-			if err != nil {
-				log.Printf("Error parsing restoreFaces value: %v.", err)
-			}
-			imagine.RestoreFaces = restoreFacesValue
 		}
 
 		position, queueError = b.imagineQueue.AddImagine(imagine)
