@@ -656,8 +656,8 @@ func (q *queueImplementation) processCurrentImagine() {
 		}
 
 		// prompt will display as Monospace in Discord
-		var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
-		promptRes.SanitizedPrompt = quotedPrompt
+		//var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
+		//promptRes.SanitizedPrompt = quotedPrompt
 
 		defaultSettings, _ := q.GetBotDefaultSettings()
 
@@ -779,6 +779,7 @@ func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrde
 }
 
 func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo.User, progress float64) string {
+	var out = strings.Builder{}
 
 	var scriptsString string
 
@@ -792,71 +793,45 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		}
 	}
 
-	if progress >= 0 && progress < 1 {
-		/*		if generation.ExtraSDModelName != "" {
-				return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Using model: `%v`. Progress: %.0f%%",
-					user.ID, generation.Prompt, generation.ExtraSDModelName, progress*100)
-			}*/
+	seedString := fmt.Sprintf("%d", generation.Seed)
+	if seedString == "-1" {
+		seedString = "at random(-1)"
+	}
 
-		if scriptsString != "" {
-			return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Script: ```json\n%v\n``` Currently dreaming it up for them. Progress: %.0f%%",
-				user.ID, generation.Prompt, scriptsString, progress*100)
-		}
+	out.WriteString(fmt.Sprintf("<@%s> asked me to imagine with step: `%d` cfg: `%s` seed: `%s` sampler: `%s`",
+		user.ID,
+		generation.Steps,
+		strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
+		seedString,
+		generation.SamplerName,
+	))
 
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
-			user.ID, generation.Prompt, progress*100)
-	} else {
-		seedString := fmt.Sprintf("%d", generation.Seed)
-		if seedString == "-1" {
-			seedString = "at random(-1)"
-		}
+	out.WriteString(fmt.Sprintf(" `%d x %d`", generation.Width, generation.Height))
 
-		sizeString := ""
-		if generation.EnableHR == true {
-			sizeString = fmt.Sprintf("%d x %d -> (x %s by hires.fix)",
-				generation.Width,
-				generation.Height,
-				strconv.FormatFloat(generation.HRUpscaleRate, 'f', 1, 64))
-		} else {
-			sizeString = fmt.Sprintf("%d x %d",
-				generation.Width,
-				generation.Height)
-		}
-
-		/*		if generation.ExtraSDModelName != "" {
-				return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. model: %s.",
-					user.ID,
-					generation.Prompt,
-					generation.Steps,
-					strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
-					seedString,
-					generation.SamplerName,
-					sizeString,
-					generation.ExtraSDModelName,
-				)
-			}*/
-		if scriptsString != "" {
-			return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.\n Scripts: ```json\n%v\n```",
-				user.ID,
-				generation.Prompt,
-				generation.Steps,
-				strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
-				seedString,
-				generation.SamplerName,
-				sizeString,
-				scriptsString,
-			)
-		}
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\" at step %d cfgscale %s seed %s with sampler %s. resolution: %s. here is what I imagined for them.",
-			user.ID,
-			generation.Prompt,
-			generation.Steps,
-			strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
-			seedString,
-			generation.SamplerName,
-			sizeString,
+	if generation.EnableHR == true {
+		// " -> (x %x) = %d x %d"
+		out.WriteString(fmt.Sprintf(" -> (x `%s` by hires.fix) = `%d x %d`",
+			strconv.FormatFloat(generation.HRUpscaleRate, 'f', 1, 64),
+			generation.HiresWidth,
+			generation.HiresHeight),
 		)
 	}
+
+	if generation.ExtraSDModelName != "" {
+		out.WriteString(fmt.Sprintf("\n**Checkpoint**: `%v`", generation.ExtraSDModelName))
+	}
+
+	if progress >= 0 && progress < 1 {
+		out.WriteString(fmt.Sprintf("\n**Progress**: %.0f%%", progress*100))
+	}
+
+	out.WriteString(fmt.Sprintf("\n```%s\n```", generation.Prompt))
+
+	if scriptsString != "" {
+		out.WriteString(fmt.Sprintf("**Scripts**: ```json\n%v\n```", scriptsString))
+	}
+
+	return out.String()
 }
 
 func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
