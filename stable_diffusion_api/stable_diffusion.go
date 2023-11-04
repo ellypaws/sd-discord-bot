@@ -80,6 +80,26 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
+func (api *apiImplementation) PopulateCache() error {
+	if CheckpointCache == nil {
+		_, err := api.checkpointsApi()
+		if err != nil {
+			return err
+		}
+		log.Printf("Successfully precached %v checkpoint models", len(CheckpointCache))
+	}
+
+	if LoraCache == nil {
+		_, err := api.sdLoraApi()
+		if err != nil {
+			return err
+		}
+		log.Printf("Successfully precached %v lora models", len(LoraCache))
+	}
+
+	return nil
+}
+
 var CheckpointCache SDModels
 
 // TODO: SDModelsCache and SDLorasCache are identical except for the endpoint they hit and the cache they write to.
@@ -128,8 +148,8 @@ func (api *apiImplementation) checkpointsApi() (SDModels, error) {
 		return nil, err
 	}
 
-	if len(CheckpointCache) > 5 {
-		log.Printf("Successfully cached checkpoints from api: %v...", CheckpointCache[:5])
+	if len(CheckpointCache) > 2 {
+		log.Printf("Successfully cached %v checkpoints from api: %v...", len(CheckpointCache), CheckpointCache[:2])
 	}
 	return CheckpointCache, nil
 }
@@ -181,8 +201,8 @@ func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
 		return nil, err
 	}
 
-	if len(LoraCache) > 5 {
-		log.Printf("Successfully cached loras from api: %v...", LoraCache[:5])
+	if len(LoraCache) > 2 {
+		log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
 	}
 	return LoraCache, nil
 }

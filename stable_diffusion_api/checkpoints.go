@@ -28,3 +28,11 @@ type SDModel struct {
 	Filename  string  `json:"filename"`
 	Config    *string `json:"config"`
 }
+
+func (c SDModels) String(i int) string {
+	return c[i].Title
+}
+
+func (c SDModels) Len() int {
+	return len(c)
+}

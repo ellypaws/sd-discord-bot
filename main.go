@@ -67,6 +67,11 @@ func main() {
 		log.Fatalf("Failed to create Stable Diffusion API: %v", err)
 	}
 
+	err = stableDiffusionAPI.PopulateCache()
+	if err != nil {
+		log.Printf("Failed to populate cache: %v", err)
+	}
+
 	ctx := context.Background()
 
 	sqliteDB, err := sqlite.New(ctx)

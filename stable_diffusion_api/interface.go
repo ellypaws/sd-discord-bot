@@ -2,6 +2,7 @@ package stable_diffusion_api
 
 type StableDiffusionAPI interface {
 	SDModels() ([]StableDiffusionModel, error)
+	PopulateCache() error
 	SDModelsCache() (SDModels, error)
 	SDLorasCache() (LoraModels, error)
 	TextToImage(req *TextToImageRequest) (*TextToImageResponse, error)
