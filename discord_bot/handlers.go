@@ -489,7 +489,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
-						Name:  "Type a lora name. Add a colon after to specify the strenth. (e.g. \"clay:0.5\")",
+						Name:  "Type a lora name. Add a colon after to specify the strength. (e.g. \"clay:0.5\")",
 						Value: "placeholder",
 					},
 				}
