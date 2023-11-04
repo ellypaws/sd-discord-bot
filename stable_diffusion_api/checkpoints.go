@@ -29,6 +29,7 @@ type SDModel struct {
 	Config    *string `json:"config"`
 }
 
+// String is what we fuzzy match against
 func (c SDModels) String(i int) string {
 	return c[i].Title
 }

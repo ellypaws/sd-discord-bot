@@ -553,22 +553,23 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					if index > 25 {
 						break
 					}
-					regExp := regexp.MustCompile(`(?:models\\)?Stable-diffusion\\(.*)`)
+					//regExp := regexp.MustCompile(`(?:models\\)?Stable-diffusion\\(.*)`)
+					//
+					//alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
+					//
+					//var nameToUse string
+					//switch {
+					//case alias != nil && alias[1] != "":
+					//	// replace double slash with single slash
+					//	regExp := regexp.MustCompile(`\\{2,}`)
+					//	nameToUse = regExp.ReplaceAllString(alias[1], `\`)
+					//default:
+					//	nameToUse = cache[result.Index].Title
+					//}
 
-					alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
-
-					var nameToUse string
-					switch {
-					case alias != nil && alias[1] != "":
-						// replace double slash with single slash
-						regExp := regexp.MustCompile(`\\{2,}`)
-						nameToUse = regExp.ReplaceAllString(alias[1], `\`)
-					default:
-						nameToUse = cache[result.Index].Title
-					}
-
+					// Match against String() method according to fuzzy docs
 					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-						Name:  nameToUse,
+						Name:  cache[result.Index].Title,
 						Value: cache[result.Index].Title,
 					})
 				}
