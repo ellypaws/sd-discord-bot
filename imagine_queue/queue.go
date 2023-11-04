@@ -100,6 +100,7 @@ type QueueItem struct {
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
 	ADetailerString    string // use AppendSegModelByString
+	Checkpoint         string
 }
 
 func (q *queueImplementation) AddImagine(item *QueueItem) (int, error) {

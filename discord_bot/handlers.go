@@ -344,6 +344,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	hiresFix := false
 	restoreFaces := false
 	var stringValue string
+	var checkpoint string
 
 	if option, ok := optionMap[promptOption]; ok {
 		prompt = option.StringValue()
@@ -368,6 +369,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			stringValue = aDetailOpt.StringValue()
 			// adModel = strings.Split(stringValue, ",")
 			// use AppendSegModelByString instead
+		}
+
+		if cpkt, ok := optionMap[checkpointOption]; ok {
+			checkpoint = cpkt.StringValue()
 		}
 
 		strength := regexp.MustCompile(`:([\d\.]+)$`)
@@ -421,6 +426,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			RestoreFaces:       restoreFaces,
 			DiscordInteraction: i.Interaction,
 			ADetailerString:    stringValue,
+			Checkpoint:         checkpoint,
 		}
 
 		position, queueError = b.imagineQueue.AddImagine(imagine)
