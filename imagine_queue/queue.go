@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/entities"
+	p "stable_diffusion_bot/gui/progress"
 	"stable_diffusion_bot/handlers"
 	"stable_diffusion_bot/repositories"
 	"stable_diffusion_bot/repositories/default_settings"
@@ -822,10 +823,10 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 	}
 
 	if progress >= 0 && progress < 1 {
-		out.WriteString(fmt.Sprintf("\n**Progress**: %.0f%%", progress*100))
+		out.WriteString(fmt.Sprintf("\n**Progress**:\n```ansi\n%v\n```", p.Get().ViewAs(progress)))
 	}
 
-	out.WriteString(fmt.Sprintf("\n```%s\n```", generation.Prompt))
+	out.WriteString(fmt.Sprintf("\n```\n%s\n```", generation.Prompt))
 
 	if scriptsString != "" {
 		out.WriteString(fmt.Sprintf("**Scripts**: ```json\n%v\n```", scriptsString))
