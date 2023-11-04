@@ -486,7 +486,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					if index > 25 {
 						break
 					}
-					regExp := regexp.MustCompile(`(?:models\\\\)?Lora\\\\(.*)`)
+					regExp := regexp.MustCompile(`(?:models\\)?Lora\\(.*)`)
 
 					alias := regExp.FindStringSubmatch(cache[result.Index].Path)
 
@@ -552,7 +552,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					if index > 25 {
 						break
 					}
-					regExp := regexp.MustCompile(`(?:models\\\\)?Stable-diffusion\\\\(.*)`)
+					regExp := regexp.MustCompile(`(?:models\\)?Stable-diffusion\\(.*)`)
 
 					alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
 
