@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"stable_diffusion_bot/imagine_queue"
 	"strconv"
+	"strings"
 )
 
 const extraLoras = 6
@@ -18,6 +19,7 @@ const (
 	samplerOption      = "sampler_name"
 	aspectRatio        = "aspect_ratio"
 	loraOption         = "lora"
+	checkpointOption   = "checkpoint"
 	hiresFixOption     = "use_hires_fix"
 	hiresFixSize       = "hires_fix_size"
 	restoreFacesOption = "restore_faces"
@@ -40,6 +42,13 @@ func (b *botImpl) addImagineCommand() error {
 			Name:        negativeOption,
 			Description: "Negative prompt",
 			Required:    false,
+		},
+		{
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         checkpointOption,
+			Description:  "The checkpoint to change to when generating. Sets for the next person.",
+			Required:     false,
+			Autocomplete: true,
 		},
 		{
 			Type:        discordgo.ApplicationCommandOptionString,
@@ -449,7 +458,11 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 	log.Printf("running autocomplete handler")
 	var input string
 	for index, opt := range data.Options {
-		if opt.Focused {
+		if !opt.Focused {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(opt.Name, loraOption):
 			log.Printf("Focused option (%v): %v", index, opt.Name)
 			input = opt.StringValue()
 
@@ -515,9 +528,74 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
 				},
 			})
-			break
-		}
+		case opt.Name == checkpointOption:
+			log.Printf("Focused option (%v): %v", index, opt.Name)
+			input = opt.StringValue()
 
+			var choices []*discordgo.ApplicationCommandOptionChoice
+
+			if input != "" {
+				log.Printf("Autocompleting '%v'", input)
+				cache, err := b.StableDiffusionApi.SDModelsCache()
+				if err != nil {
+					log.Printf("Error retrieving checkpoint cache: %v", err)
+				}
+				results := fuzzy.FindFrom(input, cache)
+
+				for index, result := range results {
+					if index > 25 {
+						break
+					}
+					regExp := regexp.MustCompile(`(?:models\\\\)?Stable-diffusion\\\\(.*)`)
+
+					alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
+
+					var nameToUse string
+					switch {
+					case alias != nil && alias[1] != "":
+						// replace double slash with single slash
+						regExp := regexp.MustCompile(`\\{2,}`)
+						nameToUse = regExp.ReplaceAllString(alias[1], `\`)
+					default:
+						nameToUse = cache[result.Index].Title
+					}
+
+					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+						Name:  nameToUse,
+						Value: cache[result.Index].ModelName,
+					})
+				}
+			} else {
+				choices = []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Type a lora name. Add a colon after to specify the strenth. (e.g. \"clay:0.5\")",
+						Value: "placeholder",
+					},
+				}
+			}
+
+			if input != "" {
+				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+					Name:  input,
+					Value: input,
+				})
+			}
+
+			// make sure we're under 100 char limit and under 25 choices
+			for i, choice := range choices {
+				if len(choice.Name) > 100 {
+					// TODO: check if discord counts bytes or chars
+					choices[i].Name = choice.Name[:100]
+				}
+			}
+			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+				Data: &discordgo.InteractionResponseData{
+					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
+				},
+			})
+		}
+		break
 	}
 }
 
