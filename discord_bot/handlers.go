@@ -10,13 +10,6 @@ import (
 	"strconv"
 )
 
-const (
-	checkpointSelect = "imagine_sd_model_name_menu"
-	dimensionSelect  = "imagine_dimension_setting_menu"
-	batchCountSelect = "imagine_batch_count_setting_menu"
-	batchSizeSelect  = "imagine_batch_size_setting_menu"
-)
-
 const extraLoras = 6
 
 const (
