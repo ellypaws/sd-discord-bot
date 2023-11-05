@@ -391,6 +391,8 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 					if !strength.MatchString(loraValue) {
 						loraValue += ":1"
 					}
+					re := regexp.MustCompile(`.+\\|\.safetensors`)
+					loraValue = re.ReplaceAllString(loraValue, "")
 					lora := ", <lora:" + loraValue + ">"
 					log.Println("Adding lora: ", lora)
 					prompt += lora

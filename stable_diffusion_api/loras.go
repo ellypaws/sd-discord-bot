@@ -6,7 +6,10 @@
 
 package stable_diffusion_api
 
-import "bytes"
+import (
+	"bytes"
+	"regexp"
+)
 import "errors"
 import "encoding/json"
 
@@ -414,8 +417,24 @@ func marshalUnion(pi *int64, pf *float64, pb *bool, ps *string, haveArray bool, 
 	return nil, errors.New("Union must not be null")
 }
 
+// String uses the path if it's available to append the folder the lora is located in
 func (c LoraModels) String(i int) string {
-	return c[i].Name
+
+	regExp := regexp.MustCompile(`(?:models\\)?Lora\\(.*)`)
+
+	alias := regExp.FindStringSubmatch(c[i].Path)
+
+	var nameToUse string
+	switch {
+	case alias != nil && alias[1] != "":
+		// replace double slash with single slash
+		regExp := regexp.MustCompile(`\\{2,}`)
+		nameToUse = regExp.ReplaceAllString(alias[1], `\`)
+	default:
+		nameToUse = c[i].Name
+	}
+
+	return nameToUse
 }
 
 func (c LoraModels) Len() int {
