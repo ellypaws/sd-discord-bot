@@ -509,10 +509,10 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					})
 				}
 
-				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-					Name:  input,
-					Value: input,
-				})
+				//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+				//	Name:  input,
+				//	Value: input,
+				//})
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
@@ -574,10 +574,10 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					})
 				}
 
-				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-					Name:  input,
-					Value: input,
-				})
+				//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+				//	Name:  input,
+				//	Value: input,
+				//})
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
