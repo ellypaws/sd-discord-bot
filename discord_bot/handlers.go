@@ -483,7 +483,12 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 				if err != nil {
 					log.Printf("Error retrieving loras cache: %v", err)
 				}
-				results := fuzzy.FindFrom(input, cache)
+
+				re := regexp.MustCompile(`.+\\|\.safetensors.*|:[\d.]+$`)
+				sanitized := re.ReplaceAllString(input, "")
+
+				log.Printf("looking up lora: %v", sanitized)
+				results := fuzzy.FindFrom(sanitized, cache)
 
 				for index, result := range results {
 					if index > 25 {
@@ -511,25 +516,19 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 
 				weightRegex := regexp.MustCompile(`:([\d.]+$)`)
 
-				var tooltip string
-
-				re := regexp.MustCompile(`.+\\|\.safetensors.*|:[\d.]+$`)
-				lora := re.ReplaceAllString(input, "")
-
-				log.Printf("looking up lora: %v", lora)
-				findLora := fuzzy.FindFrom(lora, cache)
-
 				weight := weightRegex.FindString(input)
 				log.Printf("weight: %v", weight)
 
-				if len(findLora) > 0 {
-					input = cache[findLora[0].Index].Name + weight
-					tooltip = fmt.Sprintf("✨%v", cache[findLora[0].Index].Name)
+				var tooltip string
+				if len(results) > 0 {
+					input = cache[results[0].Index].Name
+					tooltip = fmt.Sprintf("✨%v", input)
 				} else {
 					tooltip = fmt.Sprintf("❌%v", input)
 				}
 
 				if weight != "" {
+					input += weight
 					tooltip += fmt.Sprintf(" 🪄%v", weight)
 				} else {
 					tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
