@@ -509,6 +509,37 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					})
 				}
 
+				weightRegex := regexp.MustCompile(`:([\d.]+$)`)
+
+				var tooltip string
+
+				re := regexp.MustCompile(`.+\\|\.safetensors.*|:[\d.]+$`)
+				lora := re.ReplaceAllString(input, "")
+
+				log.Printf("looking up lora: %v", lora)
+				findLora := fuzzy.FindFrom(lora, cache)
+
+				if len(findLora) > 0 {
+					tooltip = fmt.Sprintf("✨%v", cache[findLora[0].Index].Name)
+				} else {
+					tooltip = fmt.Sprintf("❌%v", input)
+				}
+
+				weight := weightRegex.FindStringSubmatch(input)
+
+				log.Printf("weight: %v", weight)
+
+				if weight != nil && weight[1] != "" {
+					tooltip += fmt.Sprintf(" 🪄%v", weight[1])
+				} else {
+					tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
+				}
+
+				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+					Name:  tooltip,
+					Value: input,
+				})
+
 				//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
 				//	Name:  input,
 				//	Value: input,
