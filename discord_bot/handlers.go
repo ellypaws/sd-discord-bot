@@ -508,6 +508,11 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 						Value: cache[result.Index].Name,
 					})
 				}
+
+				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+					Name:  input,
+					Value: input,
+				})
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
@@ -515,13 +520,6 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 						Value: "placeholder",
 					},
 				}
-			}
-
-			if input != "" {
-				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-					Name:  input,
-					Value: input,
-				})
 			}
 
 			// make sure we're under 100 char limit and under 25 choices
@@ -575,6 +573,11 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 						Value: cache[result.Index].Title,
 					})
 				}
+
+				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+					Name:  input,
+					Value: input,
+				})
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
@@ -582,13 +585,6 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 						Value: "placeholder",
 					},
 				}
-			}
-
-			if input != "" {
-				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-					Name:  input,
-					Value: input,
-				})
 			}
 
 			// make sure we're under 100 char limit and under 25 choices
