@@ -519,18 +519,18 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 				log.Printf("looking up lora: %v", lora)
 				findLora := fuzzy.FindFrom(lora, cache)
 
+				weight := weightRegex.FindString(input)
+				log.Printf("weight: %v", weight)
+
 				if len(findLora) > 0 {
+					input = cache[findLora[0].Index].Name + weight
 					tooltip = fmt.Sprintf("✨%v", cache[findLora[0].Index].Name)
 				} else {
 					tooltip = fmt.Sprintf("❌%v", input)
 				}
 
-				weight := weightRegex.FindStringSubmatch(input)
-
-				log.Printf("weight: %v", weight)
-
-				if weight != nil && weight[1] != "" {
-					tooltip += fmt.Sprintf(" 🪄%v", weight[1])
+				if weight != "" {
+					tooltip += fmt.Sprintf(" 🪄%v", weight)
 				} else {
 					tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
 				}
