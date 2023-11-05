@@ -38,8 +38,9 @@ sampler_name TEXT NOT NULL,
 cfg_scale REAL NOT NULL,
 steps INTEGER NOT NULL,
 processed INTEGER NOT NULL,
-created_at DATETIME NOT NULL,
-always_on_scripts TEXT NOT NULL
+created_at DATETIME NOT NULL
+-- Handle this with migrations instead
+-- always_on_scripts TEXT NOT NULL
 );`
 
 const createInteractionIndexIfNotExistsQuery string = `
