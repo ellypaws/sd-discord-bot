@@ -642,7 +642,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 }
 
 func sanitizeTooltip(input string) string {
-	tooltipRegex := regexp.MustCompile(`✨(.+) 🪄:([\d\.]+)$|✨(.+)`)
+	tooltipRegex := regexp.MustCompile(`(?:✨|❌)(.+) 🪄:([\d\.]+)$|(?:✨|❌)(.+)`)
 	sanitizedTooltip := tooltipRegex.FindStringSubmatch(input)
 
 	if sanitizedTooltip != nil {
