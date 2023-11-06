@@ -387,6 +387,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			if lora, ok := optionMap[loraKey]; ok {
 				loraValue := lora.StringValue()
 				if loraValue != "" {
+
+					loraValue = sanitizeTooltip(loraValue)
+
 					// add :1 if no strength is specified
 					if !strength.MatchString(loraValue) {
 						loraValue += ":1"
@@ -480,19 +483,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 			if input != "" {
 				log.Printf("Autocompleting '%v'", input)
 
-				tooltipRegex := regexp.MustCompile(`✨(.+)(?: 🪄)|✨(.+)`)
-				sanitizedTooltip := tooltipRegex.FindStringSubmatch(input)
-
-				if sanitizedTooltip != nil {
-					log.Printf("Removing tooltip: %v", sanitizedTooltip)
-
-					switch {
-					case sanitizedTooltip[1] != "":
-						input = sanitizedTooltip[1]
-					case sanitizedTooltip[2] != "":
-						input = sanitizedTooltip[2]
-					}
-				}
+				input = sanitizeTooltip(input)
 
 				cache, err := b.StableDiffusionApi.SDLorasCache()
 				if err != nil {
@@ -648,6 +639,23 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 		}
 		break
 	}
+}
+
+func sanitizeTooltip(input string) string {
+	tooltipRegex := regexp.MustCompile(`✨(.+)(?: 🪄)|✨(.+)`)
+	sanitizedTooltip := tooltipRegex.FindStringSubmatch(input)
+
+	if sanitizedTooltip != nil {
+		log.Printf("Removing tooltip: %v", sanitizedTooltip)
+
+		switch {
+		case sanitizedTooltip[1] != "":
+			input = sanitizedTooltip[1]
+		case sanitizedTooltip[2] != "":
+			input = sanitizedTooltip[2]
+		}
+	}
+	return input
 }
 
 func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
