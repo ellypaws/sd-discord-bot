@@ -479,6 +479,21 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 
 			if input != "" {
 				log.Printf("Autocompleting '%v'", input)
+
+				tooltipRegex := regexp.MustCompile(`✨(.+)(?: 🪄)|✨(.+)`)
+				sanitizedTooltip := tooltipRegex.FindStringSubmatch(input)
+
+				if sanitizedTooltip != nil {
+					log.Printf("Removing tooltip: %v", sanitizedTooltip)
+
+					switch {
+					case sanitizedTooltip[1] != "":
+						input = sanitizedTooltip[1]
+					case sanitizedTooltip[2] != "":
+						input = sanitizedTooltip[2]
+					}
+				}
+
 				cache, err := b.StableDiffusionApi.SDLorasCache()
 				if err != nil {
 					log.Printf("Error retrieving loras cache: %v", err)
