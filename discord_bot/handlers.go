@@ -490,7 +490,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					log.Printf("Error retrieving loras cache: %v", err)
 				}
 
-				re := regexp.MustCompile(`.+\\|\.safetensors.*|:[\d.]+$`)
+				re := regexp.MustCompile(`.+\\|\.safetensors.*|(:[\d.]+$)`)
 				sanitized := re.ReplaceAllString(input, "")
 
 				log.Printf("looking up lora: %v", sanitized)
@@ -520,9 +520,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					})
 				}
 
-				weightRegex := regexp.MustCompile(`:([\d.]+$)`)
-
-				weight := weightRegex.FindString(input)
+				weight := re.FindStringSubmatch(input)
 				log.Printf("weight: %v", weight)
 
 				var tooltip string
@@ -530,16 +528,18 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					input = cache[results[0].Index].Name
 					tooltip = fmt.Sprintf("✨%v", input)
 				} else {
+					input = sanitized
 					tooltip = fmt.Sprintf("❌%v", input)
 				}
 
-				if weight != "" {
-					input += weight
-					tooltip += fmt.Sprintf(" 🪄%v", weight)
+				if weight != nil && weight[1] != "" {
+					input += weight[1]
+					tooltip += fmt.Sprintf(" 🪄%v", weight[1])
 				} else {
 					tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
 				}
 
+				log.Printf("Name: (tooltip) %v\nValue: (input) %v", tooltip, input)
 				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
 					Name:  tooltip,
 					Value: input,
@@ -646,7 +646,7 @@ func sanitizeTooltip(input string) string {
 	sanitizedTooltip := tooltipRegex.FindStringSubmatch(input)
 
 	if sanitizedTooltip != nil {
-		log.Printf("Removing tooltip: %v", sanitizedTooltip)
+		log.Printf("Removing tooltip: %#v", sanitizedTooltip)
 
 		switch {
 		case sanitizedTooltip[1] != "":
@@ -654,6 +654,7 @@ func sanitizeTooltip(input string) string {
 		case sanitizedTooltip[3] != "":
 			input = sanitizedTooltip[3]
 		}
+		log.Printf("Sanitized input: %v", input)
 	}
 	return input
 }
