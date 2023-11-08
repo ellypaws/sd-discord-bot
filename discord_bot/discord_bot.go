@@ -116,8 +116,8 @@ func New(cfg Config) (Bot, error) {
 			case strings.HasPrefix(customID, "imagine_upscale_"):
 				interactionIndex := strings.TrimPrefix(customID, "imagine_upscale_")
 
-				interactionIndexInt, intErr := strconv.Atoi(interactionIndex)
-				if intErr != nil {
+				interactionIndexInt, err := strconv.Atoi(interactionIndex)
+				if err != nil {
 					log.Printf("Error parsing interaction index: %v", err)
 
 					return
@@ -127,8 +127,8 @@ func New(cfg Config) (Bot, error) {
 			case strings.HasPrefix(customID, "imagine_variation_"):
 				interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
 
-				interactionIndexInt, intErr := strconv.Atoi(interactionIndex)
-				if intErr != nil {
+				interactionIndexInt, err := strconv.Atoi(interactionIndex)
+				if err != nil {
 					log.Printf("Error parsing interaction index: %v", err)
 
 					return
@@ -147,15 +147,15 @@ func New(cfg Config) (Bot, error) {
 				width := sizes[0]
 				height := sizes[1]
 
-				widthInt, intErr := strconv.Atoi(width)
-				if intErr != nil {
+				widthInt, err := strconv.Atoi(width)
+				if err != nil {
 					log.Printf("Error parsing width: %v", err)
 
 					return
 				}
 
-				heightInt, intErr := strconv.Atoi(height)
-				if intErr != nil {
+				heightInt, err := strconv.Atoi(height)
+				if err != nil {
 					log.Printf("Error parsing height: %v", err)
 
 					return
@@ -213,8 +213,8 @@ func New(cfg Config) (Bot, error) {
 
 				batchSize := i.MessageComponentData().Values[0]
 
-				batchSizeInt, intErr := strconv.Atoi(batchSize)
-				if intErr != nil {
+				batchSizeInt, err := strconv.Atoi(batchSize)
+				if err != nil {
 					log.Printf("Error parsing batch count: %v", err)
 
 					return
