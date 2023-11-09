@@ -18,7 +18,10 @@ const (
 )
 
 const (
-	DeleteButton  = "delete_error_message"
+	DeleteButton      = "delete_error_message"
+	DeleteAboveButton = "delete_above"
+	DeleteGeneration  = "delete_generation"
+
 	dismissButton = "dismiss_error_message"
 	urlButton     = "url_button"
 	urlDelete     = "url_delete"
@@ -40,6 +43,30 @@ var Components = map[string]discordgo.MessageComponent{
 				Label:    "Delete this message",
 				Style:    discordgo.DangerButton,
 				CustomID: DeleteButton,
+			},
+		},
+	},
+	DeleteAboveButton: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Delete above",
+				Style:    discordgo.DangerButton,
+				CustomID: DeleteAboveButton,
+				Emoji: discordgo.ComponentEmoji{
+					Name: "🗑️",
+				},
+			},
+		},
+	},
+	DeleteGeneration: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Delete",
+				Style:    discordgo.DangerButton,
+				CustomID: DeleteGeneration,
+				Emoji: discordgo.ComponentEmoji{
+					Name: "🗑️",
+				},
 			},
 		},
 	},

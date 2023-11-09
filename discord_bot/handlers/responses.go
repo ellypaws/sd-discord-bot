@@ -220,3 +220,11 @@ func contentEdit(webhookEdit *discordgo.WebhookEdit, messages ...any) {
 		webhookEdit.Embeds = &newEmbeds
 	}
 }
+
+func EphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
+	Responses[ephemeralFollowup].(msgReturnType)(bot, i, message...)
+}
+
+func DeleteAboveFollowup(bot *discordgo.Session, i *discordgo.Interaction) {
+	EphemeralFollowup(bot, i, "Delete generation", Components[DeleteButton])
+}

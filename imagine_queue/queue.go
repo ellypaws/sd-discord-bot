@@ -1160,6 +1160,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 							Name: "⬆️",
 						},
 					},
+					handlers.Components[handlers.DeleteGeneration].(discordgo.ActionsRow).Components[0],
 				},
 			},
 		},
@@ -1169,6 +1170,8 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 		return err
 	}
+
+	handlers.EphemeralFollowup(q.botSession, imagine.DiscordInteraction, "Delete generation", handlers.Components[handlers.DeleteButton])
 
 	return nil
 }
