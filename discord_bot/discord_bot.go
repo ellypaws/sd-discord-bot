@@ -20,6 +20,7 @@ type botImpl struct {
 	imagineCommand     string
 	removeCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
+	config             *Config
 }
 
 type Config struct {
@@ -31,6 +32,8 @@ type Config struct {
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 }
+
+var config *Config
 
 func (b *botImpl) imagineCommandString() string {
 	if b.developmentMode {
@@ -48,7 +51,8 @@ func (b *botImpl) imagineSettingsCommandString() string {
 	return b.imagineCommand + "_settings"
 }
 
-func New(cfg Config) (Bot, error) {
+func New(cfg *Config) (Bot, error) {
+	config = cfg
 	if cfg.BotToken == "" {
 		return nil, errors.New("missing bot token")
 	}
@@ -86,6 +90,7 @@ func New(cfg Config) (Bot, error) {
 		imagineCommand:     cfg.ImagineCommand,
 		removeCommands:     cfg.RemoveCommands,
 		StableDiffusionApi: cfg.StableDiffusionApi,
+		config:             cfg,
 	}
 
 	err = bot.addImagineCommand()

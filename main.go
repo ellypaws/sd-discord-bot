@@ -98,7 +98,7 @@ func main() {
 		log.Fatalf("Failed to create imagine queue: %v", err)
 	}
 
-	bot, err := discord_bot.New(discord_bot.Config{
+	bot, err := discord_bot.New(&discord_bot.Config{
 		DevelopmentMode:    devMode,
 		BotToken:           *botToken,
 		GuildID:            *guildID,
