@@ -21,11 +21,6 @@ const (
 	ephemeralContent    // msgResponseType Respond with an ephemeral message with the provided content
 
 	HelloResponse // newResponseType Respond with a message saying "Hey there! Congratulations, you just executed your first slash command"
-
-	ErrorResponse          // [errorResponseType] Respond with an error message and a deletion button.
-	ErrorFollowup          // [errorResponseType] Respond with an error message as a followup message with a deletion button.
-	ErrorEphemeral         // [errorResponseType] Respond with an ephemeral error message and a deletion button.
-	ErrorFollowupEphemeral // [errorResponseType] Respond with an ephemeral error message as a followup message with a deletion button.
 )
 
 type NewResponseType func(bot *discordgo.Session, i *discordgo.InteractionCreate)
@@ -33,7 +28,6 @@ type newReturnType func(bot *discordgo.Session, i *discordgo.InteractionCreate) 
 type msgResponseType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any)
 type msgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message
 type editResponseType func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message
-type errorResponseType msgResponseType
 
 var Responses = map[int]any{
 	thinkResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -194,11 +188,6 @@ var Responses = map[int]any{
 			errorEdit(bot, i.Interaction, err)
 		}
 	}),
-
-	ErrorResponse:          errorResponseType(errorEdit),
-	ErrorFollowup:          errorResponseType(errorFollowup),
-	ErrorEphemeral:         errorResponseType(ErrorEphemeralResponse),
-	ErrorFollowupEphemeral: errorResponseType(errorEphemeralFollowup),
 }
 
 func contentEdit(webhookEdit *discordgo.WebhookEdit, messages ...any) {

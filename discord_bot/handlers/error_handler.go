@@ -11,6 +11,22 @@ import (
 
 var Token *string
 
+const (
+	ErrorResponse          = iota // ErrorResponseType Respond with an error message and a deletion button.
+	ErrorFollowup                 // ErrorResponseType Respond with an error message as a followup message with a deletion button.
+	ErrorEphemeral                // ErrorResponseType Respond with an ephemeral error message and a deletion button.
+	ErrorFollowupEphemeral        // ErrorResponseType Respond with an ephemeral error message as a followup message with a deletion button.
+)
+
+type ErrorResponseType msgResponseType
+
+var Errors = map[int]ErrorResponseType{
+	ErrorResponse:          ErrorResponseType(errorEdit),
+	ErrorFollowup:          ErrorResponseType(errorFollowup),
+	ErrorEphemeral:         ErrorResponseType(ErrorEphemeralResponse),
+	ErrorFollowupEphemeral: ErrorResponseType(errorEphemeralFollowup),
+}
+
 // ErrorHandler responds to the interaction with an error message and a deletion button.
 // Deprecated: Use errorEdit instead.
 func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent any) {
