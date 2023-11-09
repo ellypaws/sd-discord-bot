@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"stable_diffusion_bot/handlers"
+	handlers2 "stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strings"
@@ -55,7 +55,7 @@ func New(cfg *Config) (Bot, error) {
 		return nil, errors.New("missing bot token")
 	}
 
-	handlers.Token = &cfg.BotToken
+	handlers2.Token = &cfg.BotToken
 
 	if cfg.GuildID == "" {
 		return nil, errors.New("missing guild ID")
@@ -102,10 +102,10 @@ func New(cfg *Config) (Bot, error) {
 		switch i.Type {
 		case discordgo.InteractionMessageComponent:
 			switch customID := i.MessageComponentData().CustomID; {
-			case strings.HasPrefix(customID, handlers.UpscaleButton):
-				componentHandlers[handlers.UpscaleButton](bot, s, i)
-			case strings.HasPrefix(customID, handlers.VariantButton):
-				componentHandlers[handlers.VariantButton](bot, s, i)
+			case strings.HasPrefix(customID, handlers2.UpscaleButton):
+				componentHandlers[handlers2.UpscaleButton](bot, s, i)
+			case strings.HasPrefix(customID, handlers2.VariantButton):
+				componentHandlers[handlers2.VariantButton](bot, s, i)
 			}
 		case discordgo.InteractionApplicationCommandAutocomplete:
 			switch i.ApplicationCommandData().Name {

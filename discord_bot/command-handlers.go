@@ -6,7 +6,7 @@ import (
 	"github.com/sahilm/fuzzy"
 	"log"
 	"regexp"
-	"stable_diffusion_bot/handlers"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
 	"strconv"
 	"strings"

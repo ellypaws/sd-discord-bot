@@ -9,8 +9,8 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/handlers"
 )
 
 type apiImplementation struct {
