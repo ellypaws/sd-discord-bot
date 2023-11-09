@@ -959,6 +959,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		//})
 
 		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
+		//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
 
 		return err
 	}
@@ -1325,6 +1326,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		//})
 
 		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
+		//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
 
 		generationDone <- true
 		return
