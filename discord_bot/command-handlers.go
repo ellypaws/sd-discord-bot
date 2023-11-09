@@ -27,222 +27,27 @@ const (
 	cfgScaleOption     = "cfg_scale"
 )
 
-func (b *botImpl) addImagineCommand() error {
-	log.Printf("Adding command '%s'...", b.imagineCommandString())
+// addImagineCommand is now inside the commands map as imagineCommand: commands[imagineCommand]
+// It also uses imagineOptions() to build the necessary commandOptions
+// Deprecated: use commands[imagineCommand]
+func (b *botImpl) addImagineCommand(name string, command *discordgo.ApplicationCommand) (error, *discordgo.ApplicationCommand) {
+	log.Printf("Adding command '%s'...", name)
 
-	options := []*discordgo.ApplicationCommandOption{
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        promptOption,
-			Description: "The text prompt to imagine",
-			Required:    true,
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        negativeOption,
-			Description: "Negative prompt",
-			Required:    false,
-		},
-		{
-			Type:         discordgo.ApplicationCommandOptionString,
-			Name:         checkpointOption,
-			Description:  "The checkpoint to change to when generating. Sets for the next person.",
-			Required:     false,
-			Autocomplete: true,
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        aspectRatio,
-			Description: "The aspect ratio to use. Default is 1:1 (note: you can specify your own aspect ratio)",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "1:1",
-					Value: "1:1",
-				},
-				{
-					Name:  "2:3",
-					Value: "2:3",
-				},
-				{
-					Name:  "3:2",
-					Value: "3:2",
-				},
-				{
-					Name:  "3:4",
-					Value: "3:4",
-				},
-				{
-					Name:  "4:3",
-					Value: "4:3",
-				},
-				{
-					Name:  "16:9",
-					Value: "16:9",
-				},
-				{
-					Name:  "9:16",
-					Value: "9:16",
-				},
-			},
-		},
-		{
-			Type:         discordgo.ApplicationCommandOptionString,
-			Name:         loraOption,
-			Description:  "The lora(s) to apply",
-			Required:     false,
-			Autocomplete: true,
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        samplerOption,
-			Description: "sampler",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "Euler a",
-					Value: "Euler a",
-				},
-				{
-					Name:  "DDIM",
-					Value: "DDIM",
-				},
-				{
-					Name:  "UniPC",
-					Value: "UniPC",
-				},
-				{
-					Name:  "Euler",
-					Value: "Euler",
-				},
-				{
-					Name:  "DPM2 a Karras",
-					Value: "DPM2 a Karras",
-				},
-				{
-					Name:  "DPM++ 2S a Karras",
-					Value: "DPM++ 2S a Karras",
-				},
-				{
-					Name:  "DPM++ 2M Karras",
-					Value: "DPM++ 2M Karras",
-				},
-				{
-					Name:  "DPM++ 3M SDE Karras",
-					Value: "DPM++ 3M SDE Karras",
-				},
-			},
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        hiresFixOption,
-			Description: "use hires.fix or not. default=No for better performance",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "Yes",
-					Value: "true",
-				},
-				{
-					Name:  "No",
-					Value: "false",
-				},
-			},
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        hiresFixSize,
-			Description: "upscale multiplier for hires.fix. default=2",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "1.5",
-					Value: "1.5",
-				},
-				{
-					Name:  "2",
-					Value: "2",
-				},
-			},
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionInteger,
-			Name:        cfgScaleOption,
-			Description: "upscale multiplier for cfg. default=7",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "7",
-					Value: "7",
-				},
-			},
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        restoreFacesOption,
-			Description: "Use Codeformer to restore faces",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "Yes",
-					Value: "true",
-				},
-				{
-					Name:  "No",
-					Value: "false",
-				},
-			},
-		},
-		{
-			Type:        discordgo.ApplicationCommandOptionString,
-			Name:        adModelOption,
-			Description: "The model to use for adetailer",
-			Required:    false,
-			Choices: []*discordgo.ApplicationCommandOptionChoice{
-				{
-					Name:  "Face",
-					Value: "face_yolov8n.pt",
-				},
-				{
-					Name:  "Body",
-					Value: "person_yolov8n-seg.pt",
-				},
-				{
-					Name:  "Both",
-					Value: "person_yolov8n-seg.pt,face_yolov8n.pt",
-				},
-			},
-		},
-	}
+	commands[imagineCommand].Options = imagineOptions()
 
-	for i := 0; i < extraLoras; i++ {
-		options = append(options, &discordgo.ApplicationCommandOption{
-			Type:         discordgo.ApplicationCommandOptionString,
-			Name:         loraOption + fmt.Sprintf("%d", i+2),
-			Description:  "The lora(s) to apply",
-			Required:     false,
-			Autocomplete: true,
-		})
-	}
-
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
-		Name:        b.imagineCommandString(),
-		Description: "Ask the bot to imagine something",
-		Options:     options,
-	})
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, commands[imagineCommand])
 	if err != nil {
-		log.Printf("Error creating '%s' command: %v", b.imagineCommandString(), err)
+		log.Printf("Error creating '%s' command: %v", name, err)
 
-		return err
+		return err, nil
 	}
 
-	b.registeredCommands = append(b.registeredCommands, cmd)
-
-	return nil
+	return nil, cmd
 }
 
-func (b *botImpl) addImagineSettingsCommand() error {
-	log.Printf("Adding command '%s'...", b.imagineSettingsCommandString())
+// Deprecated: use commandHandlers[imagineCommand]
+func (b *botImpl) addImagineSettingsCommand(command string) (error, *discordgo.ApplicationCommand) {
+	log.Printf("Adding command '%s'...", command)
 
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
 		Name:        b.imagineSettingsCommandString(),
@@ -251,12 +56,29 @@ func (b *botImpl) addImagineSettingsCommand() error {
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", b.imagineSettingsCommandString(), err)
 
-		return err
+		return err, nil
 	}
 
-	b.registeredCommands = append(b.registeredCommands, cmd)
+	//b.registeredCommands[command] = cmd
 
-	return nil
+	return nil, cmd
+}
+
+func getOpts(data discordgo.ApplicationCommandInteractionData) map[string]*discordgo.ApplicationCommandInteractionDataOption {
+	options := data.Options
+	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	for _, opt := range options {
+		optionMap[opt.Name] = opt
+	}
+	return optionMap
+}
+
+var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
+		responses[helloResponse].(newResponseType)(bot, i)
+	},
+	imagineCommand:         (*botImpl).processImagineCommand,
+	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
 }
 
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -329,12 +151,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		log.Printf("Error responding to interaction: %v", err)
 	}
 
-	options := i.ApplicationCommandData().Options
-
-	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt
-	}
+	optionMap := getOpts(i.ApplicationCommandData())
 
 	var position int
 	var queueError error

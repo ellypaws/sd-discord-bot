@@ -1024,6 +1024,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		return err
 	}
 
+	// TODO: Add ephemeral follow up to delete message
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
 		Files: []*discordgo.File{

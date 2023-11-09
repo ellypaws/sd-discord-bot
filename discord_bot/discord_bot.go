@@ -2,10 +2,10 @@ package discord_bot
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
-	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -16,7 +16,7 @@ type botImpl struct {
 	botSession         *discordgo.Session
 	guildID            string
 	imagineQueue       imagine_queue.Queue
-	registeredCommands []*discordgo.ApplicationCommand
+	registeredCommands map[string]*discordgo.ApplicationCommand
 	imagineCommand     string
 	removeCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
@@ -86,165 +86,26 @@ func New(cfg *Config) (Bot, error) {
 		developmentMode:    cfg.DevelopmentMode,
 		botSession:         botSession,
 		imagineQueue:       cfg.ImagineQueue,
-		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
+		registeredCommands: make(map[string]*discordgo.ApplicationCommand, 0),
 		imagineCommand:     cfg.ImagineCommand,
 		removeCommands:     cfg.RemoveCommands,
 		StableDiffusionApi: cfg.StableDiffusionApi,
 		config:             cfg,
 	}
 
-	err = bot.addImagineCommand()
-	if err != nil {
-		return nil, err
-	}
-
-	err = bot.addImagineSettingsCommand()
+	err = bot.registerCommands()
 	if err != nil {
 		return nil, err
 	}
 
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
-		case discordgo.InteractionApplicationCommand:
-			switch i.ApplicationCommandData().Name {
-			case bot.imagineCommandString():
-				bot.processImagineCommand(s, i)
-			case bot.imagineSettingsCommandString():
-				bot.processImagineSettingsCommand(s, i)
-			default:
-				log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
-			}
 		case discordgo.InteractionMessageComponent:
 			switch customID := i.MessageComponentData().CustomID; {
-			case customID == "imagine_reroll":
-				bot.processImagineReroll(s, i)
-			case strings.HasPrefix(customID, "imagine_upscale_"):
-				interactionIndex := strings.TrimPrefix(customID, "imagine_upscale_")
-
-				interactionIndexInt, err := strconv.Atoi(interactionIndex)
-				if err != nil {
-					log.Printf("Error parsing interaction index: %v", err)
-
-					return
-				}
-
-				bot.processImagineUpscale(s, i, interactionIndexInt)
-			case strings.HasPrefix(customID, "imagine_variation_"):
-				interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
-
-				interactionIndexInt, err := strconv.Atoi(interactionIndex)
-				if err != nil {
-					log.Printf("Error parsing interaction index: %v", err)
-
-					return
-				}
-
-				bot.processImagineVariation(s, i, interactionIndexInt)
-			case customID == dimensionSelect:
-				if len(i.MessageComponentData().Values) == 0 {
-					log.Printf("No values for imagine dimension setting menu")
-
-					return
-				}
-
-				sizes := strings.Split(i.MessageComponentData().Values[0], "_")
-
-				width := sizes[0]
-				height := sizes[1]
-
-				widthInt, err := strconv.Atoi(width)
-				if err != nil {
-					log.Printf("Error parsing width: %v", err)
-
-					return
-				}
-
-				heightInt, err := strconv.Atoi(height)
-				if err != nil {
-					log.Printf("Error parsing height: %v", err)
-
-					return
-				}
-
-				bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
-			case customID == checkpointSelect:
-				if len(i.MessageComponentData().Values) == 0 {
-					log.Printf("No values for imagine sd model name setting menu")
-					return
-				}
-				newModel := i.MessageComponentData().Values[0]
-				bot.processImagineSDModelNameSetting(s, i, newModel)
-
-			// patch from upstream
-			case customID == batchCountSelect:
-				if len(i.MessageComponentData().Values) == 0 {
-					log.Printf("No values for imagine batch count setting menu")
-
-					return
-				}
-
-				batchCount := i.MessageComponentData().Values[0]
-
-				batchCountInt, intErr := strconv.Atoi(batchCount)
-				if intErr != nil {
-					log.Printf("Error parsing batch count: %v", err)
-
-					return
-				}
-
-				var batchSizeInt int
-
-				// calculate the corresponding batch size
-				switch batchCountInt {
-				case 1:
-					batchSizeInt = 4
-				case 2:
-					batchSizeInt = 2
-				case 4:
-					batchSizeInt = 1
-				default:
-					log.Printf("Unknown batch count: %v", batchCountInt)
-
-					return
-				}
-
-				bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
-			case customID == batchSizeSelect:
-				if len(i.MessageComponentData().Values) == 0 {
-					log.Printf("No values for imagine batch count setting menu")
-
-					return
-				}
-
-				batchSize := i.MessageComponentData().Values[0]
-
-				batchSizeInt, err := strconv.Atoi(batchSize)
-				if err != nil {
-					log.Printf("Error parsing batch count: %v", err)
-
-					return
-				}
-
-				var batchCountInt int
-
-				// calculate the corresponding batch count
-				switch batchSizeInt {
-				case 1:
-					batchCountInt = 4
-				case 2:
-					batchCountInt = 2
-				case 4:
-					batchCountInt = 1
-				default:
-					log.Printf("Unknown batch size: %v", batchSizeInt)
-
-					return
-				}
-
-				bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
-
-			default:
-				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
+			case strings.HasPrefix(customID, upscaleButton):
+				componentHandlers[upscaleButton](bot, s, i, customID)
+			case strings.HasPrefix(customID, variantButton):
+				componentHandlers[variantButton](bot, s, i, customID)
 			}
 		case discordgo.InteractionApplicationCommandAutocomplete:
 			switch i.ApplicationCommandData().Name {
@@ -253,18 +114,82 @@ func New(cfg *Config) (Bot, error) {
 			}
 		}
 	})
-	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if i.Type == discordgo.InteractionMessageComponent { // Validate the interaction type
-			if i.MessageComponentData().CustomID == "delete_error_message" {
-				err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
-				if err != nil {
-					return
-				}
+
+	bot.registerHandlers(botSession)
+
+	return bot, nil
+}
+
+func (bot *botImpl) registerHandlers(session *discordgo.Session) {
+	session.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
+		switch i.Type {
+		// commands
+		case discordgo.InteractionApplicationCommand, discordgo.InteractionApplicationCommandAutocomplete:
+			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+				h(bot, session, i)
+			}
+		//buttons
+		case discordgo.InteractionMessageComponent:
+			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
+			if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
+				//bot.p.Send(logger.Message(fmt.Sprintf(
+				//	"Handler found, executing on message `%v`\nRan by: <@%v>\nUsername: %v",
+				//	i.Message.ID,
+				//	i.Member.User.ID,
+				//	i.Member.User.Username,
+				//)))
+				//bot.p.Send(logger.Message(fmt.Sprintf("https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
+				h(bot, session, i)
+			} else {
+				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 			}
 		}
 	})
+	//currentProgress = len(commandHandlers) + len(componentHandlers) + len(components)
+	//bot.p.Send(load.Goal{
+	//	Current: currentProgress,
+	//	Total:   totalProgress,
+	//	Show:    true,
+	//})
+	//session.AddHandler(func(session *discordgo.Session, r *discordgo.Ready) {
+	//	bot.p.Send(logger.Message(fmt.Sprintf("Logged in as: %v#%v", session.State.User.Username, session.State.User.Discriminator)))
+	//})
+}
 
-	return bot, nil
+func (bot *botImpl) registerCommands() error {
+	bot.registeredCommands = make(map[string]*discordgo.ApplicationCommand, len(commands))
+	commands[imagineCommand].Name = imagineCommand
+	commands[imagineSettingsCommand].Name = imagineSettingsCommand
+	for key, command := range commands {
+		if command.Name == "" {
+			// clean the key because it might be a description of some sort
+			// only get the first word, and clean to only alphanumeric characters or -
+			sanitized := strings.ReplaceAll(key, " ", "-")
+			sanitized = strings.ToLower(sanitized)
+
+			// remove all non valid characters
+			for _, c := range sanitized {
+				if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
+					sanitized = strings.ReplaceAll(sanitized, string(c), "")
+				}
+			}
+			command.Name = sanitized
+		}
+		cmd, err := bot.botSession.ApplicationCommandCreate(bot.botSession.State.User.ID, bot.guildID, command)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
+		}
+		bot.registeredCommands[key] = cmd
+		//bot.p.Send(logger.Message(fmt.Sprintf("Registered command: %v", cmd.Name)))
+		//currentProgress++
+		//bot.p.Send(load.Goal{
+		//	Current: currentProgress,
+		//	Total:   totalProgress,
+		//	Show:    true,
+		//})
+	}
+
+	return nil
 }
 
 func (b *botImpl) Start() {

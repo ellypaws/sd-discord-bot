@@ -14,112 +14,286 @@ const (
 	batchSizeSelect  = "imagine_batch_size_setting_menu"
 )
 
+const (
+	rerollButton  = "imagine_reroll"
+	upscaleButton = "imagine_upscale"
+	variantButton = "imagine_variation"
+)
+
+const (
+	deleteButton  = "delete_error_message"
+	dismissButton = "dismiss_error_message"
+	urlButton     = "url_button"
+	urlDelete     = "url_delete"
+
+	readmoreDismiss = "readmore_dismiss"
+
+	paginationButtons = "pagination_button"
+	okCancelButtons   = "ok_cancel_buttons"
+
+	roleSelect = "role_select"
+)
+
+var minValues = 1
+
+var components = map[string]discordgo.MessageComponent{
+	deleteButton: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Delete this message",
+				Style:    discordgo.DangerButton,
+				CustomID: deleteButton,
+			},
+		},
+	},
+	urlButton: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label: "Read more",
+				Style: discordgo.LinkButton,
+			},
+		},
+	},
+	urlDelete: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label: "Read more",
+				Style: discordgo.LinkButton,
+				Emoji: discordgo.ComponentEmoji{
+					Name: "📜",
+				},
+			},
+			discordgo.Button{
+				Label:    "Delete",
+				Style:    discordgo.DangerButton,
+				CustomID: deleteButton,
+				Emoji: discordgo.ComponentEmoji{
+					Name: "🗑️",
+				},
+			},
+		},
+	},
+	dismissButton: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Dismiss",
+				Style:    discordgo.SecondaryButton,
+				CustomID: deleteButton,
+			},
+		},
+	},
+
+	readmoreDismiss: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Read more",
+				Style:    discordgo.LinkButton,
+				CustomID: urlButton,
+			},
+			discordgo.Button{
+				Label:    "Dismiss",
+				Style:    discordgo.SecondaryButton,
+				CustomID: deleteButton,
+			},
+		},
+	},
+
+	paginationButtons: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Previous",
+				Style:    discordgo.SecondaryButton,
+				CustomID: paginationButtons + "_previous",
+			},
+			discordgo.Button{
+				Label:    "Next",
+				Style:    discordgo.SecondaryButton,
+				CustomID: paginationButtons + "_next",
+			},
+		},
+	},
+	okCancelButtons: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "OK",
+				Style:    discordgo.SuccessButton,
+				CustomID: okCancelButtons + "_ok",
+			},
+			discordgo.Button{
+				Label:    "Cancel",
+				Style:    discordgo.DangerButton,
+				CustomID: okCancelButtons + "_cancel",
+			},
+		},
+	},
+
+	roleSelect: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				MenuType:    discordgo.RoleSelectMenu,
+				CustomID:    roleSelect,
+				Placeholder: "Pick a role",
+			},
+		},
+	},
+
+	checkpointSelect: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				CustomID:    checkpointSelect,
+				Placeholder: "Change SD Model",
+				MinValues:   &minValues,
+				MaxValues:   1,
+				Options: []discordgo.SelectMenuOption{
+					{
+						Label:       "Checkpoint",
+						Value:       "Placeholder",
+						Description: "Placeholder",
+						Default:     false,
+					},
+				},
+			},
+		},
+	},
+
+	dimensionSelect: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{discordgo.SelectMenu{
+			CustomID:  dimensionSelect,
+			MinValues: nil,
+			MaxValues: 1,
+			Options: []discordgo.SelectMenuOption{
+				{
+					Label:   "Size: 512x512",
+					Value:   "512_512",
+					Default: true,
+				},
+				{
+					Label:   "Size: 768x768",
+					Value:   "768_768",
+					Default: false,
+				},
+			},
+		},
+		},
+	},
+
+	batchCountSelect: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				CustomID:  batchCountSelect,
+				MinValues: &minValues,
+				MaxValues: 1,
+				Options: []discordgo.SelectMenuOption{
+					{
+						Label:   "Batch count: 1",
+						Value:   "1",
+						Default: false,
+					},
+					{
+						Label:   "Batch count: 2",
+						Value:   "2",
+						Default: false,
+					},
+					{
+						Label:   "Batch count: 4",
+						Value:   "4",
+						Default: true,
+					},
+				},
+			},
+		},
+	},
+
+	batchSizeSelect: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				CustomID:  batchSizeSelect,
+				MinValues: &minValues,
+				MaxValues: 1,
+				Options: []discordgo.SelectMenuOption{
+					{
+						Label:   "Batch size: 1",
+						Value:   "1",
+						Default: true,
+					},
+					{
+						Label:   "Batch size: 2",
+						Value:   "2",
+						Default: false,
+					},
+					{
+						Label:   "Batch size: 4",
+						Value:   "4",
+						Default: false,
+					},
+				},
+			},
+		},
+	},
+}
+
 // patch from upstream
 func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
-	minValues := 1
+	models, err := b.StableDiffusionApi.SDModelsCache()
 
-	models, err := b.StableDiffusionApi.SDModels()
+	// populate checkpoint dropdown and set default
+	checkpointDropdown := components[checkpointSelect].(discordgo.ActionsRow)
+	var modelOptions []discordgo.SelectMenuOption
 	if err != nil {
 		fmt.Printf("Failed to retrieve list of models: %v\n", err)
-	}
-	var modelOptions []discordgo.SelectMenuOption
-
-	for i, model := range models {
-		if i > 20 {
-			break
+	} else {
+		for i, model := range models {
+			if i > 20 {
+				break
+			}
+			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+				Label:   shortenString(model.ModelName),
+				Value:   shortenString(model.Title),
+				Default: settings.SDModelName == model.Title,
+			})
 		}
-		modelOptions = append(modelOptions, discordgo.SelectMenuOption{
-			Label:   shortenString(model.ModelName),
-			Value:   shortenString(model.Title),
-			Default: settings.SDModelName == model.Title,
-		})
+
+		checkpointDropdown.Components[0] = discordgo.SelectMenu{
+			Options: modelOptions,
+		}
+		components[checkpointSelect] = checkpointDropdown
 	}
+
+	// set default dimension from config
+	dimensions := components[dimensionSelect].(discordgo.ActionsRow)
+	dimensions.Components[0].(discordgo.SelectMenu).Options[0].Default = settings.Width == 512 && settings.Height == 512
+	dimensions.Components[0].(discordgo.SelectMenu).Options[1].Default = settings.Width == 768 && settings.Height == 768
+	components[dimensionSelect] = dimensions
+
+	// set default batch count from config
+	batchCount := components[batchCountSelect].(discordgo.ActionsRow)
+	for i, option := range batchCount.Components[0].(discordgo.SelectMenu).Options {
+		if i == settings.BatchCount {
+			option.Default = true
+		} else {
+			option.Default = false
+		}
+		batchCount.Components[0].(discordgo.SelectMenu).Options[i] = option
+	}
+	components[batchCountSelect] = batchCount
+
+	// set the default batch size from config
+	batchSize := components[batchSizeSelect].(discordgo.ActionsRow)
+	for i, option := range batchSize.Components[0].(discordgo.SelectMenu).Options {
+		if i == settings.BatchSize {
+			option.Default = true
+		} else {
+			option.Default = false
+		}
+		batchSize.Components[0].(discordgo.SelectMenu).Options[i] = option
+	}
+	components[batchSizeSelect] = batchSize
 
 	return []discordgo.MessageComponent{
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.SelectMenu{
-					CustomID:    checkpointSelect,
-					Placeholder: "Change SD Model",
-					MinValues:   &minValues,
-					MaxValues:   1,
-					Options:     modelOptions,
-				},
-			},
-		},
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.SelectMenu{
-					CustomID:  dimensionSelect,
-					MinValues: &minValues,
-					MaxValues: 1,
-					Options: []discordgo.SelectMenuOption{
-						{
-							Label:   "Size: 512x512",
-							Value:   "512_512",
-							Default: settings.Width == 512 && settings.Height == 512,
-						},
-						{
-							Label:   "Size: 768x768",
-							Value:   "768_768",
-							Default: settings.Width == 768 && settings.Height == 768,
-						},
-					},
-				},
-			},
-		},
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.SelectMenu{
-					CustomID:  batchCountSelect,
-					MinValues: &minValues,
-					MaxValues: 1,
-					Options: []discordgo.SelectMenuOption{
-						{
-							Label:   "Batch count: 1",
-							Value:   "1",
-							Default: settings.BatchCount == 1,
-						},
-						{
-							Label:   "Batch count: 2",
-							Value:   "2",
-							Default: settings.BatchCount == 2,
-						},
-						{
-							Label:   "Batch count: 4",
-							Value:   "4",
-							Default: settings.BatchCount == 4,
-						},
-					},
-				},
-			},
-		},
-		discordgo.ActionsRow{
-			Components: []discordgo.MessageComponent{
-				discordgo.SelectMenu{
-					CustomID:  batchSizeSelect,
-					MinValues: &minValues,
-					MaxValues: 1,
-					Options: []discordgo.SelectMenuOption{
-						{
-							Label:   "Batch size: 1",
-							Value:   "1",
-							Default: settings.BatchSize == 1,
-						},
-						{
-							Label:   "Batch size: 2",
-							Value:   "2",
-							Default: settings.BatchSize == 2,
-						},
-						{
-							Label:   "Batch size: 4",
-							Value:   "4",
-							Default: settings.BatchSize == 4,
-						},
-					},
-				},
-			},
-		},
+		components[checkpointSelect],
+		components[dimensionSelect],
+		components[batchCountSelect],
+		components[batchSizeSelect],
 	}
 }
 
