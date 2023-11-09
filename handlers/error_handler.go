@@ -7,6 +7,7 @@ import (
 )
 
 // ErrorHandler responds to the interaction with an error message and a deletion button.
+// Deprecated: Use errorEdit instead.
 func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent any) {
 	var errorString string
 
