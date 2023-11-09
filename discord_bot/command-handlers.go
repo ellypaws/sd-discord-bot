@@ -27,6 +27,14 @@ const (
 	cfgScaleOption     = "cfg_scale"
 )
 
+var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
+		responses[helloResponse].(newResponseType)(bot, i)
+	},
+	imagineCommand:         (*botImpl).processImagineCommand,
+	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
+}
+
 // addImagineCommand is now inside the commands map as imagineCommand: commands[imagineCommand]
 // It also uses imagineOptions() to build the necessary commandOptions
 // Deprecated: use commands[imagineCommand]
@@ -71,14 +79,6 @@ func getOpts(data discordgo.ApplicationCommandInteractionData) map[string]*disco
 		optionMap[opt.Name] = opt
 	}
 	return optionMap
-}
-
-var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
-	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
-		responses[helloResponse].(newResponseType)(bot, i)
-	},
-	imagineCommand:         (*botImpl).processImagineCommand,
-	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
 }
 
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
