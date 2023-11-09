@@ -8,15 +8,15 @@ import (
 	"strings"
 )
 
-var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any){
-	deleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
+var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+	deleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
 			errorEphemeral(s, i.Interaction, err)
 		}
 	},
 
-	dimensionSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
+	dimensionSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine dimension setting menu")
 
@@ -45,7 +45,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
 	},
 
-	checkpointSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
+	checkpointSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine sd model name setting menu")
 			return
@@ -54,7 +54,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineSDModelNameSetting(s, i, newModel)
 	},
 
-	batchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
+	batchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine batch count setting menu")
 
@@ -89,7 +89,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
-	batchSizeSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
+	batchSizeSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine batch count setting menu")
 
@@ -124,20 +124,12 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
-	rerollButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
+	rerollButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		bot.processImagineReroll(s, i)
 	},
 
-	upscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
-		if len(extra) < 1 {
-			log.Printf("No extra data for variant button, need custom ID to determine which variant to run")
-			return
-		}
-		customID, ok := extra[0].(string)
-		if !ok {
-			log.Printf("Error parsing custom ID: %v", customID)
-			return
-		}
+	upscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+		customID := i.Interaction.Data.(discordgo.MessageComponentInteractionData).CustomID
 		interactionIndex := strings.TrimPrefix(customID, upscaleButton+"_")
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
@@ -150,16 +142,8 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineUpscale(s, i, interactionIndexInt)
 	},
 
-	variantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate, extra ...any) {
-		if len(extra) < 1 {
-			log.Printf("No extra data for variant button, need custom ID to determine which variant to run")
-			return
-		}
-		customID, ok := extra[0].(string)
-		if !ok {
-			log.Printf("Error parsing custom ID: %v", customID)
-			return
-		}
+	variantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+		customID := i.Interaction.Data.(discordgo.MessageComponentInteractionData).CustomID
 		interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)

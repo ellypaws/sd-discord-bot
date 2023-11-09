@@ -103,9 +103,9 @@ func New(cfg *Config) (Bot, error) {
 		case discordgo.InteractionMessageComponent:
 			switch customID := i.MessageComponentData().CustomID; {
 			case strings.HasPrefix(customID, upscaleButton):
-				componentHandlers[upscaleButton](bot, s, i, customID)
+				componentHandlers[upscaleButton](bot, s, i)
 			case strings.HasPrefix(customID, variantButton):
-				componentHandlers[variantButton](bot, s, i, customID)
+				componentHandlers[variantButton](bot, s, i)
 			}
 		case discordgo.InteractionApplicationCommandAutocomplete:
 			switch i.ApplicationCommandData().Name {
