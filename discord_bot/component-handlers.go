@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/entities"
 	"strconv"
 	"strings"
 )
@@ -325,4 +326,166 @@ func logError(errorString string, i *discordgo.Interaction) {
 	//	//log.Printf("Link: https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
 	//	GetBot().p.Send(logger.Message(fmt.Sprintf("Link: https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
 	//}
+}
+
+// patch from upstream
+func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
+	models, err := b.StableDiffusionApi.SDModelsCache()
+
+	// populate checkpoint dropdown and set default
+	checkpointDropdown := components[checkpointSelect].(discordgo.ActionsRow)
+	var modelOptions []discordgo.SelectMenuOption
+	if err != nil {
+		fmt.Printf("Failed to retrieve list of models: %v\n", err)
+	} else {
+		for i, model := range models {
+			if i > 20 {
+				break
+			}
+			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+				Label:   shortenString(model.ModelName),
+				Value:   shortenString(model.Title),
+				Default: settings.SDModelName == model.Title,
+			})
+		}
+
+		checkpointDropdown.Components[0] = discordgo.SelectMenu{
+			Options: modelOptions,
+		}
+		components[checkpointSelect] = checkpointDropdown
+	}
+
+	// set default dimension from config
+	dimensions := components[dimensionSelect].(discordgo.ActionsRow)
+	dimensions.Components[0].(discordgo.SelectMenu).Options[0].Default = settings.Width == 512 && settings.Height == 512
+	dimensions.Components[0].(discordgo.SelectMenu).Options[1].Default = settings.Width == 768 && settings.Height == 768
+	components[dimensionSelect] = dimensions
+
+	// set default batch count from config
+	batchCount := components[batchCountSelect].(discordgo.ActionsRow)
+	for i, option := range batchCount.Components[0].(discordgo.SelectMenu).Options {
+		if i == settings.BatchCount {
+			option.Default = true
+		} else {
+			option.Default = false
+		}
+		batchCount.Components[0].(discordgo.SelectMenu).Options[i] = option
+	}
+	components[batchCountSelect] = batchCount
+
+	// set the default batch size from config
+	batchSize := components[batchSizeSelect].(discordgo.ActionsRow)
+	for i, option := range batchSize.Components[0].(discordgo.SelectMenu).Options {
+		if i == settings.BatchSize {
+			option.Default = true
+		} else {
+			option.Default = false
+		}
+		batchSize.Components[0].(discordgo.SelectMenu).Options[i] = option
+	}
+	components[batchSizeSelect] = batchSize
+
+	return []discordgo.MessageComponent{
+		components[checkpointSelect],
+		components[dimensionSelect],
+		components[batchCountSelect],
+		components[batchSizeSelect],
+	}
+}
+
+func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
+	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(width, height)
+	if err != nil {
+		log.Printf("error updating default dimensions: %v", err)
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error updating default dimensions...",
+			},
+		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
+
+		return
+	}
+
+	messageComponents := b.settingsMessageComponents(botSettings)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+		return
+	}
+}
+
+func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.InteractionCreate, batchCount, batchSize int) {
+	botSettings, err := b.imagineQueue.UpdateDefaultBatch(batchCount, batchSize)
+	if err != nil {
+		log.Printf("error updating batch settings: %v", err)
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error updating batch settings...",
+			},
+		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
+
+		return
+	}
+
+	messageComponents := b.settingsMessageComponents(botSettings)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *discordgo.InteractionCreate, newModelName string) {
+	botSettings, err := b.imagineQueue.UpdateModelName(newModelName)
+	if err != nil {
+		log.Printf("error updating sd model name settings: %v", err)
+
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{
+				Content: "Error updating sd model name settings...",
+			},
+		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
+
+		return
+	}
+
+	messageComponents := b.settingsMessageComponents(botSettings)
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseUpdateMessage,
+		Data: &discordgo.InteractionResponseData{
+			Content:    "Choose defaults settings for the imagine command:",
+			Components: messageComponents,
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
