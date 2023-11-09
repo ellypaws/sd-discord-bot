@@ -34,8 +34,6 @@ type Config struct {
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 }
 
-var config *Config
-
 func (b *botImpl) imagineCommandString() string {
 	if b.developmentMode {
 		return "dev_" + b.imagineCommand
@@ -53,10 +51,11 @@ func (b *botImpl) imagineSettingsCommandString() string {
 }
 
 func New(cfg *Config) (Bot, error) {
-	config = cfg
 	if cfg.BotToken == "" {
 		return nil, errors.New("missing bot token")
 	}
+
+	handlers.Token = &cfg.BotToken
 
 	if cfg.GuildID == "" {
 		return nil, errors.New("missing guild ID")

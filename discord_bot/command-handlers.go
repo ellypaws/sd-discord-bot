@@ -6,6 +6,7 @@ import (
 	"github.com/sahilm/fuzzy"
 	"log"
 	"regexp"
+	"stable_diffusion_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ const (
 
 var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
-		responses[helloResponse].(newResponseType)(bot, i)
+		handlers.Responses[handlers.HelloResponse].(handlers.NewResponseType)(bot, i)
 	},
 	imagineCommand:         (*botImpl).processImagineCommand,
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,

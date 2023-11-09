@@ -1,13 +1,13 @@
-package discord_bot
+package handlers
 
 import (
 	"github.com/bwmarrin/discordgo"
 )
 
 const (
-	thinkResponse   = iota // newResponseType Respond with a "Bot is thinking..." message
-	ephemeralThink         // newResponseType Respond with an ephemeral message saying "Bot is thinking..."
-	pendingResponse        // newResponseType Respond with a "Bot is responding..." message
+	thinkResponse   = iota // NewResponseType Respond with a "Bot is thinking..." message
+	ephemeralThink         // NewResponseType Respond with an ephemeral message saying "Bot is thinking..."
+	pendingResponse        // NewResponseType Respond with a "Bot is responding..." message
 	messageResponse        // msgResponseType Respond with a message
 
 	followupResponse  // msgReturnType Send a followup message
@@ -17,10 +17,10 @@ const (
 	editMessage             // editResponseType Edit a [*discordgo.Message]
 	editInteractionResponse // msgReturnType Edit the interaction response message
 
-	ephemeralResponding // newResponseType Respond with an ephemeral message saying "Bot is responding..."
+	ephemeralResponding // NewResponseType Respond with an ephemeral message saying "Bot is responding..."
 	ephemeralContent    // msgResponseType Respond with an ephemeral message with the provided content
 
-	helloResponse // newResponseType Respond with a message saying "Hey there! Congratulations, you just executed your first slash command"
+	HelloResponse // newResponseType Respond with a message saying "Hey there! Congratulations, you just executed your first slash command"
 
 	ErrorResponse          // [errorResponseType] Respond with an error message and a deletion button.
 	ErrorFollowup          // [errorResponseType] Respond with an error message as a followup message with a deletion button.
@@ -28,33 +28,33 @@ const (
 	ErrorFollowupEphemeral // [errorResponseType] Respond with an ephemeral error message as a followup message with a deletion button.
 )
 
-type newResponseType func(bot *discordgo.Session, i *discordgo.InteractionCreate)
+type NewResponseType func(bot *discordgo.Session, i *discordgo.InteractionCreate)
 type newReturnType func(bot *discordgo.Session, i *discordgo.InteractionCreate) *discordgo.Message
 type msgResponseType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any)
 type msgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message
 type editResponseType func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message
 type errorResponseType msgResponseType
 
-var responses = map[int]any{
-	thinkResponse: newResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+var Responses = map[int]any{
+	thinkResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		})
 		if err != nil {
-			errorEphemeral(bot, i.Interaction, err)
+			ErrorEphemeralResponse(bot, i.Interaction, err)
 		}
 	}),
-	ephemeralThink: newResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+	ephemeralThink: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Flags: discordgo.MessageFlagsEphemeral,
 			}})
 		if err != nil {
-			errorEphemeral(bot, i.Interaction, err)
+			ErrorEphemeralResponse(bot, i.Interaction, err)
 		}
 	}),
-	pendingResponse: newResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+	pendingResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -148,12 +148,12 @@ var responses = map[int]any{
 
 		msg, err := bot.InteractionResponseEdit(i, &webhookEdit)
 		if err != nil {
-			errorEphemeral(bot, i, err)
+			ErrorEphemeralResponse(bot, i, err)
 		}
 		return msg
 	}),
 
-	ephemeralResponding: newResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+	ephemeralResponding: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -183,7 +183,7 @@ var responses = map[int]any{
 			errorFollowup(bot, i, err)
 		}
 	}),
-	helloResponse: newResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+	HelloResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -197,7 +197,7 @@ var responses = map[int]any{
 
 	ErrorResponse:          errorResponseType(errorEdit),
 	ErrorFollowup:          errorResponseType(errorFollowup),
-	ErrorEphemeral:         errorResponseType(errorEphemeral),
+	ErrorEphemeral:         errorResponseType(ErrorEphemeralResponse),
 	ErrorFollowupEphemeral: errorResponseType(errorEphemeralFollowup),
 }
 
