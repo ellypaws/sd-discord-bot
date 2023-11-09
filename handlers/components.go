@@ -1,24 +1,24 @@
-package discord_bot
+package handlers
 
 import (
 	"github.com/bwmarrin/discordgo"
 )
 
 const (
-	checkpointSelect = "imagine_sd_model_name_menu"
-	dimensionSelect  = "imagine_dimension_setting_menu"
-	batchCountSelect = "imagine_batch_count_setting_menu"
-	batchSizeSelect  = "imagine_batch_size_setting_menu"
+	CheckpointSelect = "imagine_sd_model_name_menu"
+	DimensionSelect  = "imagine_dimension_setting_menu"
+	BatchCountSelect = "imagine_batch_count_setting_menu"
+	BatchSizeSelect  = "imagine_batch_size_setting_menu"
 )
 
 const (
-	rerollButton  = "imagine_reroll"
-	upscaleButton = "imagine_upscale"
-	variantButton = "imagine_variation"
+	RerollButton  = "imagine_reroll"
+	UpscaleButton = "imagine_upscale"
+	VariantButton = "imagine_variation"
 )
 
 const (
-	deleteButton  = "delete_error_message"
+	DeleteButton  = "delete_error_message"
 	dismissButton = "dismiss_error_message"
 	urlButton     = "url_button"
 	urlDelete     = "url_delete"
@@ -33,13 +33,13 @@ const (
 
 var minValues = 1
 
-var components = map[string]discordgo.MessageComponent{
-	deleteButton: discordgo.ActionsRow{
+var Components = map[string]discordgo.MessageComponent{
+	DeleteButton: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Delete this message",
 				Style:    discordgo.DangerButton,
-				CustomID: deleteButton,
+				CustomID: DeleteButton,
 			},
 		},
 	},
@@ -63,7 +63,7 @@ var components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Delete",
 				Style:    discordgo.DangerButton,
-				CustomID: deleteButton,
+				CustomID: DeleteButton,
 				Emoji: discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
@@ -75,7 +75,7 @@ var components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Dismiss",
 				Style:    discordgo.SecondaryButton,
-				CustomID: deleteButton,
+				CustomID: DeleteButton,
 			},
 		},
 	},
@@ -90,7 +90,7 @@ var components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Dismiss",
 				Style:    discordgo.SecondaryButton,
-				CustomID: deleteButton,
+				CustomID: DeleteButton,
 			},
 		},
 	},
@@ -134,10 +134,10 @@ var components = map[string]discordgo.MessageComponent{
 		},
 	},
 
-	checkpointSelect: discordgo.ActionsRow{
+	CheckpointSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:    checkpointSelect,
+				CustomID:    CheckpointSelect,
 				Placeholder: "Change SD Model",
 				MinValues:   &minValues,
 				MaxValues:   1,
@@ -153,9 +153,9 @@ var components = map[string]discordgo.MessageComponent{
 		},
 	},
 
-	dimensionSelect: discordgo.ActionsRow{
+	DimensionSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{discordgo.SelectMenu{
-			CustomID:  dimensionSelect,
+			CustomID:  DimensionSelect,
 			MinValues: nil,
 			MaxValues: 1,
 			Options: []discordgo.SelectMenuOption{
@@ -174,10 +174,10 @@ var components = map[string]discordgo.MessageComponent{
 		},
 	},
 
-	batchCountSelect: discordgo.ActionsRow{
+	BatchCountSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:  batchCountSelect,
+				CustomID:  BatchCountSelect,
 				MinValues: &minValues,
 				MaxValues: 1,
 				Options: []discordgo.SelectMenuOption{
@@ -201,10 +201,10 @@ var components = map[string]discordgo.MessageComponent{
 		},
 	},
 
-	batchSizeSelect: discordgo.ActionsRow{
+	BatchSizeSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:  batchSizeSelect,
+				CustomID:  BatchSizeSelect,
 				MinValues: &minValues,
 				MaxValues: 1,
 				Options: []discordgo.SelectMenuOption{

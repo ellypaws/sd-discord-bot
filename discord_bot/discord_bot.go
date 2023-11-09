@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"stable_diffusion_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strings"
@@ -102,10 +103,10 @@ func New(cfg *Config) (Bot, error) {
 		switch i.Type {
 		case discordgo.InteractionMessageComponent:
 			switch customID := i.MessageComponentData().CustomID; {
-			case strings.HasPrefix(customID, upscaleButton):
-				componentHandlers[upscaleButton](bot, s, i)
-			case strings.HasPrefix(customID, variantButton):
-				componentHandlers[variantButton](bot, s, i)
+			case strings.HasPrefix(customID, handlers.UpscaleButton):
+				componentHandlers[handlers.UpscaleButton](bot, s, i)
+			case strings.HasPrefix(customID, handlers.VariantButton):
+				componentHandlers[handlers.VariantButton](bot, s, i)
 			}
 		case discordgo.InteractionApplicationCommandAutocomplete:
 			switch i.ApplicationCommandData().Name {

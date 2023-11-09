@@ -5,19 +5,20 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/handlers"
 	"strconv"
 	"strings"
 )
 
 var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
-	deleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.DeleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
 			errorEphemeral(s, i.Interaction, err)
 		}
 	},
 
-	dimensionSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.DimensionSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine dimension setting menu")
 
@@ -46,7 +47,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
 	},
 
-	checkpointSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.CheckpointSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine sd model name setting menu")
 			return
@@ -55,7 +56,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineSDModelNameSetting(s, i, newModel)
 	},
 
-	batchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.BatchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine batch count setting menu")
 
@@ -90,7 +91,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
-	batchSizeSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.BatchSizeSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
 			log.Printf("No values for imagine batch count setting menu")
 
@@ -125,13 +126,13 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
-	rerollButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.RerollButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		bot.processImagineReroll(s, i)
 	},
 
-	upscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.UpscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		customID := i.MessageComponentData().CustomID
-		interactionIndex := strings.TrimPrefix(customID, upscaleButton+"_")
+		interactionIndex := strings.TrimPrefix(customID, handlers.UpscaleButton+"_")
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
 		if err != nil {
@@ -143,7 +144,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineUpscale(s, i, interactionIndexInt)
 	},
 
-	variantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.VariantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		customID := i.MessageComponentData().CustomID
 		interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
 
@@ -174,7 +175,7 @@ func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorConten
 		errorString = "An unknown error has occurred"
 		errorString += "\nReceived:" + fmt.Sprint(content)
 	}
-	components := []discordgo.MessageComponent{components[deleteButton]}
+	components := []discordgo.MessageComponent{handlers.Components[handlers.DeleteButton]}
 
 	logError(errorString, i)
 
@@ -200,7 +201,7 @@ func errorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ..
 		errorString = "An unknown error has occurred"
 		errorString += "\nReceived:" + fmt.Sprint(content)
 	}
-	components := []discordgo.MessageComponent{components[deleteButton]}
+	components := []discordgo.MessageComponent{handlers.Components[handlers.DeleteButton]}
 
 	logError(errorString, i)
 
@@ -333,7 +334,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 	models, err := b.StableDiffusionApi.SDModelsCache()
 
 	// populate checkpoint dropdown and set default
-	checkpointDropdown := components[checkpointSelect].(discordgo.ActionsRow)
+	checkpointDropdown := handlers.Components[handlers.CheckpointSelect].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
 	if err != nil {
 		fmt.Printf("Failed to retrieve list of models: %v\n", err)
@@ -352,17 +353,17 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		checkpointDropdown.Components[0] = discordgo.SelectMenu{
 			Options: modelOptions,
 		}
-		components[checkpointSelect] = checkpointDropdown
+		handlers.Components[handlers.CheckpointSelect] = checkpointDropdown
 	}
 
 	// set default dimension from config
-	dimensions := components[dimensionSelect].(discordgo.ActionsRow)
+	dimensions := handlers.Components[handlers.DimensionSelect].(discordgo.ActionsRow)
 	dimensions.Components[0].(discordgo.SelectMenu).Options[0].Default = settings.Width == 512 && settings.Height == 512
 	dimensions.Components[0].(discordgo.SelectMenu).Options[1].Default = settings.Width == 768 && settings.Height == 768
-	components[dimensionSelect] = dimensions
+	handlers.Components[handlers.DimensionSelect] = dimensions
 
 	// set default batch count from config
-	batchCount := components[batchCountSelect].(discordgo.ActionsRow)
+	batchCount := handlers.Components[handlers.BatchCountSelect].(discordgo.ActionsRow)
 	for i, option := range batchCount.Components[0].(discordgo.SelectMenu).Options {
 		if i == settings.BatchCount {
 			option.Default = true
@@ -371,10 +372,10 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		}
 		batchCount.Components[0].(discordgo.SelectMenu).Options[i] = option
 	}
-	components[batchCountSelect] = batchCount
+	handlers.Components[handlers.BatchCountSelect] = batchCount
 
 	// set the default batch size from config
-	batchSize := components[batchSizeSelect].(discordgo.ActionsRow)
+	batchSize := handlers.Components[handlers.BatchSizeSelect].(discordgo.ActionsRow)
 	for i, option := range batchSize.Components[0].(discordgo.SelectMenu).Options {
 		if i == settings.BatchSize {
 			option.Default = true
@@ -383,13 +384,13 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 		}
 		batchSize.Components[0].(discordgo.SelectMenu).Options[i] = option
 	}
-	components[batchSizeSelect] = batchSize
+	handlers.Components[handlers.BatchSizeSelect] = batchSize
 
 	return []discordgo.MessageComponent{
-		components[checkpointSelect],
-		components[dimensionSelect],
-		components[batchCountSelect],
-		components[batchSizeSelect],
+		handlers.Components[handlers.CheckpointSelect],
+		handlers.Components[handlers.DimensionSelect],
+		handlers.Components[handlers.BatchCountSelect],
+		handlers.Components[handlers.BatchSizeSelect],
 	}
 }
 
