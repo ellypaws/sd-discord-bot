@@ -129,7 +129,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 	},
 
 	upscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
-		customID := i.Interaction.Data.(discordgo.MessageComponentInteractionData).CustomID
+		customID := i.MessageComponentData().CustomID
 		interactionIndex := strings.TrimPrefix(customID, upscaleButton+"_")
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
@@ -143,7 +143,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 	},
 
 	variantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
-		customID := i.Interaction.Data.(discordgo.MessageComponentInteractionData).CustomID
+		customID := i.MessageComponentData().CustomID
 		interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
