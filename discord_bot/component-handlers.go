@@ -37,7 +37,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 			return
 		}
 
-		handlers.ErrorEdit(s, i.Interaction, "Generation deleted")
+		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, "Generation deleted")
 	},
 
 	handlers.DeleteAboveButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {

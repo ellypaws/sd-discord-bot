@@ -10,12 +10,12 @@ const (
 	pendingResponse        // NewResponseType Respond with a "Bot is responding..." message
 	messageResponse        // msgResponseType Respond with a message
 
-	followupResponse  // msgReturnType Send a followup message
+	followupResponse  // MsgReturnType Send a followup message
 	followupEdit      // editResponseType Edit a followup message by providing a [*discordgo.Message]
-	ephemeralFollowup // msgReturnType Respond with an ephemeral followup message
+	ephemeralFollowup // MsgReturnType Respond with an ephemeral followup message
 
 	editMessage             // editResponseType Edit a [*discordgo.Message]
-	editInteractionResponse // msgReturnType Edit the interaction response message
+	EditInteractionResponse // msgReturnType Edit the interaction response message
 
 	ephemeralResponding // NewResponseType Respond with an ephemeral message saying "Bot is responding..."
 	ephemeralContent    // msgResponseType Respond with an ephemeral message with the provided content
@@ -26,7 +26,7 @@ const (
 type NewResponseType func(bot *discordgo.Session, i *discordgo.InteractionCreate)
 type newReturnType func(bot *discordgo.Session, i *discordgo.InteractionCreate) *discordgo.Message
 type msgResponseType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any)
-type msgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message
+type MsgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message
 type editResponseType func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message
 
 var Responses = map[int]any{
@@ -74,7 +74,7 @@ var Responses = map[int]any{
 			errorFollowup(bot, i, err)
 		}
 	}),
-	followupResponse: msgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) *discordgo.Message {
+	followupResponse: MsgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) *discordgo.Message {
 		webhookParams := discordgo.WebhookParams{}
 		for _, m := range message {
 			switch content := m.(type) {
@@ -105,7 +105,7 @@ var Responses = map[int]any{
 		return msg
 	}),
 
-	ephemeralFollowup: msgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) *discordgo.Message {
+	ephemeralFollowup: MsgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) *discordgo.Message {
 		webhookParams := discordgo.WebhookParams{
 			Flags: discordgo.MessageFlagsEphemeral,
 		}
@@ -136,7 +136,7 @@ var Responses = map[int]any{
 		return msg
 	}),
 
-	editInteractionResponse: msgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message {
+	EditInteractionResponse: MsgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message {
 		webhookEdit := discordgo.WebhookEdit{}
 		contentEdit(&webhookEdit, content...)
 
@@ -222,7 +222,7 @@ func contentEdit(webhookEdit *discordgo.WebhookEdit, messages ...any) {
 }
 
 func EphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
-	Responses[ephemeralFollowup].(msgReturnType)(bot, i, message...)
+	Responses[ephemeralFollowup].(MsgReturnType)(bot, i, message...)
 }
 
 func DeleteAboveFollowup(bot *discordgo.Session, i *discordgo.Interaction) {
