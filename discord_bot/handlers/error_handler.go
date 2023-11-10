@@ -83,7 +83,7 @@ func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorConten
 		errorString = fmt.Sprint(content) // Convert the error to a string
 	default:
 		errorString = "An unknown error has occurred"
-		errorString += "\nReceived:" + fmt.Sprint(content)
+		errorString += fmt.Sprintf("\nReceived: %v", content)
 	}
 	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
