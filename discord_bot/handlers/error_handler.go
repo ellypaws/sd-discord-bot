@@ -129,20 +129,25 @@ func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, er
 }
 
 func formatError(errorContent ...any) string {
-	if errorContent == nil || len(errorContent) == 0 {
+	if errorContent == nil || len(errorContent) < 1 {
 		errorContent = []any{"An unknown error has occurred"}
 	}
-	var errorString string
 
-	switch content := errorContent[0].(type) {
-	case string:
-		errorString = content
-	case error:
-		errorString = fmt.Sprint(content) // Convert the error to a string
-	default:
-		errorString = "An unknown error has occurred"
-		errorString += fmt.Sprintf("\nReceived: %v", content)
+	var errors []string
+	for _, content := range errorContent {
+		switch content := content.(type) {
+		case string, error:
+			errors = append(errors, fmt.Sprint(content)) // Convert the error to a string
+		default:
+			errors = append(errors, fmt.Sprintf("An unknown error has occured\nReceived: %v", content))
+		}
 	}
+
+	errorString := strings.Join(errors, "\n")
+	if len(errors) > 1 {
+		errorString = "Multiple errors have occurred:\n" + errorString
+	}
+
 	return errorString
 }
 
