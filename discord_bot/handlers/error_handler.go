@@ -71,20 +71,7 @@ const DeadAPI = "API is not running"
 
 // errorFollowup [ErrorFollowup] sends an error message as a followup message with a deletion button.
 func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	if errorContent == nil || len(errorContent) == 0 {
-		return
-	}
-	var errorString string
-
-	switch content := errorContent[0].(type) {
-	case string:
-		errorString = content
-	case error:
-		errorString = fmt.Sprint(content) // Convert the error to a string
-	default:
-		errorString = "An unknown error has occurred"
-		errorString += fmt.Sprintf("\nReceived: %v", content)
-	}
+	errorString := formatError(errorContent)
 	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
 	logError(errorString, i)
@@ -97,20 +84,7 @@ func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorConten
 
 // ErrorEdit [ErrorResponse] responds to the interaction with an error message and a deletion button.
 func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	if errorContent == nil || len(errorContent) == 0 {
-		return
-	}
-	var errorString string
-
-	switch content := errorContent[0].(type) {
-	case string:
-		errorString = content
-	case error:
-		errorString = fmt.Sprint(content) // Convert the error to a string
-	default:
-		errorString = "An unknown error has occurred"
-		errorString += "\nReceived:" + fmt.Sprint(content)
-	}
+	errorString := formatError(errorContent)
 	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
 	logError(errorString, i)
@@ -121,10 +95,10 @@ func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ..
 	})
 }
 
-// ErrorEphemeralResponse [ErrorEphemeral] responds to the interaction with an ephemeral error message when the deletion button doesn't work.
+// ErrorEphemeralResponse [ErrorEphemeral] responds to the interaction with an ephemeral error message.
 func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	if errorContent == nil || len(errorContent) == 0 {
-		return
+		errorContent = []any{"An unknown error has occurred"}
 	}
 	blankEmbed, toPrint := errorEmbed(errorContent, i)
 
@@ -143,7 +117,7 @@ func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, er
 
 func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	if errorContent == nil || len(errorContent) == 0 {
-		return
+		errorContent = []any{"An unknown error has occurred"}
 	}
 	blankEmbed, toPrint := errorEmbed(errorContent, i)
 
@@ -154,7 +128,10 @@ func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, er
 	})
 }
 
-func errorEmbed(errorContent []any, i *discordgo.Interaction) ([]*discordgo.MessageEmbed, string) {
+func formatError(errorContent ...any) string {
+	if errorContent == nil || len(errorContent) == 0 {
+		errorContent = []any{"An unknown error has occurred"}
+	}
 	var errorString string
 
 	switch content := errorContent[0].(type) {
@@ -164,8 +141,13 @@ func errorEmbed(errorContent []any, i *discordgo.Interaction) ([]*discordgo.Mess
 		errorString = fmt.Sprint(content) // Convert the error to a string
 	default:
 		errorString = "An unknown error has occurred"
-		errorString += "\nReceived:" + fmt.Sprint(content)
+		errorString += fmt.Sprintf("\nReceived: %v", content)
 	}
+	return errorString
+}
+
+func errorEmbed(errorContent []any, i *discordgo.Interaction) ([]*discordgo.MessageEmbed, string) {
+	errorString := formatError(errorContent)
 
 	logError(errorString, i)
 
