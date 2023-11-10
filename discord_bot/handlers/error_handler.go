@@ -207,6 +207,9 @@ func errorEmbed(errorContent []any, i *discordgo.Interaction) ([]*discordgo.Mess
 }
 
 func sanitizeToken(errorString *string) *string {
+	if errorString == nil {
+		return errorString
+	}
 	if Token == nil {
 		logError("WARNING: Token is nil", nil)
 		return errorString
