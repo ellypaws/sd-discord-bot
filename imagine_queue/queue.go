@@ -1171,7 +1171,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		return err
 	}
 
-	handlers.EphemeralFollowup(q.botSession, imagine.DiscordInteraction, "Delete generation", handlers.Components[handlers.DeleteButton])
+	handlers.EphemeralFollowup(q.botSession, imagine.DiscordInteraction, "Delete generation", handlers.Components[handlers.DeleteAboveButton])
 
 	return nil
 }

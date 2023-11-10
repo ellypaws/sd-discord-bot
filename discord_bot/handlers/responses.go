@@ -5,8 +5,8 @@ import (
 )
 
 const (
-	thinkResponse   = iota // NewResponseType Respond with a "Bot is thinking..." message
-	ephemeralThink         // NewResponseType Respond with an ephemeral message saying "Bot is thinking..."
+	ThinkResponse   = iota // NewResponseType Respond with a "Bot is thinking..." message
+	EphemeralThink         // NewResponseType Respond with an ephemeral message saying "Bot is thinking..."
 	pendingResponse        // NewResponseType Respond with a "Bot is responding..." message
 	messageResponse        // msgResponseType Respond with a message
 
@@ -30,7 +30,7 @@ type msgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, conten
 type editResponseType func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message
 
 var Responses = map[int]any{
-	thinkResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+	ThinkResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 		})
@@ -38,7 +38,7 @@ var Responses = map[int]any{
 			ErrorEphemeralResponse(bot, i.Interaction, err)
 		}
 	}),
-	ephemeralThink: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
+	EphemeralThink: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -60,7 +60,7 @@ var Responses = map[int]any{
 			},
 		})
 		if err != nil {
-			errorEdit(bot, i.Interaction, err)
+			ErrorEdit(bot, i.Interaction, err)
 		}
 	}),
 	messageResponse: msgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
@@ -159,7 +159,7 @@ var Responses = map[int]any{
 			},
 		})
 		if err != nil {
-			errorEdit(bot, i.Interaction, err)
+			ErrorEdit(bot, i.Interaction, err)
 		}
 	}),
 	ephemeralContent: msgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
@@ -185,7 +185,7 @@ var Responses = map[int]any{
 			},
 		})
 		if err != nil {
-			errorEdit(bot, i.Interaction, err)
+			ErrorEdit(bot, i.Interaction, err)
 		}
 	}),
 }

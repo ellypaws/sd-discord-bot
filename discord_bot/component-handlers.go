@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"regexp"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"strconv"
@@ -13,6 +14,42 @@ import (
 var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	handlers.DeleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
+		if err != nil {
+			handlers.ErrorEphemeralResponse(s, i.Interaction, err)
+		}
+	},
+
+	handlers.DeleteGeneration: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+		handlers.Responses[handlers.EphemeralThink].(handlers.NewResponseType)(s, i)
+		msg, _ := bot.botSession.ChannelMessage(i.ChannelID, i.Message.ID)
+
+		content := msg.Content
+		userRegex := regexp.MustCompile("<@!?(\\d+)>")
+		userID := userRegex.FindStringSubmatch(content)[1]
+
+		if userID != i.Member.User.ID {
+			handlers.ErrorEdit(s, i.Interaction, "You can only delete your own generations")
+			return
+		}
+		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
+		if err != nil {
+			handlers.ErrorEdit(s, i.Interaction, err)
+			return
+		}
+
+		handlers.ErrorEdit(s, i.Interaction, "Generation deleted")
+	},
+
+	handlers.DeleteAboveButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+		// delete the original interaction response
+		msg, err := s.InteractionResponse(i.Interaction)
+		if i == nil || err != nil {
+			handlers.ErrorEphemeralResponse(s, i.Interaction, fmt.Errorf("failed to retrieve interaction response: %v, %v", i, err))
+			return
+		}
+
+		err = s.ChannelMessageDelete(i.ChannelID, msg.ID)
+
 		if err != nil {
 			handlers.ErrorEphemeralResponse(s, i.Interaction, err)
 		}

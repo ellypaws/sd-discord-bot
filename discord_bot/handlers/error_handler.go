@@ -21,14 +21,14 @@ const (
 type ErrorResponseType msgResponseType
 
 var Errors = map[int]ErrorResponseType{
-	ErrorResponse:          ErrorResponseType(errorEdit),
+	ErrorResponse:          ErrorResponseType(ErrorEdit),
 	ErrorFollowup:          ErrorResponseType(errorFollowup),
 	ErrorEphemeral:         ErrorResponseType(ErrorEphemeralResponse),
 	ErrorFollowupEphemeral: ErrorResponseType(errorEphemeralFollowup),
 }
 
 // ErrorHandler responds to the interaction with an error message and a deletion button.
-// Deprecated: Use errorEdit instead.
+// Deprecated: Use ErrorEdit instead.
 func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent any) {
 	Errors[ErrorResponse](s, i, errorContent)
 	//var errorString string
@@ -95,8 +95,8 @@ func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorConten
 	})
 }
 
-// errorEdit [ErrorResponse] responds to the interaction with an error message and a deletion button.
-func errorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
+// ErrorEdit [ErrorResponse] responds to the interaction with an error message and a deletion button.
+func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	if errorContent == nil || len(errorContent) == 0 {
 		return
 	}
