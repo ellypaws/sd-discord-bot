@@ -57,9 +57,9 @@ func New(cfg *Config) (Bot, error) {
 
 	handlers2.Token = &cfg.BotToken
 
-	if cfg.GuildID == "" {
-		return nil, errors.New("missing guild ID")
-	}
+	//if cfg.GuildID == "" {
+	//	return nil, errors.New("missing guild ID")
+	//}
 
 	if cfg.ImagineQueue == nil {
 		return nil, errors.New("missing imagine queue")
