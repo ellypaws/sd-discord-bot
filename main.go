@@ -8,6 +8,7 @@ import (
 	"os"
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
@@ -95,6 +96,11 @@ func main() {
 
 	if apiHost == nil || *apiHost == "" {
 		log.Fatalf("API host flag is required")
+	}
+
+	alive := handlers.CheckAPIAlive(*apiHost)
+	if !alive {
+		log.Printf("API (%v) is not running! Continuing anyway...", *apiHost)
 	}
 
 	if imagineCommand == nil || *imagineCommand == "" {
