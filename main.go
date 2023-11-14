@@ -27,7 +27,7 @@ var (
 
 func init() {
 	if err := godotenv.Load(); err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
+		log.Printf("Error loading .env file: %v", err)
 	}
 	log.Println(".env file loaded successfully")
 
