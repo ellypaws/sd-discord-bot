@@ -100,7 +100,7 @@ func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, er
 	if errorContent == nil || len(errorContent) == 0 {
 		errorContent = []any{"An unknown error has occurred"}
 	}
-	blankEmbed, toPrint := errorEmbed(errorContent, i)
+	embed, toPrint := errorEmbed(errorContent, i)
 
 	_ = bot.InteractionRespond(i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -110,7 +110,7 @@ func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, er
 			// (user who triggered the command)
 			Flags:   discordgo.MessageFlagsEphemeral,
 			Content: toPrint,
-			Embeds:  blankEmbed,
+			Embeds:  embed,
 		},
 	})
 }
@@ -119,11 +119,11 @@ func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, er
 	if errorContent == nil || len(errorContent) == 0 {
 		errorContent = []any{"An unknown error has occurred"}
 	}
-	blankEmbed, toPrint := errorEmbed(errorContent, i)
+	embed, toPrint := errorEmbed(errorContent, i)
 
 	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
 		Content: *sanitizeToken(&toPrint),
-		Embeds:  blankEmbed,
+		Embeds:  embed,
 		Flags:   discordgo.MessageFlagsEphemeral,
 	})
 }
