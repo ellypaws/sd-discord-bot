@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/joho/godotenv"
 	"log"
+	"os"
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
 	"stable_diffusion_bot/imagine_queue"
@@ -21,6 +23,61 @@ var (
 	removeCommandsFlag = flag.Bool("remove", false, "Delete all commands when bot exits")
 	devModeFlag        = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
 )
+
+func init() {
+	if err := godotenv.Load(); err != nil {
+		log.Fatalf("Error loading .env file: %v", err)
+	}
+	log.Println(".env file loaded successfully")
+
+	if botToken == nil || *botToken == "" {
+		tokenEnv := os.Getenv("BOT_TOKEN")
+		if tokenEnv == "YOUR_BOT_TOKEN_HERE" {
+			log.Fatalf("Invalid bot token: %v\n"+
+				"Did you edit the .env or run the program with -token ?", tokenEnv)
+		}
+		if tokenEnv != "" {
+			botToken = &tokenEnv
+		}
+	}
+
+	if apiHost == nil || *apiHost == "" {
+		hostEnv := os.Getenv("API_HOST")
+		if hostEnv != "" {
+			apiHost = &hostEnv
+		}
+	}
+
+	if guildID == nil || *guildID == "" {
+		guildEnv := os.Getenv("GUILD_ID")
+		if guildEnv != "" {
+			guildID = &guildEnv
+		}
+	}
+
+	if imagineCommand == nil || *imagineCommand == "" {
+		imagineEnv := os.Getenv("IMAGINE_COMMAND")
+		if imagineEnv != "" {
+			imagineCommand = &imagineEnv
+		}
+	}
+
+	if devModeFlag == nil {
+		devModeEnv := os.Getenv("DEV_MODE")
+		if devModeEnv != "" {
+			devModeFlag = new(bool)
+			*devModeFlag = devModeEnv == "true"
+		}
+	}
+
+	if removeCommandsFlag == nil {
+		removeCommandsEnv := os.Getenv("REMOVE_COMMANDS")
+		if removeCommandsEnv != "" {
+			removeCommandsFlag = new(bool)
+			*removeCommandsFlag = removeCommandsEnv == "true"
+		}
+	}
+}
 
 func main() {
 	//tools.ImageToBase64()

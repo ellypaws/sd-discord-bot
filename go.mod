@@ -6,6 +6,7 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/joho/godotenv v1.5.1
 	github.com/sahilm/fuzzy v0.1.0
 	modernc.org/sqlite v1.20.1
 )
