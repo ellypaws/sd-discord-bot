@@ -80,11 +80,11 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
-func (api *apiImplementation) PopulateCache() error {
+func (api *apiImplementation) PopulateCache() (errors []error) {
 	if CheckpointCache == nil {
 		_, err := api.checkpointsApi()
 		if err != nil {
-			return err
+			errors = append(errors, err)
 		}
 		log.Printf("Successfully precached %v checkpoint models", len(CheckpointCache))
 	}
@@ -92,7 +92,7 @@ func (api *apiImplementation) PopulateCache() error {
 	if LoraCache == nil {
 		_, err := api.sdLoraApi()
 		if err != nil {
-			return err
+			errors = append(errors, err)
 		}
 		log.Printf("Successfully precached %v lora models", len(LoraCache))
 	}

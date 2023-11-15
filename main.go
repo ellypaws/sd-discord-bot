@@ -136,8 +136,8 @@ func main() {
 		log.Fatalf("Failed to create Stable Diffusion API: %v", err)
 	}
 
-	err = stableDiffusionAPI.PopulateCache()
-	if err != nil {
+	errors := stableDiffusionAPI.PopulateCache()
+	if errors != nil {
 		log.Printf("Failed to populate cache: %v", err)
 	}
 
