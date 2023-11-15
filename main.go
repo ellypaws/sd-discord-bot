@@ -13,6 +13,7 @@ import (
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
 	"stable_diffusion_bot/stable_diffusion_api"
+	"strings"
 )
 
 // Bot parameters
@@ -47,6 +48,11 @@ func init() {
 		if hostEnv != "" {
 			apiHost = &hostEnv
 		}
+	}
+
+	if apiHost != nil && *apiHost != "" {
+		sanitized := strings.TrimSuffix(*apiHost, "/")
+		apiHost = &sanitized
 	}
 
 	if guildID == nil || *guildID == "" {
