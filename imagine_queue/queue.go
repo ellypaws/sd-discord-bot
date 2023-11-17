@@ -668,7 +668,13 @@ func (q *queueImplementation) processCurrentImagine() {
 		if q.currentImagine.Checkpoint != "" {
 			checkpoint = q.currentImagine.Checkpoint
 		} else {
-			checkpoint = defaultSettings.SDModelName
+			model, err := q.stableDiffusionAPI.GetCheckpoint()
+			if err != nil {
+				log.Printf("Error getting checkpoint: %v", err)
+				checkpoint = defaultSettings.SDModelName
+			} else {
+				checkpoint = model
+			}
 		}
 
 		// new generation with defaults
