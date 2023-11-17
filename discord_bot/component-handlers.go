@@ -11,6 +11,7 @@ import (
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -348,33 +349,33 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 }
 
 func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *discordgo.InteractionCreate, newModelName string) {
-	botSettings, err := b.imagineQueue.UpdateModelName(newModelName)
+	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
+	if err != nil {
+		log.Printf("error retrieving bot settings: %v", err)
+		handlers.Responses[handlers.ErrorEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error retrieving bot settings...")
+		return
+	}
+	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction,
+		fmt.Sprintf("Updating model to %v...", newModelName),
+		b.settingsMessageComponents(botSettings),
+	)
+	err = b.StableDiffusionApi.UpdateConfiguration(stable_diffusion_api.POSTCheckpoint{SdModelCheckpoint: newModelName})
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
-
-		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseUpdateMessage,
-			Data: &discordgo.InteractionResponseData{
-				Content: "Error updating sd model name settings...",
-			},
-		})
-		if err != nil {
-			log.Printf("Error responding to interaction: %v", err)
-		}
+		handlers.Responses[handlers.ErrorFollowupEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error updating sd model name settings...")
 
 		return
 	}
 
-	messageComponents := b.settingsMessageComponents(botSettings)
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+		fmt.Sprintf("Updated model to %v", newModelName),
+		b.settingsMessageComponents(botSettings),
+	)
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseUpdateMessage,
-		Data: &discordgo.InteractionResponseData{
-			Content:    "Choose default settings for the imagine command:",
-			Components: messageComponents,
-		},
+	time.AfterFunc(5*time.Second, func() {
+		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+			"Choose default settings for the imagine command:",
+			b.settingsMessageComponents(botSettings),
+		)
 	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
 }
