@@ -17,6 +17,7 @@ const (
 	ephemeralFollowup // MsgReturnType Respond with an ephemeral followup message
 
 	editMessage             // editResponseType Edit a [*discordgo.Message]
+	UpdateFromComponent     // MsgResponseType Update the interaction response message
 	EditInteractionResponse // MsgReturnType Edit the interaction response message
 
 	ephemeralResponding // NewResponseType Respond with an ephemeral message saying "Bot is responding..."
@@ -138,6 +139,20 @@ var Responses = map[ResponseType]any{
 		return msg
 	}),
 
+	UpdateFromComponent: MsgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) {
+		interactionResponse := discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseUpdateMessage,
+			Data: &discordgo.InteractionResponseData{},
+		}
+
+		responseEdit(interactionResponse.Data, content...)
+
+		err := bot.InteractionRespond(i, &interactionResponse)
+		if err != nil {
+			Errors[ErrorFollowupEphemeral](bot, i, err)
+		}
+	}),
+
 	EditInteractionResponse: MsgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message {
 		webhookEdit := discordgo.WebhookEdit{}
 		contentEdit(&webhookEdit, content...)
@@ -223,6 +238,38 @@ func contentEdit(webhookEdit *discordgo.WebhookEdit, messages ...any) {
 	}
 }
 
+func responseEdit(resp *discordgo.InteractionResponseData, messages ...any) {
+	if resp == nil {
+		resp = &discordgo.InteractionResponseData{}
+	}
+	if len(messages) == 0 {
+		return
+	}
+	var newEmbeds []*discordgo.MessageEmbed
+	var newComponents []discordgo.MessageComponent
+	for _, m := range messages {
+		switch c := m.(type) {
+		case *discordgo.Message:
+			resp.Content = c.Content
+			resp.Embeds = c.Embeds
+			resp.Components = c.Components
+		case string:
+			resp.Content = c
+		case discordgo.MessageEmbed:
+			newEmbeds = append(newEmbeds, &c)
+		case discordgo.MessageComponent:
+			newComponents = append(newComponents, c)
+		case []discordgo.MessageComponent:
+			newComponents = append(newComponents, c...)
+		}
+	}
+	if len(newComponents) > 0 {
+		resp.Components = newComponents
+	}
+	if len(newEmbeds) > 0 {
+		resp.Embeds = newEmbeds
+	}
+}
 func EphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
 	Responses[ephemeralFollowup].(MsgReturnType)(bot, i, message...)
 }
