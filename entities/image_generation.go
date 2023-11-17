@@ -33,8 +33,8 @@ type ImageGeneration struct {
 	Steps             int       `json:"steps"`
 	Processed         bool      `json:"processed"`
 	CreatedAt         time.Time `json:"created_at"`
-	ExtraSDModelName  string    `json:"-"`
 	AlwaysOnScripts   *Scripts  `json:"alwayson_scripts"`
+	Checkpoint        *string   `json:"checkpoint"`
 }
 
 func NewGeneration() *ImageGeneration {

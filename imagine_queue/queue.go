@@ -691,7 +691,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			CfgScale:          cfgScaleValue,
 			Steps:             stepValue,
 			Processed:         false,
-			ExtraSDModelName:  checkpoint,
+			Checkpoint:        &checkpoint,
 		}
 
 		segModelOptions := q.currentImagine.ADetailerString
@@ -820,8 +820,8 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		)
 	}
 
-	if generation.ExtraSDModelName != "" {
-		out.WriteString(fmt.Sprintf("\n**Checkpoint**: `%v`", generation.ExtraSDModelName))
+	if generation.Checkpoint != nil && *generation.Checkpoint != "" {
+		out.WriteString(fmt.Sprintf("\n**Checkpoint**: `%v`", *generation.Checkpoint))
 	}
 
 	if progress >= 0 && progress < 1 {
@@ -908,14 +908,14 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	}()
 
 	// Insert code to update the configuration here
-	if newGeneration.ExtraSDModelName != "" { // || q.currentImagine.Checkpoint != ""
-		fmt.Println("Loading Model:", newGeneration.ExtraSDModelName)
+	if newGeneration.Checkpoint != nil && *newGeneration.Checkpoint != "" { // || q.currentImagine.Checkpoint != ""
+		fmt.Println("Loading Model:", newGeneration.Checkpoint)
 
 		// lookup from the list of models
 		cachedModels, err := q.stableDiffusionAPI.SDModelsCache()
 
 		var modelToUse stable_diffusion_api.SDModel
-		results := fuzzy.FindFrom(newGeneration.ExtraSDModelName, cachedModels)
+		results := fuzzy.FindFrom(*newGeneration.Checkpoint, cachedModels)
 
 		if len(results) > 0 {
 			modelToUse = cachedModels[results[0].Index]
@@ -925,7 +925,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 				fmt.Println("Failed to update model:", err)
 			}
 		} else {
-			log.Printf("Couldn't find model %v", newGeneration.ExtraSDModelName)
+			log.Printf("Couldn't find model %v", newGeneration.Checkpoint)
 		}
 	}
 
