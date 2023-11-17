@@ -223,6 +223,7 @@ func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
 
 	return sdModels, nil
 }
+
 func (api *apiImplementation) TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) {
 	//fmt.Println("TextToImageRequest", req)
 	if req == nil {
@@ -426,6 +427,40 @@ func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 
 type POSTCheckpoint struct {
 	SdModelCheckpoint string `json:"sd_model_checkpoint,omitempty"`
+}
+
+func (api *apiImplementation) GET(getURL string) ([]byte, error) {
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
+
+	request, err := http.NewRequest("GET", getURL, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"Accept":       "application/json",
+	}
+
+	for key, value := range headers {
+		request.Header.Set(key, value)
+	}
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("API URL: %s", getURL)
+		log.Printf("Error with API Request: %s", getURL)
+
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+	return body, nil
 }
 
 func (api *apiImplementation) UpdateConfiguration(post POSTCheckpoint) error {
