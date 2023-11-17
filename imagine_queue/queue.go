@@ -635,7 +635,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			stepValue = promptRes2.Steps
 		}
 
-		cfgScaleValue := 9.0 // default CFG scale value
+		cfgScaleValue := 7.0 // default CFG scale value
 		promptRes3, err := extractCFGScaleFromPrompt(promptRes2.SanitizedPrompt, cfgScaleValue)
 		if err != nil {
 			log.Printf("Error extracting cfg scale from prompt: %v", err)
