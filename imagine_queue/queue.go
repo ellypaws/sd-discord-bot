@@ -1221,7 +1221,30 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		return
 	}
 
+	mainGeneration, err := q.imageGenerationRepo.GetByMessage(context.Background(), messageID)
+
 	log.Printf("Found generation: %v", generation)
+
+	config, _ := q.stableDiffusionAPI.GetConfig()
+
+	log.Printf("Current checkpoint: %v\nGeneration checkpoint: %v", config.Checkpoint(), *mainGeneration.Checkpoint)
+
+	if config.Checkpoint() != *mainGeneration.Checkpoint {
+		log.Printf("Changing checkpoint to: %v", *mainGeneration.Checkpoint)
+
+		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", config.Checkpoint(), *mainGeneration.Checkpoint)
+
+		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+			Content: &updateModelMessage,
+		})
+
+		err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.POSTCheckpoint{SdModelCheckpoint: *mainGeneration.Checkpoint})
+		if err != nil {
+			log.Printf("Error updating model: %v", err)
+
+			return
+		}
+	}
 
 	newContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, 0, 0)
 
