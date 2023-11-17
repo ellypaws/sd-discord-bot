@@ -4,11 +4,13 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+type ResponseType int
+
 const (
-	ThinkResponse   = iota // NewResponseType Respond with a "Bot is thinking..." message
-	EphemeralThink         // NewResponseType Respond with an ephemeral message saying "Bot is thinking..."
-	pendingResponse        // NewResponseType Respond with a "Bot is responding..." message
-	messageResponse        // MsgResponseType Respond with a message
+	ThinkResponse   ResponseType = iota // NewResponseType Respond with a "Bot is thinking..." message
+	EphemeralThink                      // NewResponseType Respond with an ephemeral message saying "Bot is thinking..."
+	pendingResponse                     // NewResponseType Respond with a "Bot is responding..." message
+	messageResponse                     // MsgResponseType Respond with a message
 
 	followupResponse  // MsgReturnType Send a followup message
 	followupEdit      // editResponseType Edit a followup message by providing a [*discordgo.Message]
@@ -29,7 +31,7 @@ type MsgResponseType func(bot *discordgo.Session, i *discordgo.Interaction, cont
 type MsgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message
 type editResponseType func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message
 
-var Responses = map[int]any{
+var Responses = map[ResponseType]any{
 	ThinkResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := bot.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
