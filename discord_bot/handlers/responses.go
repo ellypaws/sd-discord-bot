@@ -15,7 +15,7 @@ const (
 	ephemeralFollowup // MsgReturnType Respond with an ephemeral followup message
 
 	editMessage             // editResponseType Edit a [*discordgo.Message]
-	EditInteractionResponse // msgReturnType Edit the interaction response message
+	EditInteractionResponse // MsgReturnType Edit the interaction response message
 
 	ephemeralResponding // NewResponseType Respond with an ephemeral message saying "Bot is responding..."
 	ephemeralContent    // msgResponseType Respond with an ephemeral message with the provided content
