@@ -985,6 +985,16 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		imageBufs[idx] = imageBuf
 	}
 
+	currentConfig, err := q.stableDiffusionAPI.GetConfig()
+	if err != nil {
+		log.Printf("Error getting current config: %v\n", err)
+	}
+
+	var currentCheckpoint string
+	if currentConfig != nil {
+		currentCheckpoint = currentConfig.Checkpoint()
+	}
+
 	for idx := range resp.Seeds {
 		subGeneration := &entities.ImageGeneration{
 			InteractionID:     newGeneration.InteractionID,
@@ -1011,6 +1021,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			CfgScale:          newGeneration.CfgScale,
 			Steps:             newGeneration.Steps,
 			Processed:         true,
+			Checkpoint:        &currentCheckpoint,
 			AlwaysOnScripts:   newGeneration.AlwaysOnScripts,
 		}
 
