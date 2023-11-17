@@ -217,10 +217,10 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 			})
 		}
 
-		checkpointDropdown.Components[0] = discordgo.SelectMenu{
-			Options: modelOptions,
-		}
-		handlers.Components[handlers.CheckpointSelect] = checkpointDropdown
+		component := checkpointDropdown.Components[0].(discordgo.SelectMenu)
+		component.Options = modelOptions
+
+		handlers.Components[handlers.CheckpointSelect].(discordgo.ActionsRow).Components[0] = component
 	}
 
 	// set default dimension from config
