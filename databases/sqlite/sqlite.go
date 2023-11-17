@@ -94,6 +94,10 @@ const addAlwaysOnScriptsQuery string = `
 ALTER TABLE image_generations ADD COLUMN always_on_scripts TEXT NOT NULL DEFAULT '{}';
 `
 
+const addCheckpointQuery string = `
+ALTER TABLE image_generations ADD COLUMN checkpoint TEXT;
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -111,6 +115,7 @@ var migrations = []migration{
 	{migrationName: "add settings batch columns", migrationQuery: addSettingsBatchColumnsQuery},
 	{migrationName: "add generation batch count column", migrationQuery: addGenerationBatchSizeColumnQuery},
 	{migrationName: "add always on scripts column", migrationQuery: addAlwaysOnScriptsQuery},
+	{migrationName: "add checkpoint column", migrationQuery: addCheckpointQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {

@@ -10,15 +10,15 @@ import (
 )
 
 const insertGenerationQuery string = `
-INSERT INTO image_generations (interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+INSERT INTO image_generations (interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts, checkpoint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 `
 
 const getGenerationByMessageID string = `
-SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts FROM image_generations WHERE message_id = ?;
+SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts, checkpoint FROM image_generations WHERE message_id = ?;
 `
 
 const getGenerationByMessageIDAndSortOrder string = `
-SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts FROM image_generations WHERE message_id = ? AND sort_order = ?;
+SELECT id, interaction_id, message_id, member_id, sort_order, prompt, negative_prompt, width, height, restore_faces, enable_hr, hr_scale, hr_upscaler, hires_width, hires_height, denoising_strength, batch_count, batch_size, seed, subseed, subseed_strength, sampler_name, cfg_scale, steps, processed, created_at, always_on_scripts, checkpoint  FROM image_generations WHERE message_id = ? AND sort_order = ?;
 `
 
 type sqliteRepo struct {
@@ -57,7 +57,9 @@ func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGe
 		generation.EnableHR, generation.HRUpscaleRate, generation.HRUpscaler, generation.HiresWidth, generation.HiresHeight, generation.DenoisingStrength,
 		generation.BatchCount, generation.BatchSize, generation.Seed, generation.Subseed,
 		generation.SubseedStrength, generation.SamplerName, generation.CfgScale, generation.Steps, generation.Processed, generation.CreatedAt,
-		marshalAlwaysonScriptstoString)
+		marshalAlwaysonScriptstoString,
+		generation.Checkpoint,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +84,9 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 		&generation.EnableHR, &generation.HRUpscaleRate, &generation.HRUpscaler, &generation.HiresWidth, &generation.HiresHeight, &generation.DenoisingStrength,
 		&generation.BatchCount, &generation.BatchSize, &generation.Seed, &generation.Subseed,
 		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
-		&alwaysonScriptsString)
+		&alwaysonScriptsString,
+		&generation.Checkpoint,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -106,7 +110,9 @@ func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID strin
 		&generation.EnableHR, &generation.HRUpscaleRate, &generation.HRUpscaler, &generation.HiresWidth, &generation.HiresHeight, &generation.DenoisingStrength,
 		&generation.BatchCount, &generation.BatchSize, &generation.Seed, &generation.Subseed,
 		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
-		&alwaysonScriptsString)
+		&alwaysonScriptsString,
+		&generation.Checkpoint,
+	)
 
 	if err != nil {
 		return nil, err
