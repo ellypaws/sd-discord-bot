@@ -30,12 +30,12 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		userID := userRegex.FindStringSubmatch(content)[1]
 
 		if userID != i.Member.User.ID {
-			handlers.ErrorEdit(s, i.Interaction, "You can only delete your own generations")
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You can only delete your own generations")
 			return
 		}
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
-			handlers.ErrorEdit(s, i.Interaction, err)
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, err)
 			return
 		}
 

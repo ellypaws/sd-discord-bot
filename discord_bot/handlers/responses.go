@@ -62,7 +62,7 @@ var Responses = map[ResponseType]any{
 			},
 		})
 		if err != nil {
-			ErrorEdit(bot, i.Interaction, err)
+			Errors[ErrorResponse](bot, i.Interaction, err)
 		}
 	}),
 	messageResponse: MsgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
@@ -73,7 +73,7 @@ var Responses = map[ResponseType]any{
 			},
 		})
 		if err != nil {
-			errorFollowup(bot, i, err)
+			Errors[ErrorFollowup](bot, i, err)
 		}
 	}),
 	followupResponse: MsgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) *discordgo.Message {
@@ -90,7 +90,7 @@ var Responses = map[ResponseType]any{
 		}
 		msg, err := bot.FollowupMessageCreate(i, true, &webhookParams)
 		if err != nil {
-			errorFollowup(bot, i, err)
+			Errors[ErrorFollowup](bot, i, err)
 		}
 		return msg
 	}),
@@ -102,7 +102,7 @@ var Responses = map[ResponseType]any{
 
 		msg, err := bot.FollowupMessageEdit(i, message.Reference().MessageID, &webhookEdit)
 		if err != nil {
-			errorFollowup(bot, i, err)
+			Errors[ErrorFollowup](bot, i, err)
 		}
 		return msg
 	}),
@@ -121,7 +121,7 @@ var Responses = map[ResponseType]any{
 		}
 		msg, err := bot.FollowupMessageCreate(i, true, &webhookParams)
 		if err != nil {
-			errorFollowup(bot, i, err)
+			Errors[ErrorFollowup](bot, i, err)
 		}
 		return msg
 	}),
@@ -133,7 +133,7 @@ var Responses = map[ResponseType]any{
 
 		msg, err := bot.FollowupMessageEdit(i, message.Reference().MessageID, &webhookEdit)
 		if err != nil {
-			errorFollowup(bot, i, err)
+			Errors[ErrorFollowup](bot, i, err)
 		}
 		return msg
 	}),
@@ -144,7 +144,7 @@ var Responses = map[ResponseType]any{
 
 		msg, err := bot.InteractionResponseEdit(i, &webhookEdit)
 		if err != nil {
-			ErrorEphemeralResponse(bot, i, err)
+			Errors[ErrorEphemeral](bot, i, err)
 		}
 		return msg
 	}),
@@ -161,10 +161,10 @@ var Responses = map[ResponseType]any{
 			},
 		})
 		if err != nil {
-			ErrorEdit(bot, i.Interaction, err)
+			Errors[ErrorResponse](bot, i.Interaction, err)
 		}
 	}),
-	ephemeralContent: msgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
+	ephemeralContent: MsgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
 		err := bot.InteractionRespond(i, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
@@ -176,7 +176,7 @@ var Responses = map[ResponseType]any{
 			},
 		})
 		if err != nil {
-			errorFollowup(bot, i, err)
+			Errors[ErrorFollowup](bot, i, err)
 		}
 	}),
 	HelloResponse: NewResponseType(func(bot *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -187,7 +187,7 @@ var Responses = map[ResponseType]any{
 			},
 		})
 		if err != nil {
-			ErrorEdit(bot, i.Interaction, err)
+			Errors[ErrorResponse](bot, i.Interaction, err)
 		}
 	}),
 }
@@ -228,5 +228,5 @@ func EphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, message
 }
 
 func DeleteAboveFollowup(bot *discordgo.Session, i *discordgo.Interaction) {
-	EphemeralFollowup(bot, i, "Delete generation", Components[DeleteButton])
+	Errors[ErrorFollowupEphemeral](bot, i, "Delete generation", Components[DeleteButton])
 }
