@@ -408,6 +408,7 @@ func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsR
 	}, nil
 }
 
+// Deprecated: This was inadvertently adding backticks to the prompt inside the database as well
 func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
 	// backtick(code) is shown as monospace in Discord client
 	return "`" + promptIn + "`"
