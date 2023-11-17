@@ -506,3 +506,12 @@ func (api *apiImplementation) GetConfig() (*APIConfig, error) {
 
 	return &apiConfig, nil
 }
+
+func (api *apiImplementation) GetCheckpoint() (string, error) {
+	apiConfig, err := api.GetConfig()
+	if err != nil {
+		return "", err
+	}
+
+	return apiConfig.Checkpoint(), nil
+}
