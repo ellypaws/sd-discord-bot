@@ -424,18 +424,20 @@ func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 	return respStruct, nil
 }
 
-type APIConfiguration struct {
+type POSTCheckpoint struct {
 	SdModelCheckpoint string `json:"sd_model_checkpoint,omitempty"`
 }
 
-func (api *apiImplementation) UpdateConfiguration(key, value string) error {
-	//TODO implement me
+func (api *apiImplementation) UpdateConfiguration(post POSTCheckpoint) error {
 	headers := map[string]string{
 		"accept":       "application/json",
 		"Content-Type": "application/json",
 	}
 
-	body := []byte(fmt.Sprintf(`{"%v": "%v"}`, key, value))
+	body, err := json.Marshal(post)
+	if err != nil {
+		return errors.New("error marshalling config: " + err.Error())
+	}
 	fmt.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
 	if !handlers.CheckAPIAlive(api.host) {
