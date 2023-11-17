@@ -242,10 +242,10 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 	}
 
 	// set default dimension from config
-	dimensions := handlers.Components[handlers.DimensionSelect].(discordgo.ActionsRow)
-	dimensions.Components[0].(discordgo.SelectMenu).Options[0].Default = settings.Width == 512 && settings.Height == 512
-	dimensions.Components[0].(discordgo.SelectMenu).Options[1].Default = settings.Width == 768 && settings.Height == 768
-	handlers.Components[handlers.DimensionSelect] = dimensions
+	dimensions := handlers.Components[handlers.DimensionSelect].(discordgo.ActionsRow).Components[0].(discordgo.SelectMenu)
+	dimensions.Options[0].Default = settings.Width == 512 && settings.Height == 512
+	dimensions.Options[1].Default = settings.Width == 768 && settings.Height == 768
+	handlers.Components[handlers.DimensionSelect].(discordgo.ActionsRow).Components[0] = dimensions
 
 	// set default batch count from config
 	batchCount := handlers.Components[handlers.BatchCountSelect].(discordgo.ActionsRow)
