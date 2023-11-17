@@ -661,17 +661,13 @@ func (q *queueImplementation) processCurrentImagine() {
 		//var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
 		//promptRes.SanitizedPrompt = quotedPrompt
 
-		defaultSettings, _ := q.GetBotDefaultSettings()
-
 		var checkpoint string
-
 		if q.currentImagine.Checkpoint != "" {
 			checkpoint = q.currentImagine.Checkpoint
 		} else {
 			model, err := q.stableDiffusionAPI.GetCheckpoint()
 			if err != nil {
 				log.Printf("Error getting checkpoint: %v", err)
-				checkpoint = defaultSettings.SDModelName
 			} else {
 				checkpoint = model
 			}
