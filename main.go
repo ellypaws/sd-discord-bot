@@ -123,7 +123,7 @@ func main() {
 		//TODO add code to remove dev_ prefixed commands in discordgo when devModeFlag is false
 	}
 
-	removeCommands := false
+	var removeCommands bool
 
 	if removeCommandsFlag != nil && *removeCommandsFlag {
 		removeCommands = *removeCommandsFlag
