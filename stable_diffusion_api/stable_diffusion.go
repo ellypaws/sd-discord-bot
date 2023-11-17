@@ -466,3 +466,43 @@ func (api *apiImplementation) UpdateConfiguration(post POSTCheckpoint) error {
 
 	return nil
 }
+
+func (api *apiImplementation) GetConfig() (*APIConfig, error) {
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
+
+	req, err := http.NewRequest("GET", api.host+"/sdapi/v1/options", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	headers := map[string]string{
+		"Content-Type": "application/json",
+		"Accept":       "application/json",
+	}
+
+	for key, value := range headers {
+		req.Header.Set(key, value)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiConfig APIConfig
+	apiConfig, err = UnmarshalAPIConfig(body)
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiConfig, nil
+}
