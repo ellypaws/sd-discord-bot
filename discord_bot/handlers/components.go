@@ -181,23 +181,24 @@ var Components = map[string]discordgo.MessageComponent{
 	},
 
 	DimensionSelect: discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{discordgo.SelectMenu{
-			CustomID:  DimensionSelect,
-			MinValues: nil,
-			MaxValues: 1,
-			Options: []discordgo.SelectMenuOption{
-				{
-					Label:   "Size: 512x512",
-					Value:   "512_512",
-					Default: true,
-				},
-				{
-					Label:   "Size: 768x768",
-					Value:   "768_768",
-					Default: false,
+		Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				CustomID:  DimensionSelect,
+				MinValues: nil,
+				MaxValues: 1,
+				Options: []discordgo.SelectMenuOption{
+					{
+						Label:   "Size: 512x512",
+						Value:   "512_512",
+						Default: true,
+					},
+					{
+						Label:   "Size: 768x768",
+						Value:   "768_768",
+						Default: false,
+					},
 				},
 			},
-		},
 		},
 	},
 
