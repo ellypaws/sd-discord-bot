@@ -222,12 +222,15 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
 				Label:   shortenString(model.ModelName),
 				Value:   shortenString(model.Title),
-				Default: currentModel == model.ModelName,
+				Default: strings.Contains(currentModel, model.ModelName),
 			})
 			modelNames = append(modelNames, model.ModelName)
 		}
 
-		if !slices.Contains(modelNames, currentModel) {
+		if !slices.ContainsFunc(modelNames,
+			func(model string) bool {
+				return strings.Contains(currentModel, model)
+			}) {
 			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
 				Label:   shortenString(currentModel),
 				Value:   shortenString(currentModel),
