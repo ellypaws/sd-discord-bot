@@ -5,8 +5,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"regexp"
+	"slices"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
 	"strings"
 )
@@ -198,14 +200,21 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 
 // patch from upstream
 func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
-	models, err := b.StableDiffusionApi.SDModelsCache()
-
 	// populate checkpoint dropdown and set default
 	checkpointDropdown := handlers.Components[handlers.CheckpointSelect].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
+
+	models, err := b.StableDiffusionApi.SDModelsCache()
 	if err != nil {
 		fmt.Printf("Failed to retrieve list of models: %v\n", err)
 	} else {
+		var modelNames []string
+
+		currentModel, err := b.StableDiffusionApi.GetCheckpoint()
+		if err != nil {
+			log.Printf("Failed to retrieve current model: %v\n", err)
+		}
+
 		for i, model := range models {
 			if i > 20 {
 				break
@@ -213,7 +222,16 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
 				Label:   shortenString(model.ModelName),
 				Value:   shortenString(model.Title),
-				Default: settings.SDModelName == model.Title,
+				Default: currentModel == model.ModelName,
+			})
+			modelNames = append(modelNames, model.ModelName)
+		}
+
+		if !slices.Contains(modelNames, currentModel) {
+			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+				Label:   shortenString(currentModel),
+				Value:   shortenString(currentModel),
+				Default: true,
 			})
 		}
 
