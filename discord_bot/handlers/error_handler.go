@@ -18,7 +18,7 @@ const (
 	ErrorFollowupEphemeral        // ErrorResponseType Respond with an ephemeral error message as a followup message with a deletion button.
 )
 
-type ErrorResponseType msgResponseType
+type ErrorResponseType MsgResponseType
 
 var Errors = map[int]ErrorResponseType{
 	ErrorResponse:          ErrorResponseType(ErrorEdit),

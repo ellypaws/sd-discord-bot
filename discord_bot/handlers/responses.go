@@ -8,7 +8,7 @@ const (
 	ThinkResponse   = iota // NewResponseType Respond with a "Bot is thinking..." message
 	EphemeralThink         // NewResponseType Respond with an ephemeral message saying "Bot is thinking..."
 	pendingResponse        // NewResponseType Respond with a "Bot is responding..." message
-	messageResponse        // msgResponseType Respond with a message
+	messageResponse        // MsgResponseType Respond with a message
 
 	followupResponse  // MsgReturnType Send a followup message
 	followupEdit      // editResponseType Edit a followup message by providing a [*discordgo.Message]
@@ -18,14 +18,14 @@ const (
 	EditInteractionResponse // MsgReturnType Edit the interaction response message
 
 	ephemeralResponding // NewResponseType Respond with an ephemeral message saying "Bot is responding..."
-	ephemeralContent    // msgResponseType Respond with an ephemeral message with the provided content
+	ephemeralContent    // MsgResponseType Respond with an ephemeral message with the provided content
 
 	HelloResponse // newResponseType Respond with a message saying "Hey there! Congratulations, you just executed your first slash command"
 )
 
 type NewResponseType func(bot *discordgo.Session, i *discordgo.InteractionCreate)
 type newReturnType func(bot *discordgo.Session, i *discordgo.InteractionCreate) *discordgo.Message
-type msgResponseType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any)
+type MsgResponseType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any)
 type MsgReturnType func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message
 type editResponseType func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message
 
@@ -63,7 +63,7 @@ var Responses = map[int]any{
 			ErrorEdit(bot, i.Interaction, err)
 		}
 	}),
-	messageResponse: msgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
+	messageResponse: MsgResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message ...any) {
 		err := bot.InteractionRespond(i, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
