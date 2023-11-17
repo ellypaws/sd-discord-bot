@@ -729,7 +729,8 @@ func (q *queueImplementation) processCurrentImagine() {
 		//	newGeneration.AlwaysOnScripts["ADetailer"] = additionalScript["ADetailer"]
 		//}
 
-		if q.currentImagine.Type == ItemTypeReroll || q.currentImagine.Type == ItemTypeVariation {
+		switch q.currentImagine.Type {
+		case ItemTypeReroll, ItemTypeVariation:
 			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
 			if err != nil {
 				log.Printf("Error getting prompt for reroll: %v", err)
