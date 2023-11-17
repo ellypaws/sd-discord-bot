@@ -309,13 +309,14 @@ func (q *queueImplementation) UpdateDefaultBatch(batchCount, batchSize int) (*en
 	return newDefaultSettings, nil
 }
 
+// Deprecated: No longer store the SDModelName to DefaultSettings struct, use stable_diffusion_api.GetConfig instead
 func (q *queueImplementation) UpdateModelName(modelName string) (*entities.DefaultSettings, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return nil, err
 	}
 
-	defaultSettings.SDModelName = modelName
+	//defaultSettings.SDModelName = modelName
 
 	newDefaultSettings, err := q.defaultSettingsRepo.Upsert(context.Background(), defaultSettings)
 	if err != nil {

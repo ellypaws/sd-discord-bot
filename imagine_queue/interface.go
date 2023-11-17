@@ -11,5 +11,5 @@ type Queue interface {
 	GetBotDefaultSettings() (*entities.DefaultSettings, error)
 	UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error)
 	UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error)
-	UpdateModelName(modelName string) (*entities.DefaultSettings, error)
+	UpdateModelName(modelName string) (*entities.DefaultSettings, error) // Deprecated: No longer store the SDModelName to DefaultSettings struct, use stable_diffusion_api.GetConfig instead
 }
