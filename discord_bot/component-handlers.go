@@ -338,7 +338,7 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
-			Content:    "Choose defaults settings for the imagine command:",
+			Content:    "Choose default settings for the imagine command:",
 			Components: messageComponents,
 		},
 	})
@@ -370,7 +370,7 @@ func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *disc
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
-			Content:    "Choose defaults settings for the imagine command:",
+			Content:    "Choose default settings for the imagine command:",
 			Components: messageComponents,
 		},
 	})

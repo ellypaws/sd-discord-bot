@@ -491,7 +491,7 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Title:      "Settings",
-			Content:    "Choose defaults settings for the imagine command:",
+			Content:    "Choose default settings for the imagine command:",
 			Components: messageComponents,
 		},
 	})
