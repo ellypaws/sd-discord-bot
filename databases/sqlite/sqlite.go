@@ -105,7 +105,7 @@ var migrations = []migration{
 	{migrationName: "drop hires firstpass columns", migrationQuery: dropHiresFirstPassDimensionColumnsQuery},
 	{migrationName: "add hires resize columns", migrationQuery: addHiresResizeColumnsQuery},
 	{migrationName: "create default settings table", migrationQuery: createDefaultSettingsTableIfNotExistsQuery},
-	{migrationName: "add hires reisze columns2", migrationQuery: addHiresMissingColumnsQuery},
+	{migrationName: "add hires resize columns2", migrationQuery: addHiresMissingColumnsQuery},
 	{migrationName: "add settings batch columns", migrationQuery: addSettingsBatchColumnsQuery},
 	{migrationName: "add generation batch count column", migrationQuery: addGenerationBatchSizeColumnQuery},
 	{migrationName: "add always on scripts column", migrationQuery: addAlwaysOnScriptsQuery},
