@@ -106,40 +106,66 @@ func New(cfg *Config) (Bot, error) {
 
 func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 	session.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
+		var h func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate)
+		var ok bool
 		switch i.Type {
 		// commands
 		case discordgo.InteractionApplicationCommand:
-			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
-				h(bot, session, i)
-			}
-		//buttons
+			h, ok = commandHandlers[i.ApplicationCommandData().Name]
+		// buttons
 		case discordgo.InteractionMessageComponent:
 			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
-			if h, ok := componentHandlers[i.MessageComponentData().CustomID]; ok {
-				//bot.p.Send(logger.Message(fmt.Sprintf(
-				//	"Handler found, executing on message `%v`\nRan by: <@%v>\nUsername: %v",
-				//	i.Message.ID,
-				//	i.Member.User.ID,
-				//	i.Member.User.Username,
-				//)))
-				//bot.p.Send(logger.Message(fmt.Sprintf("https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
-				h(bot, session, i)
-			} else {
+			h, ok = componentHandlers[i.MessageComponentData().CustomID]
+			//bot.p.Send(logger.Message(fmt.Sprintf(
+			//	"Handler found, executing on message `%v`\nRan by: <@%v>\nUsername: %v",
+			//	i.Message.ID,
+			//	i.Member.User.ID,
+			//	i.Member.User.Username,
+			//)))
+			//bot.p.Send(logger.Message(fmt.Sprintf("https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
+
+			if !ok {
 				switch customID := i.MessageComponentData().CustomID; {
 				case strings.HasPrefix(customID, handlers.UpscaleButton):
-					componentHandlers[handlers.UpscaleButton](bot, session, i)
+					h, ok = componentHandlers[handlers.UpscaleButton]
 				case strings.HasPrefix(customID, handlers.VariantButton):
-					componentHandlers[handlers.VariantButton](bot, session, i)
+					h, ok = componentHandlers[handlers.VariantButton]
 				default:
 					log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 				}
 			}
 		// autocomplete
 		case discordgo.InteractionApplicationCommandAutocomplete:
-			if h, ok := autocompleteHandlers[i.ApplicationCommandData().Name]; ok {
-				h(bot, session, i)
-			}
+			//h, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
 		}
+
+		if !ok {
+			var interactionType string
+			var interactionName string
+			switch i.Type {
+			case discordgo.InteractionApplicationCommand:
+				interactionType = "command"
+				interactionName = i.ApplicationCommandData().Name
+			case discordgo.InteractionMessageComponent:
+				interactionType = "component"
+				interactionName = i.MessageComponentData().CustomID
+			case discordgo.InteractionApplicationCommandAutocomplete:
+				interactionType = "autocomplete"
+
+				data := i.ApplicationCommandData()
+				for _, opt := range data.Options {
+					if !opt.Focused {
+						continue
+					}
+					interactionName = fmt.Sprintf("command: /%v option: %v (%v)", data.Name, opt.Name)
+					break
+				}
+			}
+			log.Printf("WARNING: Cannot find handler for interaction [%v] '%v'", interactionType, interactionName)
+			return
+		}
+
+		h(bot, session, i)
 	})
 	//currentProgress = len(commandHandlers) + len(componentHandlers) + len(components)
 	//bot.p.Send(load.Goal{
