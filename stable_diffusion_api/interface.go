@@ -1,7 +1,7 @@
 package stable_diffusion_api
 
 type StableDiffusionAPI interface {
-	SDModels() ([]StableDiffusionModel, error)
+	SDModels() ([]StableDiffusionModel, error) // Deprecated: use SDCheckpointsCache instead
 	PopulateCache() (errors []error)
 	SDCheckpointsCache() (SDModels, error)
 	SDLorasCache() (LoraModels, error)

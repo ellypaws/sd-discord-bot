@@ -124,6 +124,7 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 	return nil
 }
 
+// Deprecated: Use SDCheckpointsCache instead
 func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
 	// Make an HTTP request to fetch the stable diffusion models
 	handle, err := os.Open("available_models.json")
