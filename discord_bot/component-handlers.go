@@ -8,6 +8,7 @@ import (
 	"slices"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
 	"strings"
@@ -197,6 +198,68 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 
 		bot.processImagineVariation(s, i, interactionIndexInt)
 	},
+}
+
+func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+		Type:               imagine_queue.ItemTypeReroll,
+		DiscordInteraction: i.Interaction,
+	})
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("I'm reimagining that for you... You are currently #%d in line.", position),
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) {
+	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+		Type:               imagine_queue.ItemTypeUpscale,
+		InteractionIndex:   upscaleIndex,
+		DiscordInteraction: i.Interaction,
+	})
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("I'm upscaling that for you... You are currently #%d in line.", position),
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) {
+	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+		Type:               imagine_queue.ItemTypeVariation,
+		InteractionIndex:   variationIndex,
+		DiscordInteraction: i.Interaction,
+	})
+	if queueError != nil {
+		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("I'm imagining more variations for you... You are currently #%d in line.", position),
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
 
 // patch from upstream

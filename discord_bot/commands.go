@@ -6,9 +6,27 @@ import (
 )
 
 const (
+	// Command names
 	helloCommand           = "hello"
 	imagineCommand         = "imagine"
 	imagineSettingsCommand = "imagine_settings"
+
+	// Command options
+	promptOption       = "prompt"
+	negativeOption     = "negative_prompt"
+	samplerOption      = "sampler_name"
+	aspectRatio        = "aspect_ratio"
+	loraOption         = "lora"
+	checkpointOption   = "checkpoint"
+	vaeOption          = "vae"
+	hypernetworkOption = "hypernetwork"
+	hiresFixOption     = "use_hires_fix"
+	hiresFixSize       = "hires_fix_size"
+	restoreFacesOption = "restore_faces"
+	adModelOption      = "ad_model"
+	cfgScaleOption     = "cfg_scale"
+
+	extraLoras = 6
 )
 
 var commands = map[string]*discordgo.ApplicationCommand{

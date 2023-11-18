@@ -12,24 +12,6 @@ import (
 	"strings"
 )
 
-const extraLoras = 6
-
-const (
-	promptOption       = "prompt"
-	negativeOption     = "negative_prompt"
-	samplerOption      = "sampler_name"
-	aspectRatio        = "aspect_ratio"
-	loraOption         = "lora"
-	checkpointOption   = "checkpoint"
-	vaeOption          = "vae"
-	hypernetworkOption = "hypernetwork"
-	hiresFixOption     = "use_hires_fix"
-	hiresFixSize       = "hires_fix_size"
-	restoreFacesOption = "restore_faces"
-	adModelOption      = "ad_model"
-	cfgScaleOption     = "cfg_scale"
-)
-
 var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		handlers.Responses[handlers.HelloResponse].(handlers.NewResponseType)(bot, i)
@@ -86,68 +68,6 @@ func getOpts(data discordgo.ApplicationCommandInteractionData) map[string]*disco
 		optionMap[opt.Name] = opt
 	}
 	return optionMap
-}
-
-func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
-		Type:               imagine_queue.ItemTypeReroll,
-		DiscordInteraction: i.Interaction,
-	})
-	if queueError != nil {
-		log.Printf("Error adding imagine to queue: %v\n", queueError)
-	}
-
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("I'm reimagining that for you... You are currently #%d in line.", position),
-		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
-}
-
-func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) {
-	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
-		Type:               imagine_queue.ItemTypeUpscale,
-		InteractionIndex:   upscaleIndex,
-		DiscordInteraction: i.Interaction,
-	})
-	if queueError != nil {
-		log.Printf("Error adding imagine to queue: %v\n", queueError)
-	}
-
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("I'm upscaling that for you... You are currently #%d in line.", position),
-		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
-}
-
-func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) {
-	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
-		Type:               imagine_queue.ItemTypeVariation,
-		InteractionIndex:   variationIndex,
-		DiscordInteraction: i.Interaction,
-	})
-	if queueError != nil {
-		log.Printf("Error adding imagine to queue: %v\n", queueError)
-	}
-
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("I'm imagining more variations for you... You are currently #%d in line.", position),
-		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
 }
 
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
