@@ -44,6 +44,8 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[cfgScaleOption],
 		commandOptions[restoreFacesOption],
 		commandOptions[adModelOption],
+		commandOptions[vaeOption],
+		commandOptions[hypernetworkOption],
 	}
 
 	for i := 0; i < extraLoras; i++ {
@@ -71,6 +73,20 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 		Type:         discordgo.ApplicationCommandOptionString,
 		Name:         checkpointOption,
 		Description:  "The checkpoint to change to when generating. Sets for the next person.",
+		Required:     false,
+		Autocomplete: true,
+	},
+	vaeOption: {
+		Type:         discordgo.ApplicationCommandOptionString,
+		Name:         vaeOption,
+		Description:  "The vae to use",
+		Required:     false,
+		Autocomplete: true,
+	},
+	hypernetworkOption: {
+		Type:         discordgo.ApplicationCommandOptionString,
+		Name:         hypernetworkOption,
+		Description:  "The hypernetwork to use",
 		Required:     false,
 		Autocomplete: true,
 	},

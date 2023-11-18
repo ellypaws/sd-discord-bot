@@ -21,6 +21,8 @@ const (
 	aspectRatio        = "aspect_ratio"
 	loraOption         = "lora"
 	checkpointOption   = "checkpoint"
+	vaeOption          = "vae"
+	hypernetworkOption = "hypernetwork"
 	hiresFixOption     = "use_hires_fix"
 	hiresFixSize       = "hires_fix_size"
 	restoreFacesOption = "restore_faces"
@@ -166,6 +168,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	hiresFix := false
 	restoreFaces := false
 	var stringValue string
+	var vae string
 	var checkpoint string
 
 	if option, ok := optionMap[promptOption]; ok {
@@ -196,6 +199,15 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		if cpkt, ok := optionMap[checkpointOption]; ok {
 			checkpoint = cpkt.StringValue()
 			log.Printf("user wants to change checkpoint to %v", checkpoint)
+		}
+
+		if vaeOpt, ok := optionMap[vaeOption]; ok {
+			vae = vaeOpt.StringValue()
+			log.Printf("user wants to use vae %v", vae)
+		}
+
+		if hypernetwork, ok := optionMap[hypernetworkOption]; ok {
+			prompt += " " + hypernetwork.StringValue()
 		}
 
 		strength := regexp.MustCompile(`:([\d\.]+)$`)
@@ -393,71 +405,168 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
 				},
 			})
-		case opt.Name == checkpointOption:
-			log.Printf("Focused option (%v): %v", index, opt.Name)
-			input = opt.StringValue()
+		default:
+			switch opt.Name {
+			case checkpointOption:
+				log.Printf("Focused option (%v): %v", index, opt.Name)
+				input = opt.StringValue()
 
-			var choices []*discordgo.ApplicationCommandOptionChoice
+				var choices []*discordgo.ApplicationCommandOptionChoice
 
-			if input != "" {
-				log.Printf("Autocompleting '%v'", input)
-				cache, err := b.StableDiffusionApi.SDCheckpointsCache()
-				if err != nil {
-					log.Printf("Error retrieving checkpoint cache: %v", err)
-				}
-				results := fuzzy.FindFrom(input, cache)
-
-				for index, result := range results {
-					if index > 25 {
-						break
+				if input != "" {
+					log.Printf("Autocompleting '%v'", input)
+					cache, err := b.StableDiffusionApi.SDCheckpointsCache()
+					if err != nil {
+						log.Printf("Error retrieving checkpoint cache: %v", err)
 					}
-					//regExp := regexp.MustCompile(`(?:models\\)?Stable-diffusion\\(.*)`)
-					//
-					//alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
-					//
-					//var nameToUse string
-					//switch {
-					//case alias != nil && alias[1] != "":
-					//	// replace double slash with single slash
-					//	regExp := regexp.MustCompile(`\\{2,}`)
-					//	nameToUse = regExp.ReplaceAllString(alias[1], `\`)
-					//default:
-					//	nameToUse = cache[result.Index].Title
-					//}
+					results := fuzzy.FindFrom(input, cache)
 
-					// Match against String() method according to fuzzy docs
-					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-						Name:  cache[result.Index].Title,
-						Value: cache[result.Index].Title,
-					})
+					for index, result := range results {
+						if index > 25 {
+							break
+						}
+						//regExp := regexp.MustCompile(`(?:models\\)?Stable-diffusion\\(.*)`)
+						//
+						//alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
+						//
+						//var nameToUse string
+						//switch {
+						//case alias != nil && alias[1] != "":
+						//	// replace double slash with single slash
+						//	regExp := regexp.MustCompile(`\\{2,}`)
+						//	nameToUse = regExp.ReplaceAllString(alias[1], `\`)
+						//default:
+						//	nameToUse = cache[result.Index].Title
+						//}
+
+						// Match against String() method according to fuzzy docs
+						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+							Name:  cache[result.Index].Title,
+							Value: cache[result.Index].Title,
+						})
+					}
+
+					//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+					//	Name:  input,
+					//	Value: input,
+					//})
+				} else {
+					choices = []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "Type a checkpoint name. You can also attempt to fuzzy match a checkpoint name.",
+							Value: "placeholder",
+						},
+					}
 				}
 
-				//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-				//	Name:  input,
-				//	Value: input,
-				//})
-			} else {
-				choices = []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Type a checkpoint name. You can also attempt to fuzzy match a checkpoint name.",
-						Value: "placeholder",
+				// make sure we're under 100 char limit and under 25 choices
+				for i, choice := range choices {
+					if len(choice.Name) > 100 {
+						// TODO: check if discord counts bytes or chars
+						choices[i].Name = choice.Name[:100]
+					}
+				}
+				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+					Data: &discordgo.InteractionResponseData{
+						Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
 					},
-				}
-			}
+				})
+			case vaeOption:
+				log.Printf("Focused option (%v): %v", index, opt.Name)
+				input = opt.StringValue()
 
-			// make sure we're under 100 char limit and under 25 choices
-			for i, choice := range choices {
-				if len(choice.Name) > 100 {
-					// TODO: check if discord counts bytes or chars
-					choices[i].Name = choice.Name[:100]
+				var choices []*discordgo.ApplicationCommandOptionChoice
+
+				if input != "" {
+					log.Printf("Autocompleting '%v'", input)
+					cache, err := b.StableDiffusionApi.SDVAECache()
+					if err != nil {
+						log.Printf("Error retrieving vae cache: %v", err)
+					}
+					results := fuzzy.FindFrom(input, cache)
+
+					for index, result := range results {
+						if index > 25 {
+							break
+						}
+
+						// Match against String() method according to fuzzy docs
+						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+							Name:  cache[result.Index].ModelName,
+							Value: cache[result.Index].ModelName,
+						})
+					}
+				} else {
+					choices = []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "Type a vae name. You can also attempt to fuzzy match a vae.",
+							Value: "placeholder",
+						},
+					}
 				}
+
+				// make sure we're under 100 char limit and under 25 choices
+				for i, choice := range choices {
+					if len(choice.Name) > 100 {
+						// TODO: check if discord counts bytes or chars
+						choices[i].Name = choice.Name[:100]
+					}
+				}
+				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+					Data: &discordgo.InteractionResponseData{
+						Choices: choices[:min(25, len(choices))],
+					},
+				})
+			case hypernetworkOption:
+				log.Printf("Focused option (%v): %v", index, opt.Name)
+				input = opt.StringValue()
+
+				var choices []*discordgo.ApplicationCommandOptionChoice
+
+				if input != "" {
+					log.Printf("Autocompleting '%v'", input)
+					cache, err := b.StableDiffusionApi.SDHypernetworkCache()
+					if err != nil {
+						log.Printf("Error retrieving hypernetwork cache: %v", err)
+					}
+					results := fuzzy.FindFrom(input, cache)
+
+					for index, result := range results {
+						if index > 25 {
+							break
+						}
+
+						// Match against String() method according to fuzzy docs
+						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+							Name:  cache[result.Index].Name,
+							Value: cache[result.Index].Name,
+						})
+					}
+				} else {
+					choices = []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "Type a hypernetwork name. You can also attempt to fuzzy match a hypernetwork.",
+							Value: "placeholder",
+						},
+					}
+				}
+
+				// make sure we're under 100 char limit and under 25 choices
+				for i, choice := range choices {
+					if len(choice.Name) > 100 {
+						// TODO: check if discord counts bytes or chars
+						choices[i].Name = choice.Name[:100]
+					}
+				}
+				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+					Data: &discordgo.InteractionResponseData{
+						Choices: choices[:min(25, len(choices))],
+					},
+				})
 			}
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-				Data: &discordgo.InteractionResponseData{
-					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
-				},
-			})
 		}
 		break
 	}
