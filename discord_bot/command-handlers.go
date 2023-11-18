@@ -36,6 +36,10 @@ var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *disco
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
 }
 
+var autocompleteHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+	imagineCommand: (*botImpl).processImagineAutocomplete,
+}
+
 // addImagineCommand is now inside the commands map as imagineCommand: commands[imagineCommand]
 // It also uses imagineOptions() to build the necessary commandOptions
 // Deprecated: use commands[imagineCommand]

@@ -136,7 +136,7 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 			}
 		// autocomplete
 		case discordgo.InteractionApplicationCommandAutocomplete:
-			//h, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
+			h, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
 		// modals
 		case discordgo.InteractionModalSubmit:
 			//h, ok = modalHandlers[i.ModalSubmitData().CustomID]
