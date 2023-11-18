@@ -123,7 +123,7 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		errors = append(errors, err)
 	}
 
-	return nil
+	return
 }
 
 // Deprecated: Use SDCheckpointsCache instead
