@@ -106,8 +106,8 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		if err != nil {
 			errors = append(errors, err)
 		}
-		if len(LoraCache) > 2 {
-			log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
+		if len(VAECache) > 2 {
+			log.Printf("Successfully cached %v vaes from api: %v...", len(VAECache), VAECache[:2])
 		}
 	}
 
