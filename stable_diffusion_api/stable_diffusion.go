@@ -98,54 +98,29 @@ func (api *apiImplementation) Cache(c Cacheable) (Cacheable, error) {
 }
 
 func (api *apiImplementation) PopulateCache() (errors []error) {
-	if CheckpointCache == nil {
-		_, err := SDModels{}.Cache(api)
-		if err != nil {
-			errors = append(errors, err)
-		}
-		if len(CheckpointCache) > 2 {
-			log.Printf("Successfully cached %v checkpoints from api: %v...", len(CheckpointCache), CheckpointCache[:2])
-		}
+	_, err := api.Cache(CheckpointCache)
+	if err != nil {
+		errors = append(errors, err)
 	}
 
-	if LoraCache == nil {
-		_, err := LoraModels{}.Cache(api)
-		if err != nil {
-			errors = append(errors, err)
-		}
-		if len(LoraCache) > 2 {
-			log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
-		}
+	_, err = api.Cache(LoraCache)
+	if err != nil {
+		errors = append(errors, err)
 	}
 
-	if VaeCache == nil {
-		_, err := VAEModels{}.Cache(api)
-		if err != nil {
-			errors = append(errors, err)
-		}
-		if len(VaeCache) > 2 {
-			log.Printf("Successfully cached %v vaes from api: %v...", len(VaeCache), VaeCache[:2])
-		}
+	_, err = api.Cache(VAECache)
+	if err != nil {
+		errors = append(errors, err)
 	}
 
-	if HypernetworkCache == nil {
-		_, err := HypernetworkModels{}.Cache(api)
-		if err != nil {
-			errors = append(errors, err)
-		}
-		if len(HypernetworkCache) > 2 {
-			log.Printf("Successfully cached %v hypernetworks from api: %v...", len(HypernetworkCache), HypernetworkCache[:2])
-		}
+	_, err = api.Cache(HypernetworkCache)
+	if err != nil {
+		errors = append(errors, err)
 	}
 
-	if EmbeddingCache == nil {
-		_, err := EmbeddingModels{}.Cache(api)
-		if err != nil {
-			errors = append(errors, err)
-		}
-		if len(EmbeddingCache) > 2 {
-			log.Printf("Successfully cached %v embeddings from api: %v...", len(EmbeddingCache), EmbeddingCache[:2])
-		}
+	_, err = api.Cache(EmbeddingCache)
+	if err != nil {
+		errors = append(errors, err)
 	}
 
 	return nil

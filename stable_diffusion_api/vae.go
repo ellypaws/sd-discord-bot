@@ -36,11 +36,11 @@ func (c VAEModels) Len() int {
 	return len(c)
 }
 
-var VaeCache VAEModels
+var VAECache VAEModels
 
 func (c VAEModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
-	if VaeCache != nil {
-		return VaeCache, nil
+	if VAECache != nil {
+		return VAECache, nil
 	}
 	return c.apiGET(api)
 }
@@ -53,7 +53,7 @@ func (c VAEModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 		return nil, err
 	}
 
-	VaeCache, err = UnmarshalVAEs(body)
+	VAECache, err = UnmarshalVAEs(body)
 	if err != nil {
 		log.Printf("API URL: %s", getURL)
 		log.Printf("Unexpected API response: %s", string(body))
@@ -61,10 +61,10 @@ func (c VAEModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 		return nil, err
 	}
 
-	return VaeCache, nil
+	return VAECache, nil
 }
 
 func (api *apiImplementation) SDVAECache() (VAEModels, error) {
-	cache, err := VaeCache.Cache(api)
+	cache, err := VAECache.Cache(api)
 	return cache.(VAEModels), err
 }
