@@ -35,14 +35,14 @@ func (c HypernetworkModels) Len() int {
 
 var HypernetworkCache HypernetworkModels
 
-func (api *apiImplementation) SDHypernetworkCache() (HypernetworkModels, error) {
+func (c HypernetworkModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
 	if HypernetworkCache != nil {
 		return HypernetworkCache, nil
 	}
-	return api.hypernetworkApi()
+	return c.apiGET(api)
 }
 
-func (api *apiImplementation) hypernetworkApi() (HypernetworkModels, error) {
+func (c HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/hypernetworks"
 
 	body, err := api.GET(getURL)
@@ -56,4 +56,9 @@ func (api *apiImplementation) hypernetworkApi() (HypernetworkModels, error) {
 	}
 
 	return HypernetworkCache, nil
+}
+
+func (api *apiImplementation) SDHypernetworkCache() (HypernetworkModels, error) {
+	cache, err := HypernetworkCache.Cache(api)
+	return cache.(HypernetworkModels), err
 }

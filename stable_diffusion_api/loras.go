@@ -444,14 +444,14 @@ func (c LoraModels) Len() int {
 
 var LoraCache LoraModels
 
-func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
+func (c LoraModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
 	if LoraCache != nil {
 		return LoraCache, nil
 	}
-	return api.sdLoraApi()
+	return c.apiGET(api)
 }
 
-func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
+func (c LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/loras"
 
 	body, err := api.GET(getURL)
@@ -468,4 +468,9 @@ func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
 	}
 
 	return LoraCache, nil
+}
+
+func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
+	cache, err := LoraCache.Cache(api)
+	return cache.(LoraModels), err
 }

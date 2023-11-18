@@ -44,14 +44,14 @@ func (c SDModels) Len() int {
 var CheckpointCache SDModels
 
 // TODO: SDModelsCache and SDLorasCache are identical except for the endpoint they hit and the cache they write to.
-func (api *apiImplementation) SDCheckpointsCache() (SDModels, error) {
+func (c SDModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
 	if CheckpointCache != nil {
 		return CheckpointCache, nil
 	}
-	return api.checkpointsApi()
+	return c.apiGET(api)
 }
 
-func (api *apiImplementation) checkpointsApi() (SDModels, error) {
+func (c SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	// Make an HTTP request to fetch the stable diffusion models
 	getURL := "/sdapi/v1/sd-models"
 
@@ -69,4 +69,9 @@ func (api *apiImplementation) checkpointsApi() (SDModels, error) {
 	}
 
 	return CheckpointCache, nil
+}
+
+func (api *apiImplementation) SDCheckpointsCache() (SDModels, error) {
+	cache, err := CheckpointCache.Cache(api)
+	return cache.(SDModels), err
 }

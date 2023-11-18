@@ -52,14 +52,14 @@ func (c EmbeddingModels) Len() int {
 
 var EmbeddingCache EmbeddingModels
 
-func (api *apiImplementation) SDEmbeddingCache() (EmbeddingModels, error) {
+func (c EmbeddingModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
 	if EmbeddingCache != nil {
 		return EmbeddingCache, nil
 	}
-	return api.embeddingApi()
+	return c.apiGET(api)
 }
 
-func (api *apiImplementation) embeddingApi() (EmbeddingModels, error) {
+func (c EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/embeddings"
 
 	body, err := api.GET(getURL)
@@ -92,4 +92,9 @@ func (api *apiImplementation) embeddingApi() (EmbeddingModels, error) {
 	}
 
 	return EmbeddingCache, nil
+}
+
+func (api *apiImplementation) SDEmbeddingCache() (EmbeddingModels, error) {
+	cache, err := EmbeddingCache.Cache(api)
+	return cache.(EmbeddingModels), err
 }

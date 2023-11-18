@@ -31,6 +31,10 @@ func New(cfg Config) (StableDiffusionAPI, error) {
 	}, nil
 }
 
+func (api *apiImplementation) Host() string {
+	return api.host
+}
+
 type jsonTextToImageResponse struct {
 	Images []string `json:"images"`
 	Info   string   `json:"info"`
@@ -80,9 +84,22 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
+func (api *apiImplementation) Cache(c Cacheable) (Cacheable, error) {
+	if c == nil {
+		_, err := c.Cache(api)
+		if err != nil {
+			return c, err
+		}
+		if c.Len() > 2 {
+			log.Printf("Successfully cached %v from api: %v...", c.Len(), c.String(0))
+		}
+	}
+	return c, nil
+}
+
 func (api *apiImplementation) PopulateCache() (errors []error) {
 	if CheckpointCache == nil {
-		_, err := api.checkpointsApi()
+		_, err := SDModels{}.Cache(api)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -92,7 +109,7 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 	}
 
 	if LoraCache == nil {
-		_, err := api.sdLoraApi()
+		_, err := LoraModels{}.Cache(api)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -101,18 +118,18 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		}
 	}
 
-	if VAECache == nil {
-		_, err := api.vaeApi()
+	if VaeCache == nil {
+		_, err := VAEModels{}.Cache(api)
 		if err != nil {
 			errors = append(errors, err)
 		}
-		if len(VAECache) > 2 {
-			log.Printf("Successfully cached %v vaes from api: %v...", len(VAECache), VAECache[:2])
+		if len(VaeCache) > 2 {
+			log.Printf("Successfully cached %v vaes from api: %v...", len(VaeCache), VaeCache[:2])
 		}
 	}
 
 	if HypernetworkCache == nil {
-		_, err := api.hypernetworkApi()
+		_, err := HypernetworkModels{}.Cache(api)
 		if err != nil {
 			errors = append(errors, err)
 		}
@@ -122,7 +139,7 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 	}
 
 	if EmbeddingCache == nil {
-		_, err := api.embeddingApi()
+		_, err := EmbeddingModels{}.Cache(api)
 		if err != nil {
 			errors = append(errors, err)
 		}
