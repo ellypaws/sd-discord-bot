@@ -912,7 +912,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 	// Insert code to update the configuration here
 	if newGeneration.Checkpoint != nil && *newGeneration.Checkpoint != "" { // || q.currentImagine.Checkpoint != ""
-		fmt.Println("Loading Model:", newGeneration.Checkpoint)
+		fmt.Println("Loading Model:", *newGeneration.Checkpoint)
 
 		// lookup from the list of models
 		caching, err := q.stableDiffusionAPI.Cache(stable_diffusion_api.CheckpointCache)
@@ -932,7 +932,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 				fmt.Println("Failed to update model:", err)
 			}
 		} else {
-			log.Printf("Couldn't find model %v", newGeneration.Checkpoint)
+			log.Printf("Couldn't find model %v", *newGeneration.Checkpoint)
 		}
 	}
 
