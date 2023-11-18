@@ -137,6 +137,9 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 		// autocomplete
 		case discordgo.InteractionApplicationCommandAutocomplete:
 			//h, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
+		// modals
+		case discordgo.InteractionModalSubmit:
+			//h, ok = modalHandlers[i.ModalSubmitData().CustomID]
 		}
 
 		if !ok {
@@ -160,6 +163,9 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 					interactionName = fmt.Sprintf("command: /%v option: %v (%v)", data.Name, opt.Name)
 					break
 				}
+			case discordgo.InteractionModalSubmit:
+				interactionType = "modal"
+				interactionName = i.ModalSubmitData().CustomID
 			}
 			log.Printf("WARNING: Cannot find handler for interaction [%v] '%v'", interactionType, interactionName)
 			return
