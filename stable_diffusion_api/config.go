@@ -260,7 +260,7 @@ type APIConfig struct {
 }
 
 func (api *apiImplementation) GetConfig() (*APIConfig, error) {
-	getURL := api.host + "/sdapi/v1/options"
+	getURL := "/sdapi/v1/options"
 
 	body, err := api.GET(getURL)
 	if err != nil {

@@ -43,7 +43,7 @@ func (api *apiImplementation) SDHypernetworkCache() (HypernetworkModels, error) 
 }
 
 func (api *apiImplementation) hypernetworkApi() (HypernetworkModels, error) {
-	getURL := api.host + "/sdapi/v1/hypernetworks"
+	getURL := "/sdapi/v1/hypernetworks"
 
 	body, err := api.GET(getURL)
 	if err != nil {

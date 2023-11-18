@@ -309,7 +309,7 @@ type ProgressResponse struct {
 }
 
 func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
-	getURL := api.host + "/sdapi/v1/progress"
+	getURL := "/sdapi/v1/progress"
 
 	request, err := http.NewRequest("GET", getURL, bytes.NewBuffer([]byte{}))
 	if err != nil {
@@ -351,6 +351,7 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	if !handlers.CheckAPIAlive(api.host) {
 		return nil, fmt.Errorf(handlers.DeadAPI)
 	}
+	getURL = api.host + getURL
 
 	request, err := http.NewRequest("GET", getURL, bytes.NewBuffer([]byte{}))
 	if err != nil {

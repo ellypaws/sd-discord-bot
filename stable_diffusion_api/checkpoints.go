@@ -54,7 +54,7 @@ func (api *apiImplementation) SDCheckpointsCache() (SDModels, error) {
 
 func (api *apiImplementation) checkpointsApi() (SDModels, error) {
 	// Make an HTTP request to fetch the stable diffusion models
-	getURL := api.host + "/sdapi/v1/sd-models"
+	getURL := "/sdapi/v1/sd-models"
 
 	body, err := api.GET(getURL)
 	if err != nil {

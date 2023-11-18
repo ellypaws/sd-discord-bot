@@ -47,7 +47,7 @@ func (api *apiImplementation) SDVAECache() (VAEModels, error) {
 }
 
 func (api *apiImplementation) vaeApi() (VAEModels, error) {
-	getURL := api.host + "/sdapi/v1/sd-vae"
+	getURL := "/sdapi/v1/sd-vae"
 
 	body, err := api.GET(getURL)
 	if err != nil {

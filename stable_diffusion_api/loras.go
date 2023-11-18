@@ -453,7 +453,7 @@ func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
 }
 
 func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
-	getURL := api.host + "/sdapi/v1/loras"
+	getURL := "/sdapi/v1/loras"
 
 	body, err := api.GET(getURL)
 	if err != nil {
