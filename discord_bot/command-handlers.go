@@ -24,43 +24,6 @@ var autocompleteHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *
 	imagineCommand: (*botImpl).processImagineAutocomplete,
 }
 
-// addImagineCommand is now inside the commands map as imagineCommand: commands[imagineCommand]
-// It also uses imagineOptions() to build the necessary commandOptions
-// Deprecated: use commands[imagineCommand]
-func (b *botImpl) addImagineCommand(name string, command *discordgo.ApplicationCommand) (error, *discordgo.ApplicationCommand) {
-	log.Printf("Adding command '%s'...", name)
-
-	commands[imagineCommand].Options = imagineOptions()
-
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, commands[imagineCommand])
-	if err != nil {
-		log.Printf("Error creating '%s' command: %v", name, err)
-
-		return err, nil
-	}
-
-	return nil, cmd
-}
-
-// Deprecated: use commandHandlers[imagineCommand]
-func (b *botImpl) addImagineSettingsCommand(command string) (error, *discordgo.ApplicationCommand) {
-	log.Printf("Adding command '%s'...", command)
-
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
-		Name:        b.imagineSettingsCommandString(),
-		Description: "Change the default settings for the imagine command",
-	})
-	if err != nil {
-		log.Printf("Error creating '%s' command: %v", b.imagineSettingsCommandString(), err)
-
-		return err, nil
-	}
-
-	//b.registeredCommands[command] = cmd
-
-	return nil, cmd
-}
-
 func getOpts(data discordgo.ApplicationCommandInteractionData) map[string]*discordgo.ApplicationCommandInteractionDataOption {
 	options := data.Options
 	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
