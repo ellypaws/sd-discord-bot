@@ -97,6 +97,14 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		log.Printf("Successfully precached %v lora models", len(LoraCache))
 	}
 
+	if VAECache == nil {
+		_, err := api.vaeApi()
+		if err != nil {
+			errors = append(errors, err)
+		}
+		log.Printf("Successfully precached %v vae models", len(VAECache))
+	}
+
 	return nil
 }
 
