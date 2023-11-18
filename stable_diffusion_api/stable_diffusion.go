@@ -111,6 +111,16 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		}
 	}
 
+	if HypernetworkCache == nil {
+		_, err := api.hypernetworkApi()
+		if err != nil {
+			errors = append(errors, err)
+		}
+		if len(HypernetworkCache) > 2 {
+			log.Printf("Successfully cached %v hypernetworks from api: %v...", len(HypernetworkCache), HypernetworkCache[:2])
+		}
+	}
+
 	return nil
 }
 
