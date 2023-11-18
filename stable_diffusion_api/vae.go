@@ -62,8 +62,5 @@ func (api *apiImplementation) vaeApi() (VAEs, error) {
 		return nil, err
 	}
 
-	if len(VAECache) > 2 {
-		log.Printf("Successfully cached %v vaes from api: %v...", len(VAECache), VAECache[:2])
-	}
 	return VAECache, nil
 }

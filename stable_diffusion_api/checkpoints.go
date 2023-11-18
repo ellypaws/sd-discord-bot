@@ -69,8 +69,5 @@ func (api *apiImplementation) checkpointsApi() (SDModels, error) {
 		return nil, err
 	}
 
-	if len(CheckpointCache) > 2 {
-		log.Printf("Successfully cached %v checkpoints from api: %v...", len(CheckpointCache), CheckpointCache[:2])
-	}
 	return CheckpointCache, nil
 }

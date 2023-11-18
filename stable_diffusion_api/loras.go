@@ -468,8 +468,5 @@ func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
 		return nil, err
 	}
 
-	if len(LoraCache) > 2 {
-		log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
-	}
 	return LoraCache, nil
 }

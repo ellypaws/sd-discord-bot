@@ -86,7 +86,9 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		if err != nil {
 			errors = append(errors, err)
 		}
-		log.Printf("Successfully precached %v checkpoint models", len(CheckpointCache))
+		if len(CheckpointCache) > 2 {
+			log.Printf("Successfully cached %v checkpoints from api: %v...", len(CheckpointCache), CheckpointCache[:2])
+		}
 	}
 
 	if LoraCache == nil {
@@ -94,7 +96,9 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		if err != nil {
 			errors = append(errors, err)
 		}
-		log.Printf("Successfully precached %v lora models", len(LoraCache))
+		if len(LoraCache) > 2 {
+			log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
+		}
 	}
 
 	if VAECache == nil {
@@ -102,7 +106,9 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		if err != nil {
 			errors = append(errors, err)
 		}
-		log.Printf("Successfully precached %v vae models", len(VAECache))
+		if len(LoraCache) > 2 {
+			log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
+		}
 	}
 
 	return nil
