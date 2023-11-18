@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
 	"strings"
 )
@@ -190,13 +191,13 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 	data := i.ApplicationCommandData()
 	log.Printf("running autocomplete handler")
 	var input string
-	for index, opt := range data.Options {
+	for optionIndex, opt := range data.Options {
 		if !opt.Focused {
 			continue
 		}
 		switch {
 		case strings.HasPrefix(opt.Name, loraOption):
-			log.Printf("Focused option (%v): %v", index, opt.Name)
+			log.Printf("Focused option (%v): %v", optionIndex, opt.Name)
 			input = opt.StringValue()
 
 			var choices []*discordgo.ApplicationCommandOptionChoice
@@ -295,215 +296,67 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 		default:
 			switch opt.Name {
 			case checkpointOption:
-				log.Printf("Focused option (%v): %v", index, opt.Name)
-				input = opt.StringValue()
-
-				var choices []*discordgo.ApplicationCommandOptionChoice
-
-				if input != "" {
-					log.Printf("Autocompleting '%v'", input)
-					cache, err := b.StableDiffusionApi.SDCheckpointsCache()
-					if err != nil {
-						log.Printf("Error retrieving checkpoint cache: %v", err)
-					}
-					results := fuzzy.FindFrom(input, cache)
-
-					for index, result := range results {
-						if index > 25 {
-							break
-						}
-						//regExp := regexp.MustCompile(`(?:models\\)?Stable-diffusion\\(.*)`)
-						//
-						//alias := regExp.FindStringSubmatch(cache[result.Index].Filename)
-						//
-						//var nameToUse string
-						//switch {
-						//case alias != nil && alias[1] != "":
-						//	// replace double slash with single slash
-						//	regExp := regexp.MustCompile(`\\{2,}`)
-						//	nameToUse = regExp.ReplaceAllString(alias[1], `\`)
-						//default:
-						//	nameToUse = cache[result.Index].Title
-						//}
-
-						// Match against String() method according to fuzzy docs
-						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-							Name:  cache[result.Index].Title,
-							Value: cache[result.Index].Title,
-						})
-					}
-
-					//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-					//	Name:  input,
-					//	Value: input,
-					//})
-				} else {
-					choices = []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Type a checkpoint name. You can also attempt to fuzzy match a checkpoint name.",
-							Value: "placeholder",
-						},
-					}
-				}
-
-				// make sure we're under 100 char limit and under 25 choices
-				for i, choice := range choices {
-					if len(choice.Name) > 100 {
-						// TODO: check if discord counts bytes or chars
-						choices[i].Name = choice.Name[:100]
-					}
-				}
-				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-					Data: &discordgo.InteractionResponseData{
-						Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
-					},
-				})
+				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
 			case vaeOption:
-				log.Printf("Focused option (%v): %v", index, opt.Name)
-				input = opt.StringValue()
-
-				var choices []*discordgo.ApplicationCommandOptionChoice
-
-				if input != "" {
-					log.Printf("Autocompleting '%v'", input)
-					cache, err := b.StableDiffusionApi.SDVAECache()
-					if err != nil {
-						log.Printf("Error retrieving vae cache: %v", err)
-					}
-					results := fuzzy.FindFrom(input, cache)
-
-					for index, result := range results {
-						if index > 25 {
-							break
-						}
-
-						// Match against String() method according to fuzzy docs
-						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-							Name:  cache[result.Index].ModelName,
-							Value: cache[result.Index].ModelName,
-						})
-					}
-				} else {
-					choices = []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Type a vae name. You can also attempt to fuzzy match a vae.",
-							Value: "placeholder",
-						},
-					}
-				}
-
-				// make sure we're under 100 char limit and under 25 choices
-				for i, choice := range choices {
-					if len(choice.Name) > 100 {
-						// TODO: check if discord counts bytes or chars
-						choices[i].Name = choice.Name[:100]
-					}
-				}
-				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-					Data: &discordgo.InteractionResponseData{
-						Choices: choices[:min(25, len(choices))],
-					},
-				})
+				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.VAECache)
 			case hypernetworkOption:
-				log.Printf("Focused option (%v): %v", index, opt.Name)
-				input = opt.StringValue()
-
-				var choices []*discordgo.ApplicationCommandOptionChoice
-
-				if input != "" {
-					log.Printf("Autocompleting '%v'", input)
-					cache, err := b.StableDiffusionApi.SDHypernetworkCache()
-					if err != nil {
-						log.Printf("Error retrieving hypernetwork cache: %v", err)
-					}
-					results := fuzzy.FindFrom(input, cache)
-
-					for index, result := range results {
-						if index > 25 {
-							break
-						}
-
-						// Match against String() method according to fuzzy docs
-						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-							Name:  cache[result.Index].Name,
-							Value: cache[result.Index].Name,
-						})
-					}
-				} else {
-					choices = []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Type a hypernetwork name. You can also attempt to fuzzy match a hypernetwork.",
-							Value: "placeholder",
-						},
-					}
-				}
-
-				// make sure we're under 100 char limit and under 25 choices
-				for i, choice := range choices {
-					if len(choice.Name) > 100 {
-						// TODO: check if discord counts bytes or chars
-						choices[i].Name = choice.Name[:100]
-					}
-				}
-				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-					Data: &discordgo.InteractionResponseData{
-						Choices: choices[:min(25, len(choices))],
-					},
-				})
+				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.HypernetworkCache)
 			case embeddingOption:
-				log.Printf("Focused option (%v): %v", index, opt.Name)
-				input = opt.StringValue()
-
-				var choices []*discordgo.ApplicationCommandOptionChoice
-
-				if input != "" {
-					log.Printf("Autocompleting '%v'", input)
-					cache, err := b.StableDiffusionApi.SDEmbeddingCache()
-					if err != nil {
-						log.Printf("Error retrieving embedding cache: %v", err)
-					}
-					results := fuzzy.FindFrom(input, cache)
-
-					for index, result := range results {
-						if index > 25 {
-							break
-						}
-
-						// Match against String() method according to fuzzy docs
-						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-							Name:  cache[result.Index].Name,
-							Value: cache[result.Index].Name,
-						})
-					}
-				} else {
-					choices = []*discordgo.ApplicationCommandOptionChoice{
-						{
-							Name:  "Type a embedding name. You can also attempt to fuzzy match a embedding.",
-							Value: "placeholder",
-						},
-					}
-				}
-
-				// make sure we're under 100 char limit and under 25 choices
-				for i, choice := range choices {
-					if len(choice.Name) > 100 {
-						// TODO: check if discord counts bytes or chars
-						choices[i].Name = choice.Name[:100]
-					}
-				}
-				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-					Data: &discordgo.InteractionResponseData{
-						Choices: choices[:min(25, len(choices))],
-					},
-				})
+				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.EmbeddingCache)
 			}
 		}
 		break
 	}
+}
+
+func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) string {
+	log.Printf("Focused option (%v): %v", index, opt.Name)
+	input = opt.StringValue()
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+
+	if input != "" {
+		log.Printf("Autocompleting '%v'", input)
+		cache, err := b.StableDiffusionApi.Cache(c)
+		if err != nil {
+			log.Printf("Error retrieving %v cache: %v", opt.Name, err)
+		}
+		results := fuzzy.FindFrom(input, cache)
+
+		for index, result := range results {
+			if index > 25 {
+				break
+			}
+
+			// Match against String() method according to fuzzy docs
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  cache.String(result.Index),
+				Value: cache.String(result.Index),
+			})
+		}
+	} else {
+		choices = []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  fmt.Sprintf("Type the %[1]v name. You can also attempt to fuzzy match the %[1]v.", opt.Name),
+				Value: "placeholder",
+			},
+		}
+	}
+
+	// make sure we're under 100 char limit and under 25 choices
+	for i, choice := range choices {
+		if len(choice.Name) > 100 {
+			// TODO: check if discord counts bytes or chars
+			choices[i].Name = choice.Name[:100]
+		}
+	}
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices[:min(25, len(choices))],
+		},
+	})
+	return input
 }
 
 func sanitizeTooltip(input string) string {
