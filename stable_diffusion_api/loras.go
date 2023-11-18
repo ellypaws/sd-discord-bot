@@ -8,6 +8,7 @@ package stable_diffusion_api
 
 import (
 	"bytes"
+	"log"
 	"regexp"
 )
 import "errors"
@@ -439,4 +440,36 @@ func (c LoraModels) String(i int) string {
 
 func (c LoraModels) Len() int {
 	return len(c)
+}
+
+var LoraCache LoraModels
+
+func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
+	if LoraCache != nil {
+		log.Println("Using cached Lora models")
+		return LoraCache, nil
+	}
+	return api.sdLoraApi()
+}
+
+func (api *apiImplementation) sdLoraApi() (LoraModels, error) {
+	getURL := api.host + "/sdapi/v1/loras"
+
+	body, err := api.GET(getURL)
+	if err != nil {
+		return nil, err
+	}
+
+	LoraCache, err = UnmarshalLoraModels(body)
+	if err != nil {
+		log.Printf("API URL: %s", getURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, err
+	}
+
+	if len(LoraCache) > 2 {
+		log.Printf("Successfully cached %v loras from api: %v...", len(LoraCache), LoraCache[:2])
+	}
+	return LoraCache, nil
 }
