@@ -205,7 +205,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 	checkpointDropdown := handlers.Components[handlers.CheckpointSelect].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
 
-	models, err := b.StableDiffusionApi.SDModelsCache()
+	models, err := b.StableDiffusionApi.SDCheckpointsCache()
 	if err != nil {
 		fmt.Printf("Failed to retrieve list of models: %v\n", err)
 	} else {

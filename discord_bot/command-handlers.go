@@ -397,7 +397,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 
 			if input != "" {
 				log.Printf("Autocompleting '%v'", input)
-				cache, err := b.StableDiffusionApi.SDModelsCache()
+				cache, err := b.StableDiffusionApi.SDCheckpointsCache()
 				if err != nil {
 					log.Printf("Error retrieving checkpoint cache: %v", err)
 				}

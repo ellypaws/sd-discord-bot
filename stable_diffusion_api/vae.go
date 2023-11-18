@@ -11,15 +11,15 @@ import (
 	"log"
 )
 
-type VAEs []Vae
+type VAEModels []Vae
 
-func UnmarshalVAEs(data []byte) (VAEs, error) {
-	var r VAEs
+func UnmarshalVAEs(data []byte) (VAEModels, error) {
+	var r VAEModels
 	err := json.Unmarshal(data, &r)
 	return r, err
 }
 
-func (r *VAEs) Marshal() ([]byte, error) {
+func (r *VAEModels) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
@@ -28,17 +28,17 @@ type Vae struct {
 	Filename  string `json:"filename"`
 }
 
-func (c VAEs) String(i int) string {
+func (c VAEModels) String(i int) string {
 	return c[i].ModelName
 }
 
-func (c VAEs) Len() int {
+func (c VAEModels) Len() int {
 	return len(c)
 }
 
-var VAECache VAEs
+var VAECache VAEModels
 
-func (api *apiImplementation) VAECache() (VAEs, error) {
+func (api *apiImplementation) SDVAECache() (VAEModels, error) {
 	if VAECache != nil {
 		log.Println("Using cached VAEs")
 		return VAECache, nil
@@ -46,7 +46,7 @@ func (api *apiImplementation) VAECache() (VAEs, error) {
 	return api.vaeApi()
 }
 
-func (api *apiImplementation) vaeApi() (VAEs, error) {
+func (api *apiImplementation) vaeApi() (VAEModels, error) {
 	getURL := api.host + "/sdapi/v1/sd-vae"
 
 	body, err := api.GET(getURL)

@@ -44,7 +44,7 @@ func (c SDModels) Len() int {
 var CheckpointCache SDModels
 
 // TODO: SDModelsCache and SDLorasCache are identical except for the endpoint they hit and the cache they write to.
-func (api *apiImplementation) SDModelsCache() (SDModels, error) {
+func (api *apiImplementation) SDCheckpointsCache() (SDModels, error) {
 	if CheckpointCache != nil {
 		log.Println("Using cached SD models")
 		return CheckpointCache, nil

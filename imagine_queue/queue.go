@@ -915,7 +915,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		fmt.Println("Loading Model:", newGeneration.Checkpoint)
 
 		// lookup from the list of models
-		cachedModels, err := q.stableDiffusionAPI.SDModelsCache()
+		cachedModels, err := q.stableDiffusionAPI.SDCheckpointsCache()
 
 		var modelToUse stable_diffusion_api.SDModel
 		results := fuzzy.FindFrom(*newGeneration.Checkpoint, cachedModels)
