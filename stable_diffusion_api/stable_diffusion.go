@@ -313,24 +313,7 @@ type ProgressResponse struct {
 func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 	getURL := "/sdapi/v1/progress"
 
-	request, err := http.NewRequest("GET", getURL, bytes.NewBuffer([]byte{}))
-	if err != nil {
-		return nil, err
-	}
-
-	client := &http.Client{}
-
-	response, err := client.Do(request)
-	if err != nil {
-		log.Printf("API URL: %s", getURL)
-		log.Printf("Error with API Request: %v", err)
-
-		return nil, err
-	}
-
-	defer response.Body.Close()
-
-	body, _ := io.ReadAll(response.Body)
+	body, err := api.GET(getURL)
 
 	respStruct := &ProgressResponse{}
 
