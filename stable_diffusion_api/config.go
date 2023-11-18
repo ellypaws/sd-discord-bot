@@ -259,6 +259,32 @@ type APIConfig struct {
 	SDCheckpointHash                      string   `json:"sd_checkpoint_hash"`
 }
 
+func (api *apiImplementation) GetConfig() (*APIConfig, error) {
+	getURL := api.host + "/sdapi/v1/options"
+
+	body, err := api.GET(getURL)
+	if err != nil {
+		return nil, err
+	}
+
+	var apiConfig APIConfig
+	apiConfig, err = UnmarshalAPIConfig(body)
+	if err != nil {
+		return nil, err
+	}
+
+	return &apiConfig, nil
+}
+
+func (api *apiImplementation) GetCheckpoint() (string, error) {
+	apiConfig, err := api.GetConfig()
+	if err != nil {
+		return "", err
+	}
+
+	return apiConfig.Checkpoint(), nil
+}
+
 func (config *APIConfig) Checkpoint() string {
 	return config.SDModelCheckpoint
 }
