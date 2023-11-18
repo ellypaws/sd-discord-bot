@@ -69,10 +69,11 @@ This has been written as an interface to allow for more scripts to be added in t
 4. [x] Methods for getting the current config and checkpoint
 5. [x] Methods to get the available checkpoints and loras and store them in a cache slice
 6. [x] Automatically use the face ADetailer even if the user doesn't specify it
-7. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
-8. [ ] With bubbletea, add options to restart API, interrupt generations
-9. [ ] Allow single image generations
-10. [ ] Embed png info into the image
+7. [ ] Allow changing vae and searching for hypernetwork models
+8. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
+9. [ ] With bubbletea, add options to restart API, interrupt generations
+10. [ ] Allow single image generations
+11. [ ] Embed png info into the image
 
 ---
 1. [x] ハンドラーをマップに移動して、定数で簡単に追加したり見つけたりできるようにしました。
@@ -81,10 +82,11 @@ This has been written as an interface to allow for more scripts to be added in t
 4. [x] 現在の設定とチェックポイントを取得するためのメソッド
 5. [x] 利用可能なチェックポイントとロラを取得し、キャッシュスライスに格納するためのメソッド
 6. [x] ユーザーが指定しなくても、顔のADetailerを自動的に使用するようにしました。
-7. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
-8. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
-9. [ ] 単一の画像生成を許可する
-10. [ ] png情報を画像に埋め込む
+7. [ ] VAEを変更したり、ハイパーネットワークモデルを検索したりすることを許可する
+8. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
+9. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
+10. [ ] 単一の画像生成を許可する
+11. [ ] png情報を画像に埋め込む
 
 ---
 
