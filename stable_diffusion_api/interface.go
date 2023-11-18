@@ -7,6 +7,7 @@ type StableDiffusionAPI interface {
 	SDLorasCache() (LoraModels, error)
 	SDVAECache() (VAEModels, error)
 	SDHypernetworkCache() (HypernetworkModels, error)
+	SDEmbeddingCache() (EmbeddingModels, error)
 	TextToImage(req *TextToImageRequest) (*TextToImageResponse, error)
 	UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error)
 	GetCurrentProgress() (*ProgressResponse, error)

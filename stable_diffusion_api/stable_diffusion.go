@@ -121,6 +121,16 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		}
 	}
 
+	if EmbeddingCache == nil {
+		_, err := api.embeddingApi()
+		if err != nil {
+			errors = append(errors, err)
+		}
+		if len(EmbeddingCache) > 2 {
+			log.Printf("Successfully cached %v embeddings from api: %v...", len(EmbeddingCache), EmbeddingCache[:2])
+		}
+	}
+
 	return nil
 }
 
