@@ -98,23 +98,6 @@ func New(cfg *Config) (Bot, error) {
 		return nil, err
 	}
 
-	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-		switch i.Type {
-		case discordgo.InteractionMessageComponent:
-			switch customID := i.MessageComponentData().CustomID; {
-			case strings.HasPrefix(customID, handlers.UpscaleButton):
-				componentHandlers[handlers.UpscaleButton](bot, s, i)
-			case strings.HasPrefix(customID, handlers.VariantButton):
-				componentHandlers[handlers.VariantButton](bot, s, i)
-			}
-		case discordgo.InteractionApplicationCommandAutocomplete:
-			switch i.ApplicationCommandData().Name {
-			case bot.imagineCommandString():
-				bot.processImagineAutocomplete(s, i)
-			}
-		}
-	})
-
 	bot.registerHandlers(botSession)
 
 	return bot, nil
@@ -124,7 +107,7 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 	session.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		// commands
-		case discordgo.InteractionApplicationCommand, discordgo.InteractionApplicationCommandAutocomplete:
+		case discordgo.InteractionApplicationCommand:
 			if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
 				h(bot, session, i)
 			}
@@ -141,7 +124,19 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 				//bot.p.Send(logger.Message(fmt.Sprintf("https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
 				h(bot, session, i)
 			} else {
-				log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
+				switch customID := i.MessageComponentData().CustomID; {
+				case strings.HasPrefix(customID, handlers.UpscaleButton):
+					componentHandlers[handlers.UpscaleButton](bot, session, i)
+				case strings.HasPrefix(customID, handlers.VariantButton):
+					componentHandlers[handlers.VariantButton](bot, session, i)
+				default:
+					log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
+				}
+			}
+		// autocomplete
+		case discordgo.InteractionApplicationCommandAutocomplete:
+			if h, ok := autocompleteHandlers[i.ApplicationCommandData().Name]; ok {
+				h(bot, session, i)
 			}
 		}
 	})
