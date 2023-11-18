@@ -1,4 +1,93 @@
 # Stable Diffusion Discord Bot
+
+<img src="https://go.dev/images/gophers/ladder.svg" width="48" alt="Go Gopher climbing a ladder." align="right">
+
+An opinionated fork of https://github.com/pitapan5376/stable-diffusion-discord-bot
+
+
+### Delete button for generation
+
+Added a delete button to delete the message and the image. Only the user who generated the image can delete the message.
+
+メッセージと画像を削除するための削除ボタンを追加。画像を生成したユーザーのみがメッセージを削除できます。
+
+![delete button](/document/013_delete_button.png?raw=true)
+
+### Extra image generation parameters
+
+Added a lot of extra options for the imagine slash command for ease of use.
+
+使いやすさのために imagine スラッシュコマンドのための多くの追加オプションを追加しました。
+
+![extra parameters](/document/014_extra_options.png?raw=true)
+
+### Lora fuzzy search
+
+Added a fuzzy search for Lora models. You can now search for models by name, and the bot will return the closest match.
+It also allows you to specify a weight by adding a colon after the name, followed by the weight. For example, `lora:0.5` will search for models with the name Lora and a weight of 0.5.
+The last item will show you if the model can be found (you can click on it too)
+
+Loraモデルのためのファジー検索を追加しました。名前でモデルを検索することができ、ボットは最も近い一致を返します。
+名前の後にコロンを追加し、その後に重みを追加することで、重みを指定することもできます。例えば、「`lora:0.5`」は、名前がLoraで重みが0.5のモデルを検索します。
+最後の項目は、モデルが見つかるかどうかを表示します（クリックすることもできます）
+
+![lora fuzzy search](/document/015_lora.png?raw=true)
+
+
+### Checkpoint
+
+Added an option to select the checkpoint for each generation. This also has fuzzy search.
+The checkpoint gets updated for upscaling and variation as well.
+
+各世代のチェックポイントを選択するオプションを追加しました。これもファジー検索ができます。
+チェックポイントは、アップスケーリングとバリエーションでも更新されます。
+
+![checkpoint](/document/016_checkpoint.png?raw=true)
+
+Also added it to the imagine settings command
+
+imagine settingsコマンドにも追加しました
+
+![imagine settings](/document/018_checkpoint_settings.png?raw=true)
+
+### ADetailer
+
+Added an option to run the adetailer scripts on generation. We have a selection for Face, Body, or both.
+This has been written as an interface to allow for more scripts to be added in the future.
+
+生成時にadetailerスクリプトを実行するオプションを追加しました。Face、Body、または両方を選択できます。
+これは、将来的により多くのスクリプトを追加できるようにするために、インターフェースとして書かれています。
+
+![adetailer](/document/017_adetailer.png?raw=true)
+
+
+#### Under the hood
+
+1. [x] Moved handlers to a map to easily add and find them with constants
+2. [x] Also did this for the components
+3. [x] Added a progress bar while generating
+4. [x] Methods for getting the current config and checkpoint
+5. [x] Methods to get the available checkpoints and loras and store them in a cache slice
+6. [x] Automatically use the face ADetailer even if the user doesn't specify it
+7. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
+8. [ ] With bubbletea, add options to restart API, interrupt generations
+9. [ ] Allow single image generations
+10. [ ] Embed png info into the image
+
+---
+1. [x] ハンドラーをマップに移動して、定数で簡単に追加したり見つけたりできるようにしました。
+2. [x] コンポーネントにも同じことをしました。
+3. [x] 生成中に進捗バーを追加しました。
+4. [x] 現在の設定とチェックポイントを取得するためのメソッド
+5. [x] 利用可能なチェックポイントとロラを取得し、キャッシュスライスに格納するためのメソッド
+6. [x] ユーザーが指定しなくても、顔のADetailerを自動的に使用するようにしました。
+7. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
+8. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
+9. [ ] 単一の画像生成を許可する
+10. [ ] png情報を画像に埋め込む
+
+---
+
 forked from https://github.com/AndBobsYourUncle/stable-diffusion-discord-bot
 at 2023-04-08T07:10:00 (JST)
 
@@ -14,18 +103,18 @@ at iPhone Discord client, result buttons was not lined up
 
 iPhoneの Dicordクライアントで見づらかったのでボタン配置とキャプションを変更した
 
-![button orders before](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/001_change_button1.jpg?raw=true)
+![button orders before](/document/001_change_button1.jpg?raw=true)
 
 shorten caption and swap button orders like midjourney/nijijourney
 
-![rearranged button order](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/001_change_button2.jpg?raw=true)
+![rearranged button order](/document/001_change_button2.jpg?raw=true)
 
 ## 002. changed fonts
 prompt showing in monospace in Discord client
 
 打ち間違いとかするのでプロンプトはMonospaceで表示するようにした
 
-![change prompt font to monospace](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/002_change_prompt_font.png?raw=true)
+![change prompt font to monospace](/document/002_change_prompt_font.png?raw=true)
 
 
 ## 003. enable aspect ratio (without upscaler)
@@ -37,10 +126,10 @@ this is not using upscalers nor hires.fix, --ar 1:2 gives you 512x1024 so requir
 素の値なのでGPU必要（hires.fixとかupscaleはされてないっぽい）
 
 ### 1girl --ar 4:3
-![sample for ar 4:3](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/003_aspect_ratio_4_3.png?raw=true)
+![sample for ar 4:3](/document/003_aspect_ratio_4_3.png?raw=true)
 
 ### 1girl --ar 1:2
-![sample for ar 1:2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/003_aspect_ratio_1_2.png?raw=true)
+![sample for ar 1:2](/document/003_aspect_ratio_1_2.png?raw=true)
 
 
 ## 004. add sampling steps
@@ -53,14 +142,14 @@ Discord風に prompt: とかでパラメータ渡すやり方が難しそうだ�
 ### --step 7(512x512)
 low steps at 7, seems noisy but It works.
 
-![sample for step 7](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/004_steps_param_7.png?raw=true)
+![sample for step 7](/document/004_steps_param_7.png?raw=true)
 
 ### --step 50 --ar 2:1(1024x768)
 combo with aspect ratio, I could make AI output more detailed result. 
 
 アスペクト比を横長とかにしたとき、ステップ数を増やすことができるようになったので、画像が荒くなくなった。
 
-![sample for ar 1:2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/004_steps_param_50.png?raw=true)
+![sample for ar 1:2](/document/004_steps_param_50.png?raw=true)
 
 ## 005. add CFG scale parameter
 passing CFG scale value. 1.0(min.) to 30.0(max.); the limit is along with AUTO1111 WebUI.
@@ -72,10 +161,10 @@ image is generated by random seed at current, it's little bit hard to check effe
 seedの指定がまだできないので簡単には比較できないが、極端な値にしたら絵柄変わったので多分動いている。
 
 ### --cfgscale 1.2
-![sample for CFG scale low](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/005_cfg_scale_1.png?raw=true)
+![sample for CFG scale low](/document/005_cfg_scale_1.png?raw=true)
 
 ### --cfgscale 15.3
-![sample for CFG scale high](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/005_cfg_scale_15.png?raw=true)
+![sample for CFG scale high](/document/005_cfg_scale_15.png?raw=true)
 
 ## 006. seed parameter
 passing seed parameter. default was -1(random); max value 12345678901234567890 is accepted by WebUI, but datatype of the code is int.
@@ -89,20 +178,20 @@ Go言語の実装でint型になっているようなのでその値を最大と
 ### --seed 111
 同じシード値で同じ結果が出ることが確認できた。
 
-![sample for seed](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed.png?raw=true)
+![sample for seed](/document/006_seed.png?raw=true)
 
 ### display seed value when upscaled
 when no seed specified (at random), indicates clearly saying random
 
 シード値未指定のときに -1 の表示になっていたので作成後メッセージで random(-1)表記にした
 
-![indicate as random seed value](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed2.png?raw=true)
+![indicate as random seed value](/document/006_seed2.png?raw=true)
 
 when upscaling, display seed value at post-generate message
 
 アップスケールのときに作成後メッセージに seed を表示するようにした
 
-![show seed value at upscale](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/006_seed3.png?raw=true)
+![show seed value at upscale](/document/006_seed3.png?raw=true)
 
 ## 007. negative_prompt: param
 
@@ -116,7 +205,7 @@ default value is hard-coded one:
 
 初期値（未指定）はハードコーディングされている上記の値とみなす。何か値を与えるとそれのみをネガティブプロンプトとする
 
-![negative prompt param](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/007_negative_prompt.png?raw=true)
+![negative prompt param](/document/007_negative_prompt.png?raw=true)
 
 最初は下のURLを参考に全部入れようとしたがうまくいかなかったので、まずネガティブプロンプトだけにした。
 
@@ -136,7 +225,7 @@ DBのSQLite3のint　　　INTEGERは、値に応じて 0～8byteの符号付き
 
 ということで、データベースのアップグレード処理は書かなくても大丈夫だった。
 
-![seed on bigint](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/008_seed_bigint.png?raw=true)
+![seed on bigint](/document/008_seed_bigint.png?raw=true)
 
 
 ## 009. selection pop-up for sampler
@@ -146,25 +235,25 @@ sampler指定ができるようにした。未指定のときはEuler_aが指定
 
 サンプラーの順番は自分で使いやすいように並べた。
 
-![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_selection.png?raw=true)
+![sampler_choice](/document/009_sampler_selection.png?raw=true)
 
 ### Sampler: DPM++ S2 a Karras
 
 ` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: DPM++ S2 a Karras `
 
-![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_DPMppS2aKarras.png?raw=true)
+![sampler_choice](/document/009_sampler_DPMppS2aKarras.png?raw=true)
 
 ### Sampler: DPM Adaptive
 
 ` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: DPM Adaptive `
 
-![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_DPMAdaptive.png?raw=true)
+![sampler_choice](/document/009_sampler_DPMAdaptive.png?raw=true)
 
 ### Sampler: UniPC
 
 ` prompt: 1girl --seed 1 negative_prompt:EasyNegative sampler_name: UniPC `
 
-![sampler_choice](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/009_sampler_UniPC.png?raw=true)
+![sampler_choice](/document/009_sampler_UniPC.png?raw=true)
 
 ## 010. Hires.fix
 hires.fix に部分的に対応した。
@@ -192,23 +281,23 @@ to switch hires.fix ON/OFF with Discord choice way. default: OFF for better gene
 you can specify the ratio with '--zoom x.x' (default: 2.0) param only if hires_fix=YES
 
 APIに渡すパラメータを修正して、hires.fix をオプションでON-OFF できるようにした。
-![hiresfix1](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix1.png?raw=true)
+![hiresfix1](/document/012_hiresfix1.png?raw=true)
 
 hires.fix のオプションをYESにしているとき、--zoom 1.2 のように指定すると元サイズから拡大される。
 
 初期値は AUTO1111 WebUIにあわせて 2倍にした。
 
-![hiresfix2](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix2.png?raw=true)
-![hiresfix4](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/imagine_20230624195929.jpg)
+![hiresfix2](/document/012_hiresfix2.png?raw=true)
+![hiresfix4](/document/imagine_20230624195929.jpg)
 
 ### hires.fix あり
 
-![hiresfix3](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix3.png?raw=true)
+![hiresfix3](/document/012_hiresfix3.png?raw=true)
 
 ### hires.fix なし
 hires.fix のオプションが未指定、またはNOのときは、zoom指定をしても無視される。
 
-![hiresfix4](https://github.com/pitapan5376/stable-diffusion-discord-bot/blob/master/document/012_hiresfix4.png?raw=true)
+![hiresfix4](/document/012_hiresfix4.png?raw=true)
 
 
 ## 013. apply upstream update
