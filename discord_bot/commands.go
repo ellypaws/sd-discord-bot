@@ -21,6 +21,7 @@ const (
 	checkpointOption   = "checkpoint"
 	vaeOption          = "vae"
 	hypernetworkOption = "hypernetwork"
+	embeddingOption    = "embedding"
 	hiresFixOption     = "use_hires_fix"
 	hiresFixSize       = "hires_fix_size"
 	restoreFacesOption = "restore_faces"
@@ -65,6 +66,7 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[adModelOption],
 		commandOptions[vaeOption],
 		commandOptions[hypernetworkOption],
+		commandOptions[embeddingOption],
 	}
 
 	for i := 0; i < extraLoras; i++ {
@@ -106,6 +108,13 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 		Type:         discordgo.ApplicationCommandOptionString,
 		Name:         hypernetworkOption,
 		Description:  "The hypernetwork to use",
+		Required:     false,
+		Autocomplete: true,
+	},
+	embeddingOption: {
+		Type:         discordgo.ApplicationCommandOptionString,
+		Name:         embeddingOption,
+		Description:  "The embedding to use",
 		Required:     false,
 		Autocomplete: true,
 	},

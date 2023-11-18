@@ -93,6 +93,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			prompt += " " + hypernetwork.StringValue()
 		}
 
+		if embedding, ok := optionMap[embeddingOption]; ok {
+			prompt += " " + embedding.StringValue()
+		}
+
 		strength := regexp.MustCompile(`:([\d\.]+)$`)
 
 		for i := 0; i < extraLoras+1; i++ {
@@ -431,6 +435,53 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					choices = []*discordgo.ApplicationCommandOptionChoice{
 						{
 							Name:  "Type a hypernetwork name. You can also attempt to fuzzy match a hypernetwork.",
+							Value: "placeholder",
+						},
+					}
+				}
+
+				// make sure we're under 100 char limit and under 25 choices
+				for i, choice := range choices {
+					if len(choice.Name) > 100 {
+						// TODO: check if discord counts bytes or chars
+						choices[i].Name = choice.Name[:100]
+					}
+				}
+				_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+					Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+					Data: &discordgo.InteractionResponseData{
+						Choices: choices[:min(25, len(choices))],
+					},
+				})
+			case embeddingOption:
+				log.Printf("Focused option (%v): %v", index, opt.Name)
+				input = opt.StringValue()
+
+				var choices []*discordgo.ApplicationCommandOptionChoice
+
+				if input != "" {
+					log.Printf("Autocompleting '%v'", input)
+					cache, err := b.StableDiffusionApi.SDEmbeddingCache()
+					if err != nil {
+						log.Printf("Error retrieving embedding cache: %v", err)
+					}
+					results := fuzzy.FindFrom(input, cache)
+
+					for index, result := range results {
+						if index > 25 {
+							break
+						}
+
+						// Match against String() method according to fuzzy docs
+						choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+							Name:  cache[result.Index].Name,
+							Value: cache[result.Index].Name,
+						})
+					}
+				} else {
+					choices = []*discordgo.ApplicationCommandOptionChoice{
+						{
+							Name:  "Type a embedding name. You can also attempt to fuzzy match a embedding.",
 							Value: "placeholder",
 						},
 					}
