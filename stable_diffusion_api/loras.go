@@ -446,7 +446,6 @@ var LoraCache LoraModels
 
 func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
 	if LoraCache != nil {
-		log.Println("Using cached Lora models")
 		return LoraCache, nil
 	}
 	return api.sdLoraApi()

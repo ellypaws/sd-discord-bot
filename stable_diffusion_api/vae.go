@@ -40,7 +40,6 @@ var VAECache VAEModels
 
 func (api *apiImplementation) SDVAECache() (VAEModels, error) {
 	if VAECache != nil {
-		log.Println("Using cached VAEs")
 		return VAECache, nil
 	}
 	return api.vaeApi()
