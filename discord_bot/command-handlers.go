@@ -328,9 +328,9 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 			log.Printf("Error retrieving %v cache: %v", opt.Name, err)
 		}
 		results := fuzzy.FindFrom(input, cache)
-		log.Printf("Finding from %v: %v", input, cache)
-		log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
-		log.Printf("Results: %v", results)
+		//log.Printf("Finding from %v: %v", input, cache)
+		//log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
+		//log.Printf("Results: %v", results)
 
 		for index, result := range results {
 			if index > 25 {
