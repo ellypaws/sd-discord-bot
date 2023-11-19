@@ -54,51 +54,51 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var stringValue string
 	var vae string
 	var checkpoint string
+	var hypernetwork string
 
 	if option, ok := optionMap[promptOption]; ok {
 		prompt = option.StringValue()
 
-		if nopt, ok := optionMap[negativeOption]; ok {
-			negative = nopt.StringValue()
+		if option, ok := optionMap[negativeOption]; ok {
+			negative = option.StringValue()
 		}
 
-		if smpl, ok := optionMap[samplerOption]; ok {
-			sampler = smpl.StringValue()
+		if option, ok := optionMap[samplerOption]; ok {
+			sampler = option.StringValue()
 		}
 
-		if hires, ok := optionMap[hiresFixOption]; ok {
-			hiresFix, _ = strconv.ParseBool(hires.StringValue())
+		if option, ok := optionMap[hiresFixOption]; ok {
+			hiresFix, _ = strconv.ParseBool(option.StringValue())
 		}
 
-		if hires, ok := optionMap[restoreFacesOption]; ok {
-			restoreFaces, _ = strconv.ParseBool(hires.StringValue())
+		if option, ok := optionMap[restoreFacesOption]; ok {
+			restoreFaces, _ = strconv.ParseBool(option.StringValue())
 		}
 
-		if aDetailOpt, ok := optionMap[adModelOption]; ok {
-			stringValue = aDetailOpt.StringValue()
+		if option, ok := optionMap[adModelOption]; ok {
+			stringValue = option.StringValue()
 			// adModel = strings.Split(stringValue, ",")
 			// use AppendSegModelByString instead
 		}
 
-		if cpkt, ok := optionMap[checkpointOption]; ok {
-			checkpoint = cpkt.StringValue()
+		if option, ok := optionMap[checkpointOption]; ok {
+			checkpoint = option.StringValue()
 			log.Printf("user wants to change checkpoint to %v", checkpoint)
 		}
 
-		if vaeOpt, ok := optionMap[vaeOption]; ok {
-			vae = vaeOpt.StringValue()
+		if option, ok := optionMap[vaeOption]; ok {
+			vae = option.StringValue()
 			log.Printf("user wants to use vae %v", vae)
 		}
 
-		if hypernetwork, ok := optionMap[hypernetworkOption]; ok {
-			prompt += " " + hypernetwork.StringValue()
+		if option, ok := optionMap[hypernetworkOption]; ok {
+			hypernetwork = option.StringValue()
+			log.Printf("user wants to use hypernetwork %v", hypernetwork)
 		}
 
-		if embedding, ok := optionMap[embeddingOption]; ok {
-			prompt += " " + embedding.StringValue()
+		if option, ok := optionMap[embeddingOption]; ok {
+			prompt += " " + option.StringValue()
 		}
-
-		strength := regexp.MustCompile(`:([\d\.]+)$`)
 
 		for i := 0; i < extraLoras+1; i++ {
 			loraKey := loraOption
@@ -106,13 +106,14 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				loraKey += fmt.Sprintf("%d", i+1)
 			}
 
-			if lora, ok := optionMap[loraKey]; ok {
-				loraValue := lora.StringValue()
+			if option, ok := optionMap[loraKey]; ok {
+				loraValue := option.StringValue()
 				if loraValue != "" {
 
 					loraValue = sanitizeTooltip(loraValue)
 
 					// add :1 if no strength is specified
+					strength := regexp.MustCompile(`:([\d\.]+)$`)
 					if !strength.MatchString(loraValue) {
 						loraValue += ":1"
 					}
@@ -125,20 +126,20 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
-		if aspectRatio, ok := optionMap[aspectRatio]; ok {
-			prompt += " --ar " + aspectRatio.StringValue()
+		if option, ok := optionMap[aspectRatio]; ok {
+			prompt += " --ar " + option.StringValue()
 		}
 
-		if hiresFixSize, ok := optionMap[hiresFixSize]; ok {
-			prompt += " --zoom " + hiresFixSize.StringValue()
+		if option, ok := optionMap[hiresFixSize]; ok {
+			prompt += " --zoom " + option.StringValue()
 		}
 
-		if cfgScaleOption, ok := optionMap[cfgScaleOption]; ok {
-			prompt += " --cfgscale " + fmt.Sprintf("%v", cfgScaleOption.IntValue())
+		if option, ok := optionMap[cfgScaleOption]; ok {
+			prompt += " --cfgscale " + fmt.Sprintf("%v", option.IntValue())
 		}
 
-		if restoreFacesOption, ok := optionMap[restoreFacesOption]; ok {
-			restoreFacesValue, err := strconv.ParseBool(restoreFacesOption.StringValue())
+		if option, ok := optionMap[restoreFacesOption]; ok {
+			restoreFacesValue, err := strconv.ParseBool(option.StringValue())
 			if err != nil {
 				log.Printf("Error parsing restoreFaces value: %v.", err)
 			}
