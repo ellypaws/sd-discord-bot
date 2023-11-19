@@ -7,46 +7,48 @@ import (
 )
 
 const (
-	CheckpointSelect   = "imagine_sd_model_name_menu"
-	VAESelect          = "imagine_vae_model_name_menu"
-	HypernetworkSelect = "imagine_hypernetwork_model_name_menu"
-	DimensionSelect    = "imagine_dimension_setting_menu"
-	BatchCountSelect   = "imagine_batch_count_setting_menu"
-	BatchSizeSelect    = "imagine_batch_size_setting_menu"
+	CheckpointSelect   Component = "imagine_sd_model_name_menu"
+	VAESelect          Component = "imagine_vae_model_name_menu"
+	HypernetworkSelect Component = "imagine_hypernetwork_model_name_menu"
+	DimensionSelect    Component = "imagine_dimension_setting_menu"
+	BatchCountSelect   Component = "imagine_batch_count_setting_menu"
+	BatchSizeSelect    Component = "imagine_batch_size_setting_menu"
 )
 
 const (
-	RerollButton  = "imagine_reroll"
-	UpscaleButton = "imagine_upscale"
-	VariantButton = "imagine_variation"
+	RerollButton  Component = "imagine_reroll"
+	UpscaleButton Component = "imagine_upscale"
+	VariantButton Component = "imagine_variation"
 )
 
+type Component string
+
 const (
-	DeleteButton      = "delete_error_message"
-	DeleteAboveButton = "delete_above"
-	DeleteGeneration  = "delete_generation"
+	DeleteButton      Component = "delete_error_message"
+	DeleteAboveButton Component = "delete_above"
+	DeleteGeneration  Component = "delete_generation"
 
-	dismissButton = "dismiss_error_message"
-	urlButton     = "url_button"
-	urlDelete     = "url_delete"
+	dismissButton Component = "dismiss_error_message"
+	urlButton     Component = "url_button"
+	urlDelete     Component = "url_delete"
 
-	readmoreDismiss = "readmore_dismiss"
+	readmoreDismiss Component = "readmore_dismiss"
 
-	paginationButtons = "pagination_button"
-	okCancelButtons   = "ok_cancel_buttons"
+	paginationButtons Component = "pagination_button"
+	okCancelButtons   Component = "ok_cancel_buttons"
 
 	roleSelect = "role_select"
 )
 
 var minValues = 1
 
-var Components = map[string]discordgo.MessageComponent{
+var Components = map[Component]discordgo.MessageComponent{
 	DeleteButton: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Delete this message",
 				Style:    discordgo.DangerButton,
-				CustomID: DeleteButton,
+				CustomID: string(DeleteButton),
 			},
 		},
 	},
@@ -55,7 +57,7 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Delete above",
 				Style:    discordgo.DangerButton,
-				CustomID: DeleteAboveButton,
+				CustomID: string(DeleteAboveButton),
 				Emoji: discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
@@ -67,7 +69,7 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Delete",
 				Style:    discordgo.DangerButton,
-				CustomID: DeleteGeneration,
+				CustomID: string(DeleteGeneration),
 				Emoji: discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
@@ -94,7 +96,7 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Delete",
 				Style:    discordgo.DangerButton,
-				CustomID: DeleteButton,
+				CustomID: string(DeleteButton),
 				Emoji: discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
@@ -106,7 +108,7 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Dismiss",
 				Style:    discordgo.SecondaryButton,
-				CustomID: DeleteButton,
+				CustomID: string(DeleteButton),
 			},
 		},
 	},
@@ -115,12 +117,12 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Read more",
 				Style:    discordgo.LinkButton,
-				CustomID: urlButton,
+				CustomID: string(urlButton),
 			},
 			discordgo.Button{
 				Label:    "Dismiss",
 				Style:    discordgo.SecondaryButton,
-				CustomID: DeleteButton,
+				CustomID: string(DeleteButton),
 			},
 		},
 	},
@@ -130,12 +132,12 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Previous",
 				Style:    discordgo.SecondaryButton,
-				CustomID: paginationButtons + "_previous",
+				CustomID: string(paginationButtons + "_previous"),
 			},
 			discordgo.Button{
 				Label:    "Next",
 				Style:    discordgo.SecondaryButton,
-				CustomID: paginationButtons + "_next",
+				CustomID: string(paginationButtons + "_next"),
 			},
 		},
 	},
@@ -144,12 +146,12 @@ var Components = map[string]discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "OK",
 				Style:    discordgo.SuccessButton,
-				CustomID: okCancelButtons + "_ok",
+				CustomID: string(okCancelButtons + "_ok"),
 			},
 			discordgo.Button{
 				Label:    "Cancel",
 				Style:    discordgo.DangerButton,
-				CustomID: okCancelButtons + "_cancel",
+				CustomID: string(okCancelButtons + "_cancel"),
 			},
 		},
 	},
@@ -170,7 +172,7 @@ var Components = map[string]discordgo.MessageComponent{
 	DimensionSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:  DimensionSelect,
+				CustomID:  string(DimensionSelect),
 				MinValues: nil,
 				MaxValues: 1,
 				Options: []discordgo.SelectMenuOption{
@@ -191,7 +193,7 @@ var Components = map[string]discordgo.MessageComponent{
 	BatchCountSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:  BatchCountSelect,
+				CustomID:  string(BatchCountSelect),
 				MinValues: &minValues,
 				MaxValues: 1,
 				Options: []discordgo.SelectMenuOption{
@@ -217,7 +219,7 @@ var Components = map[string]discordgo.MessageComponent{
 	BatchSizeSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:  BatchSizeSelect,
+				CustomID:  string(BatchSizeSelect),
 				MinValues: &minValues,
 				MaxValues: 1,
 				Options: []discordgo.SelectMenuOption{
@@ -242,13 +244,13 @@ var Components = map[string]discordgo.MessageComponent{
 	},
 }
 
-func ModelSelectMenu(ID string) discordgo.ActionsRow {
-	display := strings.TrimPrefix(ID, "imagine_")
-	display = strings.TrimSuffix(ID, "_model_name_menu")
+func ModelSelectMenu(ID Component) discordgo.ActionsRow {
+	display := strings.TrimPrefix(string(ID), "imagine_")
+	display = strings.TrimSuffix(string(ID), "_model_name_menu")
 	return discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
-				CustomID:    ID,
+				CustomID:    string(ID),
 				Placeholder: fmt.Sprintf("Change %s Model", display),
 				MinValues:   &minValues,
 				MaxValues:   1,

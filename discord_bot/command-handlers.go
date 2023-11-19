@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
 		handlers.Responses[handlers.HelloResponse].(handlers.NewResponseType)(bot, i)
 	},
@@ -21,15 +21,15 @@ var commandHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *disco
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
 }
 
-var autocompleteHandlers = map[string]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+var autocompleteHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	imagineCommand: (*botImpl).processImagineAutocomplete,
 }
 
-func getOpts(data discordgo.ApplicationCommandInteractionData) map[string]*discordgo.ApplicationCommandInteractionDataOption {
+func getOpts(data discordgo.ApplicationCommandInteractionData) map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption {
 	options := data.Options
-	optionMap := make(map[string]*discordgo.ApplicationCommandInteractionDataOption, len(options))
+	optionMap := make(map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 	for _, opt := range options {
-		optionMap[opt.Name] = opt
+		optionMap[CommandOption(opt.Name)] = opt
 	}
 	return optionMap
 }
@@ -103,7 +103,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		for i := 0; i < extraLoras+1; i++ {
 			loraKey := loraOption
 			if i != 0 {
-				loraKey += fmt.Sprintf("%d", i+1)
+				loraKey += CommandOption(fmt.Sprintf("%d", i+1))
 			}
 
 			if option, ok := optionMap[loraKey]; ok {
@@ -197,7 +197,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 			continue
 		}
 		switch {
-		case strings.HasPrefix(opt.Name, loraOption):
+		case strings.HasPrefix(opt.Name, string(loraOption)):
 			log.Printf("Focused option (%v): %v", optionIndex, opt.Name)
 			input = opt.StringValue()
 
@@ -295,7 +295,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 				},
 			})
 		default:
-			switch opt.Name {
+			switch CommandOption(opt.Name) {
 			case checkpointOption:
 				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
 			case vaeOption:

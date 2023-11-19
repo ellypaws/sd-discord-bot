@@ -6,34 +6,39 @@ import (
 	"log"
 )
 
+type (
+	Command       string
+	CommandOption string
+)
+
 const (
 	// Command names
-	helloCommand           = "hello"
-	imagineCommand         = "imagine"
-	imagineSettingsCommand = "imagine_settings"
+	helloCommand           Command = "hello"
+	imagineCommand         Command = "imagine"
+	imagineSettingsCommand Command = "imagine_settings"
 
 	// Command options
-	promptOption       = "prompt"
-	negativeOption     = "negative_prompt"
-	samplerOption      = "sampler_name"
-	aspectRatio        = "aspect_ratio"
-	loraOption         = "lora"
-	checkpointOption   = "checkpoint"
-	vaeOption          = "vae"
-	hypernetworkOption = "hypernetwork"
-	embeddingOption    = "embedding"
-	hiresFixOption     = "use_hires_fix"
-	hiresFixSize       = "hires_fix_size"
-	restoreFacesOption = "restore_faces"
-	adModelOption      = "ad_model"
-	cfgScaleOption     = "cfg_scale"
+	promptOption       CommandOption = "prompt"
+	negativeOption     CommandOption = "negative_prompt"
+	samplerOption      CommandOption = "sampler_name"
+	aspectRatio        CommandOption = "aspect_ratio"
+	loraOption         CommandOption = "lora"
+	checkpointOption   CommandOption = "checkpoint"
+	vaeOption          CommandOption = "vae"
+	hypernetworkOption CommandOption = "hypernetwork"
+	embeddingOption    CommandOption = "embedding"
+	hiresFixOption     CommandOption = "use_hires_fix"
+	hiresFixSize       CommandOption = "hires_fix_size"
+	restoreFacesOption CommandOption = "restore_faces"
+	adModelOption      CommandOption = "ad_model"
+	cfgScaleOption     CommandOption = "cfg_scale"
 
 	extraLoras = 6
 )
 
-var commands = map[string]*discordgo.ApplicationCommand{
+var commands = map[Command]*discordgo.ApplicationCommand{
 	helloCommand: {
-		Name: helloCommand,
+		Name: string(helloCommand),
 		// All commands and options must have a description
 		// Commands/options without description will fail the registration
 		// of the command.
@@ -41,12 +46,12 @@ var commands = map[string]*discordgo.ApplicationCommand{
 		Type:        discordgo.ChatApplicationCommand,
 	},
 	imagineCommand: {
-		Name:        imagineCommand,
+		Name:        string(imagineCommand),
 		Description: "Ask the bot to imagine something",
 		Options:     imagineOptions(),
 	},
 	imagineSettingsCommand: {
-		Name:        imagineSettingsCommand,
+		Name:        string(imagineSettingsCommand),
 		Description: "Change the default settings for the imagine command",
 	},
 }
@@ -77,50 +82,50 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 	return
 }
 
-var commandOptions = map[string]*discordgo.ApplicationCommandOption{
+var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	promptOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        promptOption,
+		Name:        string(promptOption),
 		Description: "The text prompt to imagine",
 		Required:    true,
 	},
 	negativeOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        negativeOption,
+		Name:        string(negativeOption),
 		Description: "Negative prompt",
 		Required:    false,
 	},
 	checkpointOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         checkpointOption,
+		Name:         string(checkpointOption),
 		Description:  "The checkpoint to change to when generating. Sets for the next person.",
 		Required:     false,
 		Autocomplete: true,
 	},
 	vaeOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         vaeOption,
+		Name:         string(vaeOption),
 		Description:  "The vae to use",
 		Required:     false,
 		Autocomplete: true,
 	},
 	hypernetworkOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         hypernetworkOption,
+		Name:         string(hypernetworkOption),
 		Description:  "The hypernetwork to use",
 		Required:     false,
 		Autocomplete: true,
 	},
 	embeddingOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         embeddingOption,
+		Name:         string(embeddingOption),
 		Description:  "The embedding to use",
 		Required:     false,
 		Autocomplete: true,
 	},
 	aspectRatio: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        aspectRatio,
+		Name:        string(aspectRatio),
 		Description: "The aspect ratio to use. Default is 1:1 (note: you can specify your own aspect ratio)",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -156,14 +161,14 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	},
 	loraOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         loraOption,
+		Name:         string(loraOption),
 		Description:  "The lora(s) to apply",
 		Required:     false,
 		Autocomplete: true,
 	},
 	samplerOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        samplerOption,
+		Name:        string(samplerOption),
 		Description: "sampler",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -203,7 +208,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	},
 	hiresFixOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        hiresFixOption,
+		Name:        string(hiresFixOption),
 		Description: "use hires.fix or not. default=No for better performance",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -219,7 +224,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	},
 	hiresFixSize: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        hiresFixSize,
+		Name:        string(hiresFixSize),
 		Description: "upscale multiplier for hires.fix. default=2",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -235,7 +240,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	},
 	cfgScaleOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        cfgScaleOption,
+		Name:        string(cfgScaleOption),
 		Description: "upscale multiplier for cfg. default=7",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -247,7 +252,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	},
 	restoreFacesOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        restoreFacesOption,
+		Name:        string(restoreFacesOption),
 		Description: "Use Codeformer to restore faces",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -263,7 +268,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	},
 	adModelOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        adModelOption,
+		Name:        string(adModelOption),
 		Description: "The model to use for adetailer",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{

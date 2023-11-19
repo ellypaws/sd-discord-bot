@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	handlers.DeleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
@@ -167,7 +167,7 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 
 	handlers.UpscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		customID := i.MessageComponentData().CustomID
-		interactionIndex := strings.TrimPrefix(customID, handlers.UpscaleButton+"_")
+		interactionIndex := strings.TrimPrefix(customID, string(handlers.UpscaleButton+"_"))
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
 		if err != nil {
@@ -304,7 +304,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 }
 
 // populateOption will fill in the options for a given dropdown component that implements stable_diffusion_api.Cacheable
-func populateOption(b *botImpl, handler string, cache stable_diffusion_api.Cacheable) {
+func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusion_api.Cacheable) {
 	checkpointDropdown := handlers.Components[handler].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
 
