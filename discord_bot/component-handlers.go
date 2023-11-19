@@ -88,14 +88,9 @@ var componentHandlers = map[string]func(bot *botImpl, s *discordgo.Session, i *d
 		bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
 	},
 
-	handlers.CheckpointSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
-		if len(i.MessageComponentData().Values) == 0 {
-			log.Printf("No values for imagine sd model name setting menu")
-			return
-		}
-		newModel := i.MessageComponentData().Values[0]
-		bot.processImagineSDModelNameSetting(s, i, newModel)
-	},
+	handlers.CheckpointSelect: (*botImpl).processImagineSDModelNameSetting,
+	//handlers.VAESelect:          (*botImpl).processImagineVAESetting,
+	//handlers.HypernetworkSelect: (*botImpl).processImagineHypernetworkSetting,
 
 	handlers.BatchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
@@ -412,7 +407,13 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 	}
 }
 
-func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *discordgo.InteractionCreate, newModelName string) {
+func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if len(i.MessageComponentData().Values) == 0 {
+		log.Printf("No values for %v", i.MessageComponentData().CustomID)
+		return
+	}
+	newModelName := i.MessageComponentData().Values[0]
+
 	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
 	if err != nil {
 		log.Printf("error retrieving bot settings: %v", err)
