@@ -113,7 +113,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 					loraValue = sanitizeTooltip(loraValue)
 
 					// add :1 if no strength is specified
-					strength := regexp.MustCompile(`:([\d\.]+)$`)
+					strength := regexp.MustCompile(`:([\d.]+)$`)
 					if !strength.MatchString(loraValue) {
 						loraValue += ":1"
 					}
@@ -369,7 +369,7 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 }
 
 func sanitizeTooltip(input string) string {
-	tooltipRegex := regexp.MustCompile(`(?:✨|❌)(.+) 🪄:([\d\.]+)$|(?:✨|❌)(.+)`)
+	tooltipRegex := regexp.MustCompile(`[✨❌](.+) 🪄:([\d.]+)$|[✨❌](.+)`)
 	sanitizedTooltip := tooltipRegex.FindStringSubmatch(input)
 
 	if sanitizedTooltip != nil {
