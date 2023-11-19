@@ -5,7 +5,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"regexp"
-	"slices"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
@@ -374,14 +373,25 @@ func populateOption(b *botImpl, handler string, cache stable_diffusion_api.Cache
 			}
 		}
 
-		if currentModel != "" && !slices.ContainsFunc(modelNames,
-			func(model string) bool {
-				return strings.Contains(currentModel, model)
-			}) {
+		var Default bool
+		for i, model := range modelOptions {
+			if model.Default {
+				modelOptions[i].Emoji = discordgo.ComponentEmoji{
+					Name: "✨",
+				}
+				Default = true
+				break
+			}
+		}
+
+		if currentModel != "" && !Default {
 			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
 				Label:   shortenString(currentModel),
 				Value:   shortenString(currentModel),
 				Default: true,
+				Emoji: discordgo.ComponentEmoji{
+					Name: "✨",
+				},
 			})
 		}
 
@@ -397,6 +407,9 @@ func populateOption(b *botImpl, handler string, cache stable_diffusion_api.Cache
 				Label:       "None",
 				Value:       "None",
 				Description: "Unset the model",
+				Emoji: discordgo.ComponentEmoji{
+					Name: "❌",
+				},
 			}}, modelOptions...)
 		}
 		component := checkpointDropdown.Components[0].(discordgo.SelectMenu)
