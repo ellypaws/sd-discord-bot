@@ -131,7 +131,7 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		caches = append(caches, cache)
 	}
 
-	_, err = EmbeddingModels(nil).GetCache(api)
+	cache, err = EmbeddingModels(nil).GetCache(api)
 	if err != nil {
 		errors = append(errors, err)
 	} else {
