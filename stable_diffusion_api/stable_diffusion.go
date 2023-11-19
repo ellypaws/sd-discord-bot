@@ -326,6 +326,7 @@ func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 	return respStruct, nil
 }
 
+// Deprecated: Use APIConfig instead
 type POSTConfig struct {
 	SdModelCheckpoint string `json:"sd_model_checkpoint,omitempty"`
 }
@@ -365,13 +366,13 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	return body, nil
 }
 
-func (api *apiImplementation) UpdateConfiguration(post POSTConfig) error {
+func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
 	headers := map[string]string{
 		"accept":       "application/json",
 		"Content-Type": "application/json",
 	}
 
-	body, err := json.Marshal(post)
+	body, err := config.Marshal()
 	if err != nil {
 		return errors.New("error marshalling config: " + err.Error())
 	}

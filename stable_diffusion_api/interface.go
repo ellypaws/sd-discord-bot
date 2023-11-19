@@ -10,7 +10,7 @@ type StableDiffusionAPI interface {
 	UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error)
 	GetCurrentProgress() (*ProgressResponse, error)
 
-	UpdateConfiguration(configuration POSTConfig) error
+	UpdateConfiguration(config APIConfig) error
 
 	GetConfig() (*APIConfig, error)
 	GetCheckpoint() (string, error)
