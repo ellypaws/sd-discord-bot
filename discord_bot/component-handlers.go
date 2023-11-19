@@ -333,6 +333,9 @@ func populateOption(b *botImpl, handler string, cache stable_diffusion_api.Cache
 					Value:   shortenString(model.Title),
 					Default: strings.Contains(currentModel, model.ModelName),
 				})
+				if model.Hash != nil {
+					modelOptions[i].Description = fmt.Sprintf("[%v]", *model.Hash)
+				}
 				modelNames = append(modelNames, model.ModelName)
 			}
 		case *stable_diffusion_api.VAEModels:
