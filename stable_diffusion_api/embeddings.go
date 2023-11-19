@@ -50,9 +50,9 @@ func (c EmbeddingModels) Len() int {
 	return len(c)
 }
 
-var EmbeddingCache EmbeddingModels
+var EmbeddingCache *EmbeddingModels
 
-func (c EmbeddingModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
+func (c EmbeddingModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if EmbeddingCache != nil {
 		return EmbeddingCache, nil
 	}
@@ -75,8 +75,9 @@ func (c EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 		return nil, err
 	}
 
+	var cache []Embedding
 	for name, embedding := range embeddingResponse.Loaded {
-		EmbeddingCache = append(EmbeddingCache, Embedding{
+		cache = append(cache, Embedding{
 			Name:          name,
 			Loaded:        true,
 			EmbeddingInfo: embedding,
@@ -84,17 +85,19 @@ func (c EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	}
 
 	for name, embedding := range embeddingResponse.Skipped {
-		EmbeddingCache = append(EmbeddingCache, Embedding{
+		cache = append(cache, Embedding{
 			Name:          name,
 			Loaded:        false,
 			EmbeddingInfo: embedding,
 		})
 	}
+	models := EmbeddingModels(cache)
+	EmbeddingCache = &models
 
 	return EmbeddingCache, nil
 }
 
 func (api *apiImplementation) SDEmbeddingCache() (EmbeddingModels, error) {
-	cache, err := EmbeddingCache.Cache(api)
+	cache, err := EmbeddingCache.GetCache(api)
 	return cache.(EmbeddingModels), err
 }

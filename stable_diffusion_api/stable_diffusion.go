@@ -84,43 +84,64 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
-func (api *apiImplementation) Cache(c Cacheable) (Cacheable, error) {
+// TODO: Use reflect or generics to actually run c.GetCache(api) even if c is nil
+func (api *apiImplementation) CachePreview(c Cacheable) (Cacheable, error) {
 	if c == nil {
-		_, err := c.Cache(api)
-		if err != nil {
-			return c, err
-		}
-		if c.Len() > 2 {
-			log.Printf("Successfully cached %v from api: %v...", c.Len(), c.String(0))
-		}
+		return nil, errors.New("cache is nil")
 	}
+	//_, err := c.GetCache(api)
+	//if err != nil {
+	//	return c, err
+	//}
+	if c.Len() > 2 {
+		log.Printf("Successfully cached %v from api: %v...", c.Len(), c.String(0))
+	}
+	//return cache, nil
+
 	return c, nil
 }
 
 func (api *apiImplementation) PopulateCache() (errors []error) {
-	_, err := api.Cache(CheckpointCache)
+	var caches []Cacheable
+	cache, err := SDModels(nil).GetCache(api)
 	if err != nil {
 		errors = append(errors, err)
 	}
+	caches = append(caches, cache)
 
-	_, err = api.Cache(LoraCache)
+	cache, err = LoraModels(nil).GetCache(api)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		caches = append(caches, cache)
 	}
 
-	_, err = api.Cache(VAECache)
+	cache, err = VAEModels(nil).GetCache(api)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		caches = append(caches, cache)
 	}
 
-	_, err = api.Cache(HypernetworkCache)
+	cache, err = HypernetworkModels(nil).GetCache(api)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		caches = append(caches, cache)
 	}
 
-	_, err = api.Cache(EmbeddingCache)
+	_, err = EmbeddingModels(nil).GetCache(api)
 	if err != nil {
 		errors = append(errors, err)
+	} else {
+		caches = append(caches, cache)
+	}
+
+	for _, cache := range caches {
+		_, err := api.CachePreview(cache)
+		if err != nil {
+			errors = append(errors, err)
+		}
 	}
 
 	return

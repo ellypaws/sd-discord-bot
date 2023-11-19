@@ -442,9 +442,9 @@ func (c LoraModels) Len() int {
 	return len(c)
 }
 
-var LoraCache LoraModels
+var LoraCache *LoraModels
 
-func (c LoraModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
+func (c LoraModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if LoraCache != nil {
 		return LoraCache, nil
 	}
@@ -459,7 +459,8 @@ func (c LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 		return nil, err
 	}
 
-	LoraCache, err = UnmarshalLoraModels(body)
+	cache, err := UnmarshalLoraModels(body)
+	LoraCache = &cache
 	if err != nil {
 		log.Printf("API URL: %s", getURL)
 		log.Printf("Unexpected API response: %s", string(body))
@@ -471,6 +472,6 @@ func (c LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
-	cache, err := LoraCache.Cache(api)
+	cache, err := LoraCache.GetCache(api)
 	return cache.(LoraModels), err
 }

@@ -41,10 +41,10 @@ func (c SDModels) Len() int {
 	return len(c)
 }
 
-var CheckpointCache SDModels
+var CheckpointCache *SDModels
 
 // TODO: SDModelsCache and SDLorasCache are identical except for the endpoint they hit and the cache they write to.
-func (c SDModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
+func (c SDModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if CheckpointCache != nil {
 		return CheckpointCache, nil
 	}
@@ -60,7 +60,8 @@ func (c SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 		return nil, err
 	}
 
-	CheckpointCache, err = UnmarshalSDModels(body)
+	cache, err := UnmarshalSDModels(body)
+	CheckpointCache = &cache
 	if err != nil {
 		log.Printf("API URL: %s", getURL)
 		log.Printf("Unexpected API response: %s", string(body))
@@ -72,6 +73,6 @@ func (c SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (api *apiImplementation) SDCheckpointsCache() (SDModels, error) {
-	cache, err := CheckpointCache.Cache(api)
+	cache, err := CheckpointCache.GetCache(api)
 	return cache.(SDModels), err
 }

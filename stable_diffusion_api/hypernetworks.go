@@ -33,9 +33,9 @@ func (c HypernetworkModels) Len() int {
 	return len(c)
 }
 
-var HypernetworkCache HypernetworkModels
+var HypernetworkCache *HypernetworkModels
 
-func (c HypernetworkModels) Cache(api StableDiffusionAPI) (Cacheable, error) {
+func (c HypernetworkModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if HypernetworkCache != nil {
 		return HypernetworkCache, nil
 	}
@@ -50,7 +50,8 @@ func (c HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 		return nil, err
 	}
 
-	HypernetworkCache, err = UnmarshalHypernetworkModels(body)
+	cache, err := UnmarshalHypernetworkModels(body)
+	HypernetworkCache = &cache
 	if err != nil {
 		return nil, err
 	}
@@ -59,6 +60,6 @@ func (c HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (api *apiImplementation) SDHypernetworkCache() (HypernetworkModels, error) {
-	cache, err := HypernetworkCache.Cache(api)
+	cache, err := HypernetworkCache.GetCache(api)
 	return cache.(HypernetworkModels), err
 }

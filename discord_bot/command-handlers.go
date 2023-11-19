@@ -317,7 +317,8 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 
 	if input != "" {
 		log.Printf("Autocompleting '%v'", input)
-		cache, err := b.StableDiffusionApi.Cache(c)
+
+		cache, err := c.GetCache(b.StableDiffusionApi)
 		if err != nil {
 			log.Printf("Error retrieving %v cache: %v", opt.Name, err)
 		}

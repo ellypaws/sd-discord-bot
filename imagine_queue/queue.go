@@ -915,7 +915,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		fmt.Println("Loading Model:", *newGeneration.Checkpoint)
 
 		// lookup from the list of models
-		caching, err := q.stableDiffusionAPI.Cache(stable_diffusion_api.CheckpointCache)
+		caching, err := stable_diffusion_api.CheckpointCache.GetCache(q.stableDiffusionAPI)
 		if err != nil {
 			fmt.Println("Failed to get cached models:", err)
 		}
