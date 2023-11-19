@@ -385,14 +385,14 @@ func populateOption(b *botImpl, handler string, cache stable_diffusion_api.Cache
 		}
 
 		if currentModel != "" && !Default {
-			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+			modelOptions = append([]discordgo.SelectMenuOption{{
 				Label:   shortenString(currentModel),
 				Value:   shortenString(currentModel),
 				Default: true,
 				Emoji: discordgo.ComponentEmoji{
 					Name: "✨",
 				},
-			})
+			}}, modelOptions...)
 		}
 
 		if len(modelOptions) == 0 {
