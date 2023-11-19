@@ -259,49 +259,9 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 
 // patch from upstream
 func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
-	// populate checkpoint dropdown and set default
-	checkpointDropdown := handlers.Components[handlers.CheckpointSelect].(discordgo.ActionsRow)
-	var modelOptions []discordgo.SelectMenuOption
-
-	models, err := b.StableDiffusionApi.SDCheckpointsCache()
-	if err != nil {
-		fmt.Printf("Failed to retrieve list of models: %v\n", err)
-	} else {
-		var modelNames []string
-
-		currentModel, err := b.StableDiffusionApi.GetCheckpoint()
-		if err != nil {
-			log.Printf("Failed to retrieve current model: %v\n", err)
-		}
-
-		for i, model := range *models {
-			if i > 20 {
-				break
-			}
-			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
-				Label:   shortenString(model.ModelName),
-				Value:   shortenString(model.Title),
-				Default: strings.Contains(currentModel, model.ModelName),
-			})
-			modelNames = append(modelNames, model.ModelName)
-		}
-
-		if !slices.ContainsFunc(modelNames,
-			func(model string) bool {
-				return strings.Contains(currentModel, model)
-			}) {
-			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
-				Label:   shortenString(currentModel),
-				Value:   shortenString(currentModel),
-				Default: true,
-			})
-		}
-
-		component := checkpointDropdown.Components[0].(discordgo.SelectMenu)
-		component.Options = modelOptions
-
-		handlers.Components[handlers.CheckpointSelect].(discordgo.ActionsRow).Components[0] = component
-	}
+	populateOption(b, handlers.CheckpointSelect, stable_diffusion_api.CheckpointCache)
+	populateOption(b, handlers.VAESelect, stable_diffusion_api.VAECache)
+	populateOption(b, handlers.HypernetworkSelect, stable_diffusion_api.HypernetworkCache)
 
 	// set default dimension from config
 	dimensions := handlers.Components[handlers.DimensionSelect].(discordgo.ActionsRow).Components[0].(discordgo.SelectMenu)
@@ -336,9 +296,110 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 
 	return []discordgo.MessageComponent{
 		handlers.Components[handlers.CheckpointSelect],
+		handlers.Components[handlers.VAESelect],
+		handlers.Components[handlers.HypernetworkSelect],
 		handlers.Components[handlers.DimensionSelect],
-		handlers.Components[handlers.BatchCountSelect],
+		//handlers.Components[handlers.BatchCountSelect],
 		handlers.Components[handlers.BatchSizeSelect],
+	}
+}
+
+// populateOption will fill in the options for a given dropdown component that implements stable_diffusion_api.Cacheable
+func populateOption(b *botImpl, handler string, cache stable_diffusion_api.Cacheable) {
+	checkpointDropdown := handlers.Components[handler].(discordgo.ActionsRow)
+	var modelOptions []discordgo.SelectMenuOption
+
+	models, err := cache.GetCache(b.StableDiffusionApi)
+	if err != nil {
+		fmt.Printf("Failed to retrieve list of models: %v\n", err)
+		return
+	} else {
+		var modelNames []string
+		var currentModel string
+
+		switch toRange := models.(type) {
+		case *stable_diffusion_api.SDModels:
+			currentModel, err = b.StableDiffusionApi.GetCheckpoint()
+			if err != nil {
+				log.Printf("Failed to retrieve current model: %v", err)
+				break
+			}
+			for i, model := range *toRange {
+				if i > 20 {
+					break
+				}
+				modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+					Label:   shortenString(model.ModelName),
+					Value:   shortenString(model.Title),
+					Default: strings.Contains(currentModel, model.ModelName),
+				})
+				modelNames = append(modelNames, model.ModelName)
+			}
+		case *stable_diffusion_api.VAEModels:
+			currentModel, err = b.StableDiffusionApi.GetVAE()
+			if err != nil {
+				log.Printf("Failed to retrieve current model: %v", err)
+				break
+			}
+			for i, model := range *toRange {
+				if i > 20 {
+					break
+				}
+				modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+					Label:   shortenString(model.ModelName),
+					Value:   shortenString(model.ModelName),
+					Default: strings.Contains(currentModel, model.ModelName),
+				})
+				modelNames = append(modelNames, model.ModelName)
+			}
+		case *stable_diffusion_api.HypernetworkModels:
+			for i, model := range *toRange {
+				currentModel, err = b.StableDiffusionApi.GetHypernetwork()
+				if err != nil {
+					log.Printf("Failed to retrieve current model: %v", err)
+					break
+				}
+				if i > 20 {
+					break
+				}
+				modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+					Label:   shortenString(model.Name),
+					Value:   shortenString(model.Name),
+					Default: strings.Contains(currentModel, model.Name),
+				})
+				modelNames = append(modelNames, model.Name)
+			}
+		}
+
+		if currentModel != "" && !slices.ContainsFunc(modelNames,
+			func(model string) bool {
+				return strings.Contains(currentModel, model)
+			}) {
+			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+				Label:   shortenString(currentModel),
+				Value:   shortenString(currentModel),
+				Default: true,
+			})
+		}
+
+		if len(modelOptions) == 0 {
+			modelOptions = append(modelOptions, discordgo.SelectMenuOption{
+				Label:       "No models found",
+				Value:       "None",
+				Description: "Are you sure you have the right API URL?",
+				Default:     false,
+			})
+		} else {
+			modelOptions = append([]discordgo.SelectMenuOption{{
+				Label:       "None",
+				Value:       "None",
+				Description: "Unset the model",
+			}}, modelOptions...)
+		}
+		component := checkpointDropdown.Components[0].(discordgo.SelectMenu)
+		component.Options = modelOptions
+
+		handlers.Components[handler].(discordgo.ActionsRow).Components[0] = component
 	}
 }
 
