@@ -52,6 +52,7 @@ func (c EmbeddingModels) Len() int {
 
 var EmbeddingCache *EmbeddingModels
 
+// GetCache returns var EmbeddingCache *EmbeddingModels as a Cacheable. Assert using cache.(*EmbeddingModels)
 func (c EmbeddingModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if EmbeddingCache != nil {
 		return EmbeddingCache, nil
@@ -97,7 +98,7 @@ func (c EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	return EmbeddingCache, nil
 }
 
-func (api *apiImplementation) SDEmbeddingCache() (EmbeddingModels, error) {
+func (api *apiImplementation) SDEmbeddingCache() (*EmbeddingModels, error) {
 	cache, err := EmbeddingCache.GetCache(api)
-	return cache.(EmbeddingModels), err
+	return cache.(*EmbeddingModels), err
 }

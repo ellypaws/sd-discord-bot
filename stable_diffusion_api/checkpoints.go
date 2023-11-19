@@ -43,7 +43,7 @@ func (c SDModels) Len() int {
 
 var CheckpointCache *SDModels
 
-// TODO: SDModelsCache and SDLorasCache are identical except for the endpoint they hit and the cache they write to.
+// GetCache returns var CheckpointCache *SDModels as a Cacheable. Assert using cache.(*LoraModels)
 func (c SDModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if CheckpointCache != nil {
 		return CheckpointCache, nil
@@ -72,7 +72,7 @@ func (c SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	return CheckpointCache, nil
 }
 
-func (api *apiImplementation) SDCheckpointsCache() (SDModels, error) {
+func (api *apiImplementation) SDCheckpointsCache() (*SDModels, error) {
 	cache, err := CheckpointCache.GetCache(api)
-	return cache.(SDModels), err
+	return cache.(*SDModels), err
 }

@@ -38,6 +38,7 @@ func (c VAEModels) Len() int {
 
 var VAECache *VAEModels
 
+// GetCache returns var VAECache *VAEModels as a Cacheable. Assert using cache.(*VAEModels)
 func (c VAEModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if VAECache != nil {
 		return VAECache, nil
@@ -65,7 +66,7 @@ func (c VAEModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	return VAECache, nil
 }
 
-func (api *apiImplementation) SDVAECache() (VAEModels, error) {
+func (api *apiImplementation) SDVAECache() (*VAEModels, error) {
 	cache, err := VAECache.GetCache(api)
-	return cache.(VAEModels), err
+	return cache.(*VAEModels), err
 }

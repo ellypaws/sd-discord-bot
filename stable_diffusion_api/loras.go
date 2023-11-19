@@ -444,6 +444,7 @@ func (c LoraModels) Len() int {
 
 var LoraCache *LoraModels
 
+// GetCache returns var LoraCache *LoraModels as a Cacheable. Assert using cache.(*LoraModels)
 func (c LoraModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if LoraCache != nil {
 		return LoraCache, nil
@@ -471,7 +472,7 @@ func (c LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	return LoraCache, nil
 }
 
-func (api *apiImplementation) SDLorasCache() (LoraModels, error) {
+func (api *apiImplementation) SDLorasCache() (*LoraModels, error) {
 	cache, err := LoraCache.GetCache(api)
-	return cache.(LoraModels), err
+	return cache.(*LoraModels), err
 }

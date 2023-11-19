@@ -59,7 +59,7 @@ func (c HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	return HypernetworkCache, nil
 }
 
-func (api *apiImplementation) SDHypernetworkCache() (HypernetworkModels, error) {
+func (api *apiImplementation) SDHypernetworkCache() (*HypernetworkModels, error) {
 	cache, err := HypernetworkCache.GetCache(api)
-	return cache.(HypernetworkModels), err
+	return cache.(*HypernetworkModels), err
 }

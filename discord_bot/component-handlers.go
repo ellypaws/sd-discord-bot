@@ -279,7 +279,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 			log.Printf("Failed to retrieve current model: %v\n", err)
 		}
 
-		for i, model := range models {
+		for i, model := range *models {
 			if i > 20 {
 				break
 			}

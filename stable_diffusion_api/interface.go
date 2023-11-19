@@ -14,16 +14,19 @@ type StableDiffusionAPI interface {
 	Host() string
 
 	// invidual caches TODO: use Cacheable interface
-	SDCheckpointsCache() (SDModels, error)            // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDLorasCache() (LoraModels, error)                // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDVAECache() (VAEModels, error)                   // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDHypernetworkCache() (HypernetworkModels, error) // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDEmbeddingCache() (EmbeddingModels, error)       // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
+	SDCheckpointsCache() (*SDModels, error)            // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
+	SDLorasCache() (*LoraModels, error)                // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
+	SDVAECache() (*VAEModels, error)                   // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
+	SDHypernetworkCache() (*HypernetworkModels, error) // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
+	SDEmbeddingCache() (*EmbeddingModels, error)       // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
 }
 
 type Cacheable interface {
 	String(int) string
 	Len() int
+
+	// GetCache uses each implementation's apiGET method to fetch the cache.
+	// Make sure to check which type assertion is required, usually *Type
 	GetCache(StableDiffusionAPI) (Cacheable, error)
 	apiGET(StableDiffusionAPI) (Cacheable, error)
 }

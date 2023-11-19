@@ -225,7 +225,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					}
 					regExp := regexp.MustCompile(`(?:models\\)?Lora\\(.*)`)
 
-					alias := regExp.FindStringSubmatch(cache[result.Index].Path)
+					alias := regExp.FindStringSubmatch((*cache)[result.Index].Path)
 
 					var nameToUse string
 					switch {
@@ -234,12 +234,12 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 						regExp := regexp.MustCompile(`\\{2,}`)
 						nameToUse = regExp.ReplaceAllString(alias[1], `\`)
 					default:
-						nameToUse = cache[result.Index].Name
+						nameToUse = (*cache)[result.Index].Name
 					}
 
 					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
 						Name:  nameToUse,
-						Value: cache[result.Index].Name,
+						Value: (*cache)[result.Index].Name,
 					})
 				}
 
@@ -248,7 +248,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 
 				var tooltip string
 				if len(results) > 0 {
-					input = cache[results[0].Index].Name
+					input = (*cache)[results[0].Index].Name
 					tooltip = fmt.Sprintf("✨%v", input)
 				} else {
 					input = sanitized
