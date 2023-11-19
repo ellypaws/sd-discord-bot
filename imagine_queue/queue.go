@@ -992,14 +992,9 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		imageBufs[idx] = imageBuf
 	}
 
-	currentConfig, err := q.stableDiffusionAPI.GetConfig()
+	currentCheckpoint, err := q.stableDiffusionAPI.GetCheckpoint()
 	if err != nil {
-		log.Printf("Error getting current config: %v\n", err)
-	}
-
-	var currentCheckpoint string
-	if currentConfig != nil {
-		currentCheckpoint = currentConfig.Checkpoint()
+		log.Printf("Error getting current checkpoint: %v", err)
 	}
 
 	for idx := range resp.Seeds {
@@ -1230,14 +1225,14 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 	log.Printf("Found generation: %v", generation)
 
-	config, _ := q.stableDiffusionAPI.GetConfig()
+	checkpoint, _ := q.stableDiffusionAPI.GetCheckpoint()
 
-	log.Printf("Current checkpoint: %v\nGeneration checkpoint: %v", config.Checkpoint(), *generation.Checkpoint)
+	log.Printf("Current checkpoint: %v\nGeneration checkpoint: %v", checkpoint, *generation.Checkpoint)
 
-	if config.Checkpoint() != *generation.Checkpoint {
+	if checkpoint != *generation.Checkpoint {
 		log.Printf("Changing checkpoint to: %v", *generation.Checkpoint)
 
-		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", config.Checkpoint(), *generation.Checkpoint)
+		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", checkpoint, *generation.Checkpoint)
 
 		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &updateModelMessage,

@@ -282,9 +282,23 @@ func (api *apiImplementation) GetCheckpoint() (string, error) {
 		return "", err
 	}
 
-	return apiConfig.Checkpoint(), nil
+	return apiConfig.SDModelCheckpoint, nil
 }
 
-func (config *APIConfig) Checkpoint() string {
-	return config.SDModelCheckpoint
+func (api *apiImplementation) GetVAE() (string, error) {
+	apiConfig, err := api.GetConfig()
+	if err != nil {
+		return "", err
+	}
+
+	return apiConfig.SDVae, nil
+}
+
+func (api *apiImplementation) GetHypernetwork() (string, error) {
+	apiConfig, err := api.GetConfig()
+	if err != nil {
+		return "", err
+	}
+
+	return apiConfig.SDHypernetwork, nil
 }
