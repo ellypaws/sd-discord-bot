@@ -103,43 +103,19 @@ func (api *apiImplementation) CachePreview(c Cacheable) (Cacheable, error) {
 }
 
 func (api *apiImplementation) PopulateCache() (errors []error) {
-	var caches []Cacheable
-	cache, err := SDModels(nil).GetCache(api)
-	if err != nil {
-		errors = append(errors, err)
+	var caches = []Cacheable{
+		CheckpointCache,
+		LoraCache,
+		VAECache,
+		HypernetworkCache,
+		EmbeddingCache,
 	}
-	caches = append(caches, cache)
-
-	cache, err = LoraModels(nil).GetCache(api)
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		caches = append(caches, cache)
-	}
-
-	cache, err = VAEModels(nil).GetCache(api)
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		caches = append(caches, cache)
-	}
-
-	cache, err = HypernetworkModels(nil).GetCache(api)
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		caches = append(caches, cache)
-	}
-
-	cache, err = EmbeddingModels(nil).GetCache(api)
-	if err != nil {
-		errors = append(errors, err)
-	} else {
-		caches = append(caches, cache)
-	}
-
 	for _, cache := range caches {
-		_, err := api.CachePreview(cache)
+		cache, err := cache.GetCache(api)
+		if err != nil {
+			errors = append(errors, err)
+		}
+		_, err = api.CachePreview(cache)
 		if err != nil {
 			errors = append(errors, err)
 		}

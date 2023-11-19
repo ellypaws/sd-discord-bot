@@ -35,14 +35,18 @@ func (c HypernetworkModels) Len() int {
 
 var HypernetworkCache *HypernetworkModels
 
-func (c HypernetworkModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+// GetCache returns var HypernetworkCache *HypernetworkModels as a Cacheable. Assert using cache.(*HypernetworkModels)
+func (c *HypernetworkModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+	if c != nil {
+		return c, nil
+	}
 	if HypernetworkCache != nil {
 		return HypernetworkCache, nil
 	}
 	return c.apiGET(api)
 }
 
-func (c HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
+func (c *HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/hypernetworks"
 
 	body, err := api.GET(getURL)

@@ -43,15 +43,18 @@ func (c SDModels) Len() int {
 
 var CheckpointCache *SDModels
 
-// GetCache returns var CheckpointCache *SDModels as a Cacheable. Assert using cache.(*LoraModels)
-func (c SDModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+// GetCache returns var CheckpointCache *SDModels as a Cacheable. Assert using cache.(*SDModels)
+func (c *SDModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+	if c != nil {
+		return c, nil
+	}
 	if CheckpointCache != nil {
 		return CheckpointCache, nil
 	}
 	return c.apiGET(api)
 }
 
-func (c SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
+func (c *SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	// Make an HTTP request to fetch the stable diffusion models
 	getURL := "/sdapi/v1/sd-models"
 

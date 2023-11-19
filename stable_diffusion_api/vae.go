@@ -39,14 +39,17 @@ func (c VAEModels) Len() int {
 var VAECache *VAEModels
 
 // GetCache returns var VAECache *VAEModels as a Cacheable. Assert using cache.(*VAEModels)
-func (c VAEModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+func (c *VAEModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+	if c != nil {
+		return c, nil
+	}
 	if VAECache != nil {
 		return VAECache, nil
 	}
 	return c.apiGET(api)
 }
 
-func (c VAEModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
+func (c *VAEModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/sd-vae"
 
 	body, err := api.GET(getURL)

@@ -445,14 +445,17 @@ func (c LoraModels) Len() int {
 var LoraCache *LoraModels
 
 // GetCache returns var LoraCache *LoraModels as a Cacheable. Assert using cache.(*LoraModels)
-func (c LoraModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+func (c *LoraModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+	if c != nil {
+		return c, nil
+	}
 	if LoraCache != nil {
 		return LoraCache, nil
 	}
 	return c.apiGET(api)
 }
 
-func (c LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
+func (c *LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/loras"
 
 	body, err := api.GET(getURL)

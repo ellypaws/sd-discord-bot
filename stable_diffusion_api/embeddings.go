@@ -53,14 +53,17 @@ func (c EmbeddingModels) Len() int {
 var EmbeddingCache *EmbeddingModels
 
 // GetCache returns var EmbeddingCache *EmbeddingModels as a Cacheable. Assert using cache.(*EmbeddingModels)
-func (c EmbeddingModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+func (c *EmbeddingModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
+	if c != nil {
+		return c, nil
+	}
 	if EmbeddingCache != nil {
 		return EmbeddingCache, nil
 	}
 	return c.apiGET(api)
 }
 
-func (c EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
+func (c *EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/embeddings"
 
 	body, err := api.GET(getURL)
