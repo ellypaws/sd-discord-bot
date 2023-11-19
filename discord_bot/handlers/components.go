@@ -1,14 +1,18 @@
 package handlers
 
 import (
+	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"strings"
 )
 
 const (
-	CheckpointSelect = "imagine_sd_model_name_menu"
-	DimensionSelect  = "imagine_dimension_setting_menu"
-	BatchCountSelect = "imagine_batch_count_setting_menu"
-	BatchSizeSelect  = "imagine_batch_size_setting_menu"
+	CheckpointSelect   = "imagine_sd_model_name_menu"
+	VAESelect          = "imagine_vae_model_name_menu"
+	HypernetworkSelect = "imagine_hypernetwork_model_name_menu"
+	DimensionSelect    = "imagine_dimension_setting_menu"
+	BatchCountSelect   = "imagine_batch_count_setting_menu"
+	BatchSizeSelect    = "imagine_batch_size_setting_menu"
 )
 
 const (
@@ -106,7 +110,6 @@ var Components = map[string]discordgo.MessageComponent{
 			},
 		},
 	},
-
 	readmoreDismiss: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
@@ -150,7 +153,6 @@ var Components = map[string]discordgo.MessageComponent{
 			},
 		},
 	},
-
 	roleSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
@@ -161,24 +163,9 @@ var Components = map[string]discordgo.MessageComponent{
 		},
 	},
 
-	CheckpointSelect: discordgo.ActionsRow{
-		Components: []discordgo.MessageComponent{
-			discordgo.SelectMenu{
-				CustomID:    CheckpointSelect,
-				Placeholder: "Change SD Model",
-				MinValues:   &minValues,
-				MaxValues:   1,
-				Options: []discordgo.SelectMenuOption{
-					{
-						Label:       "Checkpoint",
-						Value:       "Placeholder",
-						Description: "Placeholder",
-						Default:     false,
-					},
-				},
-			},
-		},
-	},
+	CheckpointSelect:   ModelSelectMenu(CheckpointSelect),
+	VAESelect:          ModelSelectMenu(VAESelect),
+	HypernetworkSelect: ModelSelectMenu(HypernetworkSelect),
 
 	DimensionSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
@@ -201,7 +188,6 @@ var Components = map[string]discordgo.MessageComponent{
 			},
 		},
 	},
-
 	BatchCountSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
@@ -228,7 +214,6 @@ var Components = map[string]discordgo.MessageComponent{
 			},
 		},
 	},
-
 	BatchSizeSelect: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.SelectMenu{
@@ -255,4 +240,27 @@ var Components = map[string]discordgo.MessageComponent{
 			},
 		},
 	},
+}
+
+func ModelSelectMenu(ID string) discordgo.ActionsRow {
+	display := strings.TrimPrefix(ID, "imagine_")
+	display = strings.TrimSuffix(ID, "_model_name_menu")
+	return discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.SelectMenu{
+				CustomID:    ID,
+				Placeholder: fmt.Sprintf("Change %s Model", display),
+				MinValues:   &minValues,
+				MaxValues:   1,
+				Options: []discordgo.SelectMenuOption{
+					{
+						Label:       display,
+						Value:       "Placeholder",
+						Description: "Placeholder",
+						Default:     false,
+					},
+				},
+			},
+		},
+	}
 }
