@@ -423,7 +423,7 @@ func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *disc
 		fmt.Sprintf("Updating model to %v...", newModelName),
 		b.settingsMessageComponents(botSettings),
 	)
-	err = b.StableDiffusionApi.UpdateConfiguration(stable_diffusion_api.POSTCheckpoint{SdModelCheckpoint: newModelName})
+	err = b.StableDiffusionApi.UpdateConfiguration(stable_diffusion_api.POSTConfig{SdModelCheckpoint: newModelName})
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
 		handlers.Responses[handlers.ErrorFollowupEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error updating sd model name settings...")

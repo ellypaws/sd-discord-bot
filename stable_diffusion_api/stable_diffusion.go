@@ -326,7 +326,7 @@ func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 	return respStruct, nil
 }
 
-type POSTCheckpoint struct {
+type POSTConfig struct {
 	SdModelCheckpoint string `json:"sd_model_checkpoint,omitempty"`
 }
 
@@ -365,7 +365,7 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	return body, nil
 }
 
-func (api *apiImplementation) UpdateConfiguration(post POSTCheckpoint) error {
+func (api *apiImplementation) UpdateConfiguration(post POSTConfig) error {
 	headers := map[string]string{
 		"accept":       "application/json",
 		"Content-Type": "application/json",

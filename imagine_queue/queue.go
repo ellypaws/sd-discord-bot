@@ -927,7 +927,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		if len(results) > 0 {
 			modelToUse = (*cachedModels)[results[0].Index]
 			log.Printf("Changing model to: %v\n", modelToUse)
-			err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.POSTCheckpoint{SdModelCheckpoint: modelToUse.ModelName})
+			err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.POSTConfig{SdModelCheckpoint: modelToUse.ModelName})
 			if err != nil {
 				fmt.Println("Failed to update model:", err)
 			}
@@ -1238,7 +1238,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			Content: &updateModelMessage,
 		})
 
-		err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.POSTCheckpoint{SdModelCheckpoint: *generation.Checkpoint})
+		err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.POSTConfig{SdModelCheckpoint: *generation.Checkpoint})
 		if err != nil {
 			log.Printf("Error updating model: %v", err)
 

@@ -2,14 +2,21 @@ package stable_diffusion_api
 
 type StableDiffusionAPI interface {
 	SDModels() ([]StableDiffusionModel, error) // Deprecated: use SDCheckpointsCache instead
+
 	PopulateCache() (errors []error)
 	CachePreview(c Cacheable) (Cacheable, error)
+
 	TextToImage(req *TextToImageRequest) (*TextToImageResponse, error)
 	UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error)
 	GetCurrentProgress() (*ProgressResponse, error)
-	UpdateConfiguration(configuration POSTCheckpoint) error
+
+	UpdateConfiguration(configuration POSTConfig) error
+
 	GetConfig() (*APIConfig, error)
 	GetCheckpoint() (string, error)
+	GetVAE() (string, error)
+	GetHypernetwork() (string, error)
+
 	GET(string) ([]byte, error)
 	Host() string
 
