@@ -316,6 +316,10 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 	var choices []*discordgo.ApplicationCommandOptionChoice
 
 	if input != "" {
+		if c == nil {
+			log.Printf("Cacheable interface is nil")
+			return input
+		}
 		log.Printf("Autocompleting '%v'", input)
 
 		cache, err := c.GetCache(b.StableDiffusionApi)
@@ -323,6 +327,9 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 			log.Printf("Error retrieving %v cache: %v", opt.Name, err)
 		}
 		results := fuzzy.FindFrom(input, cache)
+		log.Printf("Finding from %v: %v", input, cache)
+		log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
+		log.Printf("Results: %v", results)
 
 		for index, result := range results {
 			if index > 25 {
