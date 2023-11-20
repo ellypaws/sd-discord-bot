@@ -403,9 +403,6 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 					Name: "❌",
 				},
 			}}, modelOptions...)
-			if currentModel == "None" {
-				modelOptions[0].Default = true
-			}
 		}
 		component := checkpointDropdown.Components[0].(discordgo.SelectMenu)
 		component.Options = modelOptions
