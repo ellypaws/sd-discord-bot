@@ -65,11 +65,11 @@ func init() {
 	if imagineCommand == nil || *imagineCommand == "" {
 		imagineEnv := os.Getenv("IMAGINE_COMMAND")
 		if imagineEnv != "" {
-			imagineCommand = &imagineEnv
+			*imagineCommand = discord_bot.Command(imagineEnv)
 		}
 	}
 
-	if devModeFlag == nil {
+	if devModeFlag == nil || !*devModeFlag {
 		devModeEnv := os.Getenv("DEV_MODE")
 		if devModeEnv != "" {
 			devModeFlag = new(bool)
@@ -77,7 +77,7 @@ func init() {
 		}
 	}
 
-	if removeCommandsFlag == nil {
+	if removeCommandsFlag == nil || !*removeCommandsFlag {
 		removeCommandsEnv := os.Getenv("REMOVE_COMMANDS")
 		if removeCommandsEnv != "" {
 			removeCommandsFlag = new(bool)
