@@ -505,18 +505,12 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 		modelType = "hypernetwork"
 	}
 
-	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
-	if err != nil {
-		log.Printf("error retrieving bot settings: %v", err)
-		handlers.Responses[handlers.ErrorEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error retrieving bot settings...")
-		return
-	}
 	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction,
-		fmt.Sprintf("Updating [%v] model to %v...", modelType, newModelName),
-		b.settingsMessageComponents(botSettings),
+		fmt.Sprintf("Updating [**%v**] model to `%v`...", modelType, newModelName),
+		i.Interaction.Message.Components,
 	)
 
-	err = b.StableDiffusionApi.UpdateConfiguration(config)
+	err := b.StableDiffusionApi.UpdateConfiguration(config)
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
 		handlers.Responses[handlers.ErrorFollowupEphemeral].(handlers.ErrorResponseType)(s, i.Interaction,
@@ -525,15 +519,23 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 		return
 	}
 
+	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
+	if err != nil {
+		log.Printf("error retrieving bot settings: %v", err)
+		handlers.Responses[handlers.ErrorEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error retrieving bot settings...")
+		return
+	}
+
+	newComponents := b.settingsMessageComponents(botSettings)
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
-		fmt.Sprintf("Updated [%v] model to %v", modelType, newModelName),
-		b.settingsMessageComponents(botSettings),
+		fmt.Sprintf("Updated [**%v**] model to `%v`", modelType, newModelName),
+		newComponents,
 	)
 
 	time.AfterFunc(5*time.Second, func() {
 		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
 			"Choose default settings for the imagine command:",
-			b.settingsMessageComponents(botSettings),
+			newComponents,
 		)
 	})
 }
