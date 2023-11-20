@@ -109,7 +109,7 @@ func New(cfg *Config) (Bot, error) {
 	return bot, nil
 }
 
-func (bot *botImpl) registerHandlers(session *discordgo.Session) {
+func (b *botImpl) registerHandlers(session *discordgo.Session) {
 	session.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
 		var h func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate)
 		var ok bool
@@ -183,7 +183,7 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 			return
 		}
 
-		h(bot, session, i)
+		h(b, session, i)
 	})
 	//currentProgress = len(commandHandlers) + len(componentHandlers) + len(components)
 	//bot.p.Send(load.Goal{
@@ -196,8 +196,8 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 	//})
 }
 
-func (bot *botImpl) registerCommands() error {
-	bot.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(commands))
+func (b *botImpl) registerCommands() error {
+	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(commands))
 	for key, command := range commands {
 		if command.Name == "" {
 			// clean the key because it might be a description of some sort
@@ -213,11 +213,11 @@ func (bot *botImpl) registerCommands() error {
 			}
 			command.Name = sanitized
 		}
-		cmd, err := bot.botSession.ApplicationCommandCreate(bot.botSession.State.User.ID, bot.guildID, command)
+		cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, command)
 		if err != nil {
 			return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
 		}
-		bot.registeredCommands[key] = cmd
+		b.registeredCommands[key] = cmd
 		log.Printf("Registered %v command as: /%v", key, cmd.Name)
 		//bot.p.Send(logger.Message(fmt.Sprintf("Registered command: %v", cmd.Name)))
 		//currentProgress++
