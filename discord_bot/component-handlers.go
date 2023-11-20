@@ -258,9 +258,14 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 
 // patch from upstream
 func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
-	populateOption(b, handlers.CheckpointSelect, stable_diffusion_api.CheckpointCache)
-	populateOption(b, handlers.VAESelect, stable_diffusion_api.VAECache)
-	populateOption(b, handlers.HypernetworkSelect, stable_diffusion_api.HypernetworkCache)
+	config, err := b.StableDiffusionApi.GetConfig()
+	if err != nil {
+		log.Printf("Error retrieving config: %v", err)
+	} else {
+		populateOption(b, handlers.CheckpointSelect, stable_diffusion_api.CheckpointCache, config)
+		populateOption(b, handlers.VAESelect, stable_diffusion_api.VAECache, config)
+		populateOption(b, handlers.HypernetworkSelect, stable_diffusion_api.HypernetworkCache, config)
+	}
 
 	// set default dimension from config
 	dimensions := handlers.Components[handlers.DimensionSelect].(discordgo.ActionsRow).Components[0].(discordgo.SelectMenu)
@@ -304,7 +309,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 }
 
 // populateOption will fill in the options for a given dropdown component that implements stable_diffusion_api.Cacheable
-func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusion_api.Cacheable) {
+func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusion_api.Cacheable, config *stable_diffusion_api.APIConfig) {
 	checkpointDropdown := handlers.Components[handler].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
 
@@ -315,10 +320,6 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 	} else {
 		var modelNames []string
 		var currentModel string
-		config, err := b.StableDiffusionApi.GetConfig()
-		if err != nil {
-			log.Printf("Failed to retrieve config: %v", err)
-		}
 
 		switch toRange := models.(type) {
 		case *stable_diffusion_api.SDModels:
