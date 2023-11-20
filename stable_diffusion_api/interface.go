@@ -13,9 +13,9 @@ type StableDiffusionAPI interface {
 	UpdateConfiguration(config APIConfig) error
 
 	GetConfig() (*APIConfig, error)
-	GetCheckpoint() (string, error)
-	GetVAE() (string, error)
-	GetHypernetwork() (string, error)
+	GetCheckpoint() (*string, error)
+	GetVAE() (*string, error)
+	GetHypernetwork() (*string, error)
 
 	GET(string) ([]byte, error)
 	Host() string

@@ -108,7 +108,7 @@ type APIConfig struct {
 	TrainingEnableTensorboard             bool     `json:"training_enable_tensorboard,omitempty"`
 	TrainingTensorboardSaveImages         bool     `json:"training_tensorboard_save_images,omitempty"`
 	TrainingTensorboardFlushEvery         float64  `json:"training_tensorboard_flush_every,omitempty"`
-	SDModelCheckpoint                     string   `json:"sd_model_checkpoint,omitempty"`
+	SDModelCheckpoint                     *string  `json:"sd_model_checkpoint,omitempty"`
 	SDCheckpointsLimit                    float64  `json:"sd_checkpoints_limit,omitempty"`
 	SDCheckpointsKeepInCPU                bool     `json:"sd_checkpoints_keep_in_cpu,omitempty"`
 	SDCheckpointCache                     float64  `json:"sd_checkpoint_cache,omitempty"`
@@ -128,7 +128,7 @@ type APIConfig struct {
 	SdxlRefinerHighAestheticScore         float64  `json:"sdxl_refiner_high_aesthetic_score,omitempty"`
 	SDVaeExplanation                      string   `json:"sd_vae_explanation,omitempty"`
 	SDVaeCheckpointCache                  float64  `json:"sd_vae_checkpoint_cache,omitempty"`
-	SDVae                                 string   `json:"sd_vae,omitempty"`
+	SDVae                                 *string  `json:"sd_vae,omitempty"`
 	SDVaeOverridesPerModelPreferences     bool     `json:"sd_vae_overrides_per_model_preferences,omitempty"`
 	AutoVaePrecision                      bool     `json:"auto_vae_precision,omitempty"`
 	SDVaeEncodeMethod                     string   `json:"sd_vae_encode_method,omitempty"`
@@ -185,7 +185,7 @@ type APIConfig struct {
 	UIExtraNetworksTabReorder             string   `json:"ui_extra_networks_tab_reorder,omitempty"`
 	TextualInversionPrintAtLoad           bool     `json:"textual_inversion_print_at_load,omitempty"`
 	TextualInversionAddHashesToInfotext   bool     `json:"textual_inversion_add_hashes_to_infotext,omitempty"`
-	SDHypernetwork                        string   `json:"sd_hypernetwork,omitempty"`
+	SDHypernetwork                        *string  `json:"sd_hypernetwork,omitempty"`
 	Localization                          string   `json:"localization,omitempty"`
 	GradioTheme                           string   `json:"gradio_theme,omitempty"`
 	GradioThemesCache                     bool     `json:"gradio_themes_cache,omitempty"`
@@ -276,28 +276,28 @@ func (api *apiImplementation) GetConfig() (*APIConfig, error) {
 	return &apiConfig, nil
 }
 
-func (api *apiImplementation) GetCheckpoint() (string, error) {
+func (api *apiImplementation) GetCheckpoint() (*string, error) {
 	apiConfig, err := api.GetConfig()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return apiConfig.SDModelCheckpoint, nil
 }
 
-func (api *apiImplementation) GetVAE() (string, error) {
+func (api *apiImplementation) GetVAE() (*string, error) {
 	apiConfig, err := api.GetConfig()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return apiConfig.SDVae, nil
 }
 
-func (api *apiImplementation) GetHypernetwork() (string, error) {
+func (api *apiImplementation) GetHypernetwork() (*string, error) {
 	apiConfig, err := api.GetConfig()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	return apiConfig.SDHypernetwork, nil

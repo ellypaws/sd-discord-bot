@@ -102,7 +102,9 @@ type QueueItem struct {
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
 	ADetailerString    string // use AppendSegModelByString
-	Checkpoint         string
+	Checkpoint         *string
+	VAE                *string
+	Hypernetwork       *string
 }
 
 func (q *queueImplementation) AddImagine(item *QueueItem) (int, error) {
@@ -662,15 +664,35 @@ func (q *queueImplementation) processCurrentImagine() {
 		//var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
 		//promptRes.SanitizedPrompt = quotedPrompt
 
-		var checkpoint string
-		if q.currentImagine.Checkpoint != "" {
+		config, err := q.stableDiffusionAPI.GetConfig()
+		if err != nil {
+			log.Printf("Error getting config: %v", err)
+		}
+
+		var checkpoint *string
+		if ptrStringNotBlank(q.currentImagine.Checkpoint) {
 			checkpoint = q.currentImagine.Checkpoint
 		} else {
-			model, err := q.stableDiffusionAPI.GetCheckpoint()
-			if err != nil {
-				log.Printf("Error getting checkpoint: %v", err)
-			} else {
-				checkpoint = model
+			if config != nil && ptrStringNotBlank(config.SDModelCheckpoint) {
+				checkpoint = config.SDModelCheckpoint
+			}
+		}
+
+		var vae *string
+		if ptrStringNotBlank(q.currentImagine.VAE) {
+			vae = q.currentImagine.VAE
+		} else {
+			if config != nil && ptrStringNotBlank(config.SDVae) {
+				vae = config.SDVae
+			}
+		}
+
+		var hypernetwork *string
+		if ptrStringNotBlank(q.currentImagine.Hypernetwork) {
+			hypernetwork = q.currentImagine.Hypernetwork
+		} else {
+			if config != nil && ptrStringNotBlank(config.SDHypernetwork) {
+				hypernetwork = config.SDHypernetwork
 			}
 		}
 
@@ -694,7 +716,9 @@ func (q *queueImplementation) processCurrentImagine() {
 			CfgScale:          cfgScaleValue,
 			Steps:             stepValue,
 			Processed:         false,
-			Checkpoint:        &checkpoint,
+			Checkpoint:        checkpoint,
+			VAE:               vae,
+			Hypernetwork:      hypernetwork,
 		}
 
 		segModelOptions := q.currentImagine.ADetailerString
@@ -823,8 +847,21 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		)
 	}
 
-	if generation.Checkpoint != nil && *generation.Checkpoint != "" {
+	if ptrStringNotBlank(generation.Checkpoint) {
 		out.WriteString(fmt.Sprintf("\n**Checkpoint**: `%v`", *generation.Checkpoint))
+	}
+
+	if ptrStringNotBlank(generation.VAE) {
+		out.WriteString(fmt.Sprintf("\n**VAE**: `%v`", *generation.VAE))
+	}
+
+	if ptrStringNotBlank(generation.Hypernetwork) {
+		if ptrStringNotBlank(generation.VAE) {
+			out.WriteString(" ")
+		} else {
+			out.WriteString("\n")
+		}
+		out.WriteString(fmt.Sprintf("**Hypernetwork**: `%v`", *generation.Hypernetwork))
 	}
 
 	if progress >= 0 && progress < 1 {
@@ -911,29 +948,13 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	}()
 
 	// Insert code to update the configuration here
-	if newGeneration.Checkpoint != nil && *newGeneration.Checkpoint != "" { // || q.currentImagine.Checkpoint != ""
-		fmt.Println("Loading Model:", *newGeneration.Checkpoint)
-
-		// lookup from the list of models
-		caching, err := stable_diffusion_api.CheckpointCache.GetCache(q.stableDiffusionAPI)
-		if err != nil {
-			fmt.Println("Failed to get cached models:", err)
-		}
-		cachedModels := caching.(*stable_diffusion_api.SDModels)
-
-		var modelToUse stable_diffusion_api.SDModel
-		results := fuzzy.FindFrom(*newGeneration.Checkpoint, cachedModels)
-
-		if len(results) > 0 {
-			modelToUse = (*cachedModels)[results[0].Index]
-			log.Printf("Changing model to: %v\n", modelToUse)
-			err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.APIConfig{SDModelCheckpoint: modelToUse.ModelName})
-			if err != nil {
-				fmt.Println("Failed to update model:", err)
-			}
-		} else {
-			log.Printf("Couldn't find model %v", *newGeneration.Checkpoint)
-		}
+	err = q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, []stable_diffusion_api.Cacheable{
+		stable_diffusion_api.CheckpointCache,
+		stable_diffusion_api.VAECache,
+		stable_diffusion_api.HypernetworkCache,
+	}))
+	if err != nil {
+		log.Printf("Error updating configuration: %v", err)
 	}
 
 	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
@@ -992,9 +1013,9 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		imageBufs[idx] = imageBuf
 	}
 
-	currentCheckpoint, err := q.stableDiffusionAPI.GetCheckpoint()
+	config, err := q.stableDiffusionAPI.GetConfig()
 	if err != nil {
-		log.Printf("Error getting current checkpoint: %v", err)
+		log.Printf("Error getting config: %v", err)
 	}
 
 	for idx := range resp.Seeds {
@@ -1023,7 +1044,9 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			CfgScale:          newGeneration.CfgScale,
 			Steps:             newGeneration.Steps,
 			Processed:         true,
-			Checkpoint:        &currentCheckpoint,
+			Checkpoint:        config.SDModelCheckpoint,
+			VAE:               config.SDVae,
+			Hypernetwork:      config.SDHypernetwork,
 			AlwaysOnScripts:   newGeneration.AlwaysOnScripts,
 		}
 
@@ -1191,6 +1214,57 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	return nil
 }
 
+func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, c []stable_diffusion_api.Cacheable) (config stable_diffusion_api.APIConfig) {
+	for _, c := range c {
+		var toLoad *string
+		var loadedModel *string
+		switch c.(type) {
+		case *stable_diffusion_api.SDModels:
+			toLoad = generation.Checkpoint
+			loadedModel = config.SDModelCheckpoint
+		case *stable_diffusion_api.VAEModels:
+			toLoad = generation.VAE
+			loadedModel = config.SDVae
+		case *stable_diffusion_api.HypernetworkModels:
+			toLoad = generation.Hypernetwork
+			loadedModel = config.SDHypernetwork
+		}
+		if ptrStringCompare(toLoad, loadedModel) {
+			log.Printf("Model %#v already loaded as %#v", *toLoad, *loadedModel)
+			continue
+		}
+
+		// lookup from the list of models
+		cache, err := c.GetCache(q.stableDiffusionAPI)
+		if err != nil {
+			log.Println("Failed to get cached models:", err)
+			continue
+		}
+
+		results := fuzzy.FindFrom(*toLoad, cache)
+
+		if len(results) > 0 {
+			modelToLoad := cache.String(results[0].Index)
+			switch c.(type) {
+			case *stable_diffusion_api.SDModels:
+				config.SDModelCheckpoint = &modelToLoad
+			case *stable_diffusion_api.VAEModels:
+				config.SDVae = &modelToLoad
+			case *stable_diffusion_api.HypernetworkModels:
+				config.SDHypernetwork = &modelToLoad
+			}
+		} else {
+			log.Printf("Couldn't find model %v", *generation.Checkpoint)
+		}
+
+	}
+	if len(c) > 0 {
+		marshal, _ := config.Marshal()
+		log.Printf("Switching models to %#v", string(marshal))
+	}
+	return
+}
+
 func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress float64) string {
 	if fetchProgress >= 0 && fetchProgress <= 1 && upscaleProgress < 1 {
 		if upscaleProgress == 0 {
@@ -1227,18 +1301,18 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 	checkpoint, _ := q.stableDiffusionAPI.GetCheckpoint()
 
-	log.Printf("Current checkpoint: %v\nGeneration checkpoint: %v", checkpoint, *generation.Checkpoint)
+	log.Printf("Current checkpoint: %v\nGeneration checkpoint: %v", safeDereference(checkpoint), safeDereference(generation.Checkpoint))
 
-	if checkpoint != *generation.Checkpoint {
+	if generation.Checkpoint != nil && !ptrStringCompare(checkpoint, generation.Checkpoint) {
 		log.Printf("Changing checkpoint to: %v", *generation.Checkpoint)
 
-		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", checkpoint, *generation.Checkpoint)
+		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", safeDereference(checkpoint), safeDereference(generation.Checkpoint))
 
 		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &updateModelMessage,
 		})
 
-		err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.APIConfig{SDModelCheckpoint: *generation.Checkpoint})
+		err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.APIConfig{SDModelCheckpoint: generation.Checkpoint})
 		if err != nil {
 			log.Printf("Error updating model: %v", err)
 
@@ -1421,4 +1495,25 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 		return
 	}
+}
+
+func ptrStringCompare(s1 *string, s2 *string) bool {
+	if s1 == nil || s2 == nil {
+		return s1 == s2
+	}
+	return *s1 == *s2
+}
+
+func ptrStringNotBlank(s *string) bool {
+	if s == nil {
+		return false
+	}
+	return *s != ""
+}
+
+func safeDereference(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }

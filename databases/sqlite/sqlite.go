@@ -98,6 +98,14 @@ const addCheckpointQuery string = `
 ALTER TABLE image_generations ADD COLUMN checkpoint TEXT;
 `
 
+const addVAEQuery string = `
+ALTER TABLE image_generations ADD COLUMN vae TEXT;
+`
+
+const addHypernetworkQuery string = `
+ALTER TABLE image_generations ADD COLUMN hypernetwork TEXT;
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -116,6 +124,8 @@ var migrations = []migration{
 	{migrationName: "add generation batch count column", migrationQuery: addGenerationBatchSizeColumnQuery},
 	{migrationName: "add always on scripts column", migrationQuery: addAlwaysOnScriptsQuery},
 	{migrationName: "add checkpoint column", migrationQuery: addCheckpointQuery},
+	{migrationName: "add vae column", migrationQuery: addVAEQuery},
+	{migrationName: "add hypernetwork column", migrationQuery: addHypernetworkQuery},
 }
 
 func New(ctx context.Context) (*sql.DB, error) {

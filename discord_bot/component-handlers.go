@@ -319,7 +319,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 		return
 	} else {
 		var modelNames []string
-		var currentModel string
+		var currentModel *string
 
 		switch toRange := models.(type) {
 		case *stable_diffusion_api.SDModels:
@@ -329,10 +329,12 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 					break
 				}
 				modelOptions = append(modelOptions, discordgo.SelectMenuOption{
-					Label:   shortenString(model.ModelName),
-					Value:   shortenString(model.Title),
-					Default: strings.Contains(currentModel, model.ModelName),
+					Label: shortenString(model.ModelName),
+					Value: shortenString(model.Title),
 				})
+				if currentModel != nil {
+					modelOptions[i].Default = strings.Contains(*currentModel, model.ModelName)
+				}
 				if model.Hash != nil {
 					modelOptions[i].Description = fmt.Sprintf("[%v]", *model.Hash)
 				}
@@ -345,10 +347,12 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 					break
 				}
 				modelOptions = append(modelOptions, discordgo.SelectMenuOption{
-					Label:   shortenString(model.ModelName),
-					Value:   shortenString(model.ModelName),
-					Default: strings.Contains(currentModel, model.ModelName),
+					Label: shortenString(model.ModelName),
+					Value: shortenString(model.ModelName),
 				})
+				if currentModel != nil {
+					modelOptions[i].Default = strings.Contains(*currentModel, model.ModelName)
+				}
 				modelNames = append(modelNames, model.ModelName)
 			}
 		case *stable_diffusion_api.HypernetworkModels:
@@ -358,10 +362,12 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 					break
 				}
 				modelOptions = append(modelOptions, discordgo.SelectMenuOption{
-					Label:   shortenString(model.Name),
-					Value:   shortenString(model.Name),
-					Default: strings.Contains(currentModel, model.Name),
+					Label: shortenString(model.Name),
+					Value: shortenString(model.Name),
 				})
+				if currentModel != nil {
+					modelOptions[i].Default = strings.Contains(*currentModel, model.Name)
+				}
 				modelNames = append(modelNames, model.Name)
 			}
 		}
@@ -377,10 +383,10 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 			}
 		}
 
-		if currentModel != "" && currentModel != "None" && !Default {
+		if currentModel != nil && *currentModel != "" && *currentModel != "None" && !Default {
 			modelOptions = append([]discordgo.SelectMenuOption{{
-				Label:   shortenString(currentModel),
-				Value:   shortenString(currentModel),
+				Label:   shortenString(*currentModel),
+				Value:   shortenString(*currentModel),
 				Default: true,
 				Emoji: discordgo.ComponentEmoji{
 					Name: "✨",
@@ -488,13 +494,13 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 	var modelType string
 	switch i.MessageComponentData().CustomID {
 	case string(handlers.CheckpointSelect):
-		config = stable_diffusion_api.APIConfig{SDModelCheckpoint: newModelName}
+		config = stable_diffusion_api.APIConfig{SDModelCheckpoint: &newModelName}
 		modelType = "checkpoint"
 	case string(handlers.VAESelect):
-		config = stable_diffusion_api.APIConfig{SDVae: newModelName}
+		config = stable_diffusion_api.APIConfig{SDVae: &newModelName}
 		modelType = "vae"
 	case string(handlers.HypernetworkSelect):
-		config = stable_diffusion_api.APIConfig{SDHypernetwork: newModelName}
+		config = stable_diffusion_api.APIConfig{SDHypernetwork: &newModelName}
 		modelType = "hypernetwork"
 	}
 

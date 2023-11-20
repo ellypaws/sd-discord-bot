@@ -98,6 +98,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		if option, ok := optionMap[embeddingOption]; ok {
 			prompt += " " + option.StringValue()
+			log.Printf("Adding embedding: %v", option.StringValue())
 		}
 
 		for i := 0; i < extraLoras+1; i++ {
@@ -155,7 +156,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			RestoreFaces:       restoreFaces,
 			DiscordInteraction: i.Interaction,
 			ADetailerString:    stringValue,
-			Checkpoint:         checkpoint,
+			Checkpoint:         &checkpoint,
+			VAE:                &vae,
+			Hypernetwork:       &hypernetwork,
 		}
 
 		position, queueError = b.imagineQueue.AddImagine(imagine)
