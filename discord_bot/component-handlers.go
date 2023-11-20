@@ -315,14 +315,14 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 	} else {
 		var modelNames []string
 		var currentModel string
+		config, err := b.StableDiffusionApi.GetConfig()
+		if err != nil {
+			log.Printf("Failed to retrieve config: %v", err)
+		}
 
 		switch toRange := models.(type) {
 		case *stable_diffusion_api.SDModels:
-			currentModel, err = b.StableDiffusionApi.GetCheckpoint()
-			if err != nil {
-				log.Printf("Failed to retrieve current model: %v", err)
-				break
-			}
+			currentModel = config.SDModelCheckpoint
 			for i, model := range *toRange {
 				if i > 20 {
 					break
@@ -338,11 +338,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 				modelNames = append(modelNames, model.ModelName)
 			}
 		case *stable_diffusion_api.VAEModels:
-			currentModel, err = b.StableDiffusionApi.GetVAE()
-			if err != nil {
-				log.Printf("Failed to retrieve current model: %v", err)
-				break
-			}
+			currentModel = config.SDVae
 			for i, model := range *toRange {
 				if i > 20 {
 					break
@@ -355,12 +351,8 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 				modelNames = append(modelNames, model.ModelName)
 			}
 		case *stable_diffusion_api.HypernetworkModels:
+			currentModel = config.SDHypernetwork
 			for i, model := range *toRange {
-				currentModel, err = b.StableDiffusionApi.GetHypernetwork()
-				if err != nil {
-					log.Printf("Failed to retrieve current model: %v", err)
-					break
-				}
 				if i > 20 {
 					break
 				}
