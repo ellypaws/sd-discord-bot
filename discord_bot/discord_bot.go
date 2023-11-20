@@ -40,7 +40,7 @@ func (b *botImpl) imagineCommandString() Command {
 		return imagineCommand
 	}
 
-	return imagineCommand
+	return *b.config.ImagineCommand
 }
 
 func (b *botImpl) imagineSettingsCommandString() Command {
@@ -49,7 +49,7 @@ func (b *botImpl) imagineSettingsCommandString() Command {
 		return imagineSettingsCommand
 	}
 
-	return imagineSettingsCommand
+	return Command(fmt.Sprintf("%v_settings", *b.config.ImagineCommand))
 }
 
 func New(cfg *Config) (Bot, error) {
@@ -218,6 +218,7 @@ func (bot *botImpl) registerCommands() error {
 			return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
 		}
 		bot.registeredCommands[key] = cmd
+		log.Printf("Registered %v command as: /%v", key, cmd.Name)
 		//bot.p.Send(logger.Message(fmt.Sprintf("Registered command: %v", cmd.Name)))
 		//currentProgress++
 		//bot.p.Send(load.Goal{
@@ -234,26 +235,31 @@ func (bot *botImpl) registerCommands() error {
 // the keys are copied from the commands and commandHandlers map, deleted, and then re-added with the new command
 func (b *botImpl) customImagineCommand() {
 	//imagine
-	oldImagineCommand := imagineCommand
-
-	imagineCommand = b.imagineCommandString()
-
-	commands[imagineCommand] = commands[oldImagineCommand]
-	commands[imagineCommand].Name = string(imagineCommand)
-	commandHandlers[imagineCommand] = commandHandlers[oldImagineCommand]
-	delete(commands, oldImagineCommand)
-	delete(commandHandlers, oldImagineCommand)
+	b.rebuildMap((*botImpl).imagineCommandString, &imagineCommand, &commands, &commandHandlers)
 
 	//imagine_settings
-	oldImagineSettingsCommand := imagineSettingsCommand
+	b.rebuildMap((*botImpl).imagineSettingsCommandString, &imagineSettingsCommand, &commands, &commandHandlers)
+}
 
-	imagineSettingsCommand = b.imagineSettingsCommandString()
+func (b *botImpl) rebuildMap(
+	f func(*botImpl) Command,
+	key *Command,
+	m *map[Command]*discordgo.ApplicationCommand,
+	h *map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate,
+	)) {
+	oldKey := *key
 
-	commands[imagineSettingsCommand] = commands[oldImagineSettingsCommand]
-	commands[imagineSettingsCommand].Name = string(imagineSettingsCommand)
-	commandHandlers[imagineSettingsCommand] = commandHandlers[oldImagineSettingsCommand]
-	delete(commands, oldImagineSettingsCommand)
-	delete(commandHandlers, oldImagineSettingsCommand)
+	*key = f(b)
+	if *key == oldKey {
+		return
+	}
+	log.Printf("Rebuilding map for '%v' to '%v'", oldKey, *key)
+
+	(*m)[*key] = (*m)[oldKey]
+	(*m)[*key].Name = string(*key)
+	(*h)[*key] = (*h)[oldKey]
+	delete(*m, oldKey)
+	delete(*h, oldKey)
 }
 
 func (b *botImpl) Start() {
