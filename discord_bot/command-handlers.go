@@ -387,6 +387,7 @@ func sanitizeTooltip(input string) string {
 }
 
 func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
 	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
 	if err != nil {
 		log.Printf("error getting default settings for settings command: %v", err)
@@ -396,15 +397,19 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 
 	messageComponents := b.settingsMessageComponents(botSettings)
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Title:      "Settings",
-			Content:    "Choose default settings for the imagine command:",
-			Components: messageComponents,
-		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+		"Choose default settings for the imagine command:",
+		messageComponents,
+	)
+	//err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	//	Type: discordgo.InteractionResponseChannelMessageWithSource,
+	//	Data: &discordgo.InteractionResponseData{
+	//		Title:      "Settings",
+	//		Content:    "Choose default settings for the imagine command:",
+	//		Components: messageComponents,
+	//	},
+	//})
+	//if err != nil {
+	//	log.Printf("Error responding to interaction: %v", err)
+	//}
 }

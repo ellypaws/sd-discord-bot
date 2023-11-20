@@ -87,9 +87,9 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
 	},
 
-	handlers.CheckpointSelect: (*botImpl).processImagineSDModelNameSetting,
-	//handlers.VAESelect:          (*botImpl).processImagineVAESetting,
-	//handlers.HypernetworkSelect: (*botImpl).processImagineHypernetworkSetting,
+	handlers.CheckpointSelect:   (*botImpl).processImagineModelSetting,
+	handlers.VAESelect:          (*botImpl).processImagineModelSetting,
+	handlers.HypernetworkSelect: (*botImpl).processImagineModelSetting,
 
 	handlers.BatchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		if len(i.MessageComponentData().Values) == 0 {
@@ -484,12 +484,26 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 	}
 }
 
-func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	if len(i.MessageComponentData().Values) == 0 {
 		log.Printf("No values for %v", i.MessageComponentData().CustomID)
 		return
 	}
 	newModelName := i.MessageComponentData().Values[0]
+
+	var config stable_diffusion_api.APIConfig
+	var modelType string
+	switch i.MessageComponentData().CustomID {
+	case string(handlers.CheckpointSelect):
+		config = stable_diffusion_api.APIConfig{SDModelCheckpoint: newModelName}
+		modelType = "checkpoint"
+	case string(handlers.VAESelect):
+		config = stable_diffusion_api.APIConfig{SDVae: newModelName}
+		modelType = "vae"
+	case string(handlers.HypernetworkSelect):
+		config = stable_diffusion_api.APIConfig{SDHypernetwork: newModelName}
+		modelType = "hypernetwork"
+	}
 
 	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
 	if err != nil {
@@ -498,19 +512,21 @@ func (b *botImpl) processImagineSDModelNameSetting(s *discordgo.Session, i *disc
 		return
 	}
 	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction,
-		fmt.Sprintf("Updating model to %v...", newModelName),
+		fmt.Sprintf("Updating [%v] model to %v...", modelType, newModelName),
 		b.settingsMessageComponents(botSettings),
 	)
-	err = b.StableDiffusionApi.UpdateConfiguration(stable_diffusion_api.APIConfig{SDModelCheckpoint: newModelName})
+
+	err = b.StableDiffusionApi.UpdateConfiguration(config)
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
-		handlers.Responses[handlers.ErrorFollowupEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error updating sd model name settings...")
+		handlers.Responses[handlers.ErrorFollowupEphemeral].(handlers.ErrorResponseType)(s, i.Interaction,
+			fmt.Sprintf("Error updating [%v] model name settings...", modelType))
 
 		return
 	}
 
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
-		fmt.Sprintf("Updated model to %v", newModelName),
+		fmt.Sprintf("Updated [%v] model to %v", modelType, newModelName),
 		b.settingsMessageComponents(botSettings),
 	)
 
