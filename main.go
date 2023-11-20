@@ -65,7 +65,7 @@ func init() {
 	if imagineCommand == nil || *imagineCommand == "" {
 		imagineEnv := os.Getenv("IMAGINE_COMMAND")
 		if imagineEnv != "" {
-			*imagineCommand = discord_bot.Command(imagineEnv)
+			*imagineCommand = imagineEnv
 		}
 	}
 
@@ -172,7 +172,7 @@ func main() {
 		BotToken:           *botToken,
 		GuildID:            *guildID,
 		ImagineQueue:       imagineQueue,
-		ImagineCommand:     *imagineCommand,
+		ImagineCommand:     (*discord_bot.Command)(imagineCommand),
 		RemoveCommands:     removeCommands,
 		StableDiffusionApi: stableDiffusionAPI,
 	})

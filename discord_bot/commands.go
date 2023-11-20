@@ -11,12 +11,14 @@ type (
 	CommandOption string
 )
 
-const (
+var (
 	// Command names
 	helloCommand           Command = "hello"
 	imagineCommand         Command = "imagine"
 	imagineSettingsCommand Command = "imagine_settings"
+)
 
+const (
 	// Command options
 	promptOption       CommandOption = "prompt"
 	negativeOption     CommandOption = "negative_prompt"
@@ -355,7 +357,7 @@ func (b *botImpl) addImagineSettingsCommand(command string) (error, *discordgo.A
 	log.Printf("Adding command '%s'...", command)
 
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
-		Name:        b.imagineSettingsCommandString(),
+		Name:        string(b.imagineSettingsCommandString()),
 		Description: "Change the default settings for the imagine command",
 	})
 	if err != nil {

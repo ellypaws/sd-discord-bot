@@ -17,8 +17,8 @@ type botImpl struct {
 	botSession         *discordgo.Session
 	guildID            string
 	imagineQueue       imagine_queue.Queue
-	registeredCommands map[string]*discordgo.ApplicationCommand
-	imagineCommand     string
+	registeredCommands map[Command]*discordgo.ApplicationCommand
+	imagineCommand     *Command
 	removeCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 	config             *Config
@@ -29,25 +29,27 @@ type Config struct {
 	BotToken           string
 	GuildID            string
 	ImagineQueue       imagine_queue.Queue
-	ImagineCommand     string
+	ImagineCommand     *Command
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 }
 
-func (b *botImpl) imagineCommandString() string {
-	if b.developmentMode {
-		return "dev_" + b.imagineCommand
+func (b *botImpl) imagineCommandString() Command {
+	if b.developmentMode && !strings.HasPrefix(string(imagineCommand), "dev_") {
+		imagineCommand = Command(fmt.Sprintf("dev_%v", strings.TrimPrefix(string(*b.config.ImagineCommand), "dev_")))
+		return imagineCommand
 	}
 
-	return b.imagineCommand
+	return imagineCommand
 }
 
-func (b *botImpl) imagineSettingsCommandString() string {
-	if b.developmentMode {
-		return "dev_" + b.imagineCommand + "_settings"
+func (b *botImpl) imagineSettingsCommandString() Command {
+	if b.developmentMode && !strings.HasPrefix(string(imagineSettingsCommand), "dev_") {
+		imagineSettingsCommand = Command(fmt.Sprintf("dev_%v_settings", strings.TrimPrefix(string(*b.config.ImagineCommand), "dev_")))
+		return imagineSettingsCommand
 	}
 
-	return b.imagineCommand + "_settings"
+	return imagineSettingsCommand
 }
 
 func New(cfg *Config) (Bot, error) {
@@ -66,7 +68,7 @@ func New(cfg *Config) (Bot, error) {
 		return nil, errors.New("missing imagine queue")
 	}
 
-	if cfg.ImagineCommand == "" {
+	if cfg.ImagineCommand == nil || *cfg.ImagineCommand == "" {
 		return nil, errors.New("missing imagine command")
 	}
 
@@ -87,12 +89,15 @@ func New(cfg *Config) (Bot, error) {
 		developmentMode:    cfg.DevelopmentMode,
 		botSession:         botSession,
 		imagineQueue:       cfg.ImagineQueue,
-		registeredCommands: make(map[string]*discordgo.ApplicationCommand, 0),
+		registeredCommands: make(map[Command]*discordgo.ApplicationCommand),
 		imagineCommand:     cfg.ImagineCommand,
 		removeCommands:     cfg.RemoveCommands,
 		StableDiffusionApi: cfg.StableDiffusionApi,
 		config:             cfg,
 	}
+
+	//Read the imagineCommand from the config and remake the maps
+	bot.customImagineCommand()
 
 	err = bot.registerCommands()
 	if err != nil {
@@ -111,11 +116,18 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 		switch i.Type {
 		// commands
 		case discordgo.InteractionApplicationCommand:
-			h, ok = commandHandlers[i.ApplicationCommandData().Name]
+			h, ok = commandHandlers[Command(i.ApplicationCommandData().Name)]
+			//If we're using *Command, we have to range through the map to dereference the Command string
+			//for key, command := range commandHandlers {
+			//	if string(*key) == i.ApplicationCommandData().Name {
+			//		h = command
+			//		ok = true
+			//	}
+			//}
 		// buttons
 		case discordgo.InteractionMessageComponent:
 			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
-			h, ok = componentHandlers[i.MessageComponentData().CustomID]
+			h, ok = componentHandlers[handlers.Component(i.MessageComponentData().CustomID)]
 			//bot.p.Send(logger.Message(fmt.Sprintf(
 			//	"Handler found, executing on message `%v`\nRan by: <@%v>\nUsername: %v",
 			//	i.Message.ID,
@@ -126,9 +138,9 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 
 			if !ok {
 				switch customID := i.MessageComponentData().CustomID; {
-				case strings.HasPrefix(customID, handlers.UpscaleButton):
+				case strings.HasPrefix(customID, string(handlers.UpscaleButton)):
 					h, ok = componentHandlers[handlers.UpscaleButton]
-				case strings.HasPrefix(customID, handlers.VariantButton):
+				case strings.HasPrefix(customID, string(handlers.VariantButton)):
 					h, ok = componentHandlers[handlers.VariantButton]
 				default:
 					log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
@@ -136,7 +148,7 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 			}
 		// autocomplete
 		case discordgo.InteractionApplicationCommandAutocomplete:
-			h, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
+			h, ok = autocompleteHandlers[Command(i.ApplicationCommandData().Name)]
 		// modals
 		case discordgo.InteractionModalSubmit:
 			//h, ok = modalHandlers[i.ModalSubmitData().CustomID]
@@ -185,14 +197,12 @@ func (bot *botImpl) registerHandlers(session *discordgo.Session) {
 }
 
 func (bot *botImpl) registerCommands() error {
-	bot.registeredCommands = make(map[string]*discordgo.ApplicationCommand, len(commands))
-	commands[imagineCommand].Name = imagineCommand
-	commands[imagineSettingsCommand].Name = imagineSettingsCommand
+	bot.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(commands))
 	for key, command := range commands {
 		if command.Name == "" {
 			// clean the key because it might be a description of some sort
 			// only get the first word, and clean to only alphanumeric characters or -
-			sanitized := strings.ReplaceAll(key, " ", "-")
+			sanitized := strings.ReplaceAll(string(key), " ", "-")
 			sanitized = strings.ToLower(sanitized)
 
 			// remove all non valid characters
@@ -220,6 +230,32 @@ func (bot *botImpl) registerCommands() error {
 	return nil
 }
 
+// customImagineCommand is used to read the imagineCommand from the config and remake the maps
+// the keys are copied from the commands and commandHandlers map, deleted, and then re-added with the new command
+func (b *botImpl) customImagineCommand() {
+	//imagine
+	oldImagineCommand := imagineCommand
+
+	imagineCommand = b.imagineCommandString()
+
+	commands[imagineCommand] = commands[oldImagineCommand]
+	commands[imagineCommand].Name = string(imagineCommand)
+	commandHandlers[imagineCommand] = commandHandlers[oldImagineCommand]
+	delete(commands, oldImagineCommand)
+	delete(commandHandlers, oldImagineCommand)
+
+	//imagine_settings
+	oldImagineSettingsCommand := imagineSettingsCommand
+
+	imagineSettingsCommand = b.imagineSettingsCommandString()
+
+	commands[imagineSettingsCommand] = commands[oldImagineSettingsCommand]
+	commands[imagineSettingsCommand].Name = string(imagineSettingsCommand)
+	commandHandlers[imagineSettingsCommand] = commandHandlers[oldImagineSettingsCommand]
+	delete(commands, oldImagineSettingsCommand)
+	delete(commandHandlers, oldImagineSettingsCommand)
+}
+
 func (b *botImpl) Start() {
 	b.imagineQueue.StartPolling(b.botSession)
 
@@ -234,8 +270,8 @@ func (b *botImpl) teardown() error {
 	if b.removeCommands {
 		log.Printf("Removing all commands added by bot...")
 
-		for _, v := range b.registeredCommands {
-			log.Printf("Removing command '%v'...", v.Name)
+		for key, v := range b.registeredCommands {
+			log.Printf("Removing command [key:%v], '%v'...", key, v.Name)
 
 			err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
 			if err != nil {
