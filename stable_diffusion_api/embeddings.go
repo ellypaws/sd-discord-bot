@@ -103,5 +103,8 @@ func (c *EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 
 func (api *apiImplementation) SDEmbeddingCache() (*EmbeddingModels, error) {
 	cache, err := EmbeddingCache.GetCache(api)
+	if err != nil {
+		return nil, err
+	}
 	return cache.(*EmbeddingModels), err
 }

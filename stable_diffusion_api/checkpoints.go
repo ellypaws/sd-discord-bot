@@ -77,5 +77,8 @@ func (c *SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 
 func (api *apiImplementation) SDCheckpointsCache() (*SDModels, error) {
 	cache, err := CheckpointCache.GetCache(api)
+	if err != nil {
+		return nil, err
+	}
 	return cache.(*SDModels), err
 }

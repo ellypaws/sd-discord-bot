@@ -477,5 +477,8 @@ func (c *LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 
 func (api *apiImplementation) SDLorasCache() (*LoraModels, error) {
 	cache, err := LoraCache.GetCache(api)
+	if err != nil {
+		return nil, err
+	}
 	return cache.(*LoraModels), err
 }

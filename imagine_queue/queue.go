@@ -1230,7 +1230,7 @@ func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, 
 			loadedModel = config.SDHypernetwork
 		}
 		if ptrStringCompare(toLoad, loadedModel) {
-			log.Printf("Model %#v already loaded as %#v", *toLoad, *loadedModel)
+			log.Printf("Model %#v already loaded as %#v", safeDereference(toLoad), safeDereference(loadedModel))
 			continue
 		}
 

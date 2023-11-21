@@ -71,5 +71,8 @@ func (c *VAEModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 
 func (api *apiImplementation) SDVAECache() (*VAEModels, error) {
 	cache, err := VAECache.GetCache(api)
+	if err != nil {
+		return nil, err
+	}
 	return cache.(*VAEModels), err
 }
