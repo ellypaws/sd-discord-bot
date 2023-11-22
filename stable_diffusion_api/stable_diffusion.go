@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"reflect"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 )
@@ -95,7 +94,7 @@ func (api *apiImplementation) CachePreview(c Cacheable) (Cacheable, error) {
 	//	return c, err
 	//}
 	if c.Len() > 2 {
-		log.Printf("Successfully cached %v %v from api: %v...", c.Len(), reflect.TypeOf(c).String(), c.String(0))
+		log.Printf("Successfully cached %v %T from api: %v...", c.Len(), c, c.String(0))
 	}
 	//return cache, nil
 
