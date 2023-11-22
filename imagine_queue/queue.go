@@ -882,9 +882,9 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	if err != nil {
 		log.Printf("Error getting config: %v", err)
 	} else {
-		if ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
-			ptrStringCompare(newGeneration.VAE, config.SDVae) ||
-			ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
+		if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
+			!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
+			!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
 			handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, imagine.DiscordInteraction,
 				fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
 					safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
