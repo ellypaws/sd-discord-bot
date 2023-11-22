@@ -1286,7 +1286,7 @@ func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, 
 	}
 
 	if POST.SDModelCheckpoint != nil || POST.SDVae != nil || POST.SDHypernetwork != nil {
-		marshal, _ := config.Marshal()
+		marshal, _ := POST.Marshal()
 		log.Printf("Switching models to %#v", string(marshal))
 	}
 	return
