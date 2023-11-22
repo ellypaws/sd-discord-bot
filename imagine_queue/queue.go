@@ -878,6 +878,32 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 }
 
 func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
+	config, err := q.stableDiffusionAPI.GetConfig()
+	if err != nil {
+		log.Printf("Error getting config: %v", err)
+	} else {
+		if ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
+			ptrStringCompare(newGeneration.VAE, config.SDVae) ||
+			ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
+			handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, imagine.DiscordInteraction,
+				fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
+					safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
+					safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
+					safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
+				))
+
+			// Insert code to update the configuration here
+			err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
+				stable_diffusion_api.CheckpointCache,
+				stable_diffusion_api.VAECache,
+				stable_diffusion_api.HypernetworkCache,
+			}))
+			if err != nil {
+				log.Printf("Error updating configuration: %v", err)
+			}
+		}
+	}
+
 	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
 
 	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
@@ -947,16 +973,6 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 	}()
 
-	// Insert code to update the configuration here
-	err = q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, []stable_diffusion_api.Cacheable{
-		stable_diffusion_api.CheckpointCache,
-		stable_diffusion_api.VAECache,
-		stable_diffusion_api.HypernetworkCache,
-	}))
-	if err != nil {
-		log.Printf("Error updating configuration: %v", err)
-	}
-
 	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
 		Prompt:            newGeneration.Prompt,
 		NegativePrompt:    newGeneration.NegativePrompt,
@@ -1011,11 +1027,6 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		imageBuf := bytes.NewBuffer(decodedImage)
 
 		imageBufs[idx] = imageBuf
-	}
-
-	config, err := q.stableDiffusionAPI.GetConfig()
-	if err != nil {
-		log.Printf("Error getting config: %v", err)
 	}
 
 	for idx := range resp.Seeds {
@@ -1214,7 +1225,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	return nil
 }
 
-func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, c []stable_diffusion_api.Cacheable) (config stable_diffusion_api.APIConfig) {
+func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
 	for _, c := range c {
 		var toLoad *string
 		var loadedModel *string
@@ -1222,43 +1233,59 @@ func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, 
 		case *stable_diffusion_api.SDModels:
 			toLoad = generation.Checkpoint
 			loadedModel = config.SDModelCheckpoint
+			//log.Printf("Checkpoint: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
 		case *stable_diffusion_api.VAEModels:
 			toLoad = generation.VAE
 			loadedModel = config.SDVae
+			//log.Printf("VAE: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
 		case *stable_diffusion_api.HypernetworkModels:
 			toLoad = generation.Hypernetwork
 			loadedModel = config.SDHypernetwork
+			//log.Printf("Hypernetwork: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
 		}
+
 		if ptrStringCompare(toLoad, loadedModel) {
-			log.Printf("Model %#v already loaded as %#v", safeDereference(toLoad), safeDereference(loadedModel))
-			continue
+			log.Printf("Model %T \"%v\" already loaded as \"%v\"", toLoad, safeDereference(toLoad), safeDereference(loadedModel))
 		}
 
-		// lookup from the list of models
-		cache, err := c.GetCache(q.stableDiffusionAPI)
-		if err != nil {
-			log.Println("Failed to get cached models:", err)
-			continue
-		}
+		if toLoad != nil {
+			switch safeDereference(toLoad) {
+			case "":
+				// set to nil if empty string
+				toLoad = nil
+			case "None":
+				// keep "None" to unload the model
+			default:
+				// lookup from the list of models
+				cache, err := c.GetCache(q.stableDiffusionAPI)
+				if err != nil {
+					log.Println("Failed to get cached models:", err)
+					continue
+				}
 
-		results := fuzzy.FindFrom(*toLoad, cache)
+				results := fuzzy.FindFrom(*toLoad, cache)
 
-		if len(results) > 0 {
-			modelToLoad := cache.String(results[0].Index)
-			switch c.(type) {
-			case *stable_diffusion_api.SDModels:
-				config.SDModelCheckpoint = &modelToLoad
-			case *stable_diffusion_api.VAEModels:
-				config.SDVae = &modelToLoad
-			case *stable_diffusion_api.HypernetworkModels:
-				config.SDHypernetwork = &modelToLoad
+				if len(results) > 0 {
+					firstResult := cache.String(results[0].Index)
+					toLoad = &firstResult
+				} else {
+					log.Printf("Couldn't find model %v", safeDereference(toLoad))
+					//log.Printf("Available models: %v", cache)
+				}
 			}
-		} else {
-			log.Printf("Couldn't find model %v", *generation.Checkpoint)
 		}
 
+		switch c.(type) {
+		case *stable_diffusion_api.SDModels:
+			POST.SDModelCheckpoint = toLoad
+		case *stable_diffusion_api.VAEModels:
+			POST.SDVae = toLoad
+		case *stable_diffusion_api.HypernetworkModels:
+			POST.SDHypernetwork = toLoad
+		}
 	}
-	if len(c) > 0 {
+
+	if POST.SDModelCheckpoint != nil || POST.SDVae != nil || POST.SDHypernetwork != nil {
 		marshal, _ := config.Marshal()
 		log.Printf("Switching models to %#v", string(marshal))
 	}
@@ -1301,7 +1328,8 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 	checkpoint, _ := q.stableDiffusionAPI.GetCheckpoint()
 
-	log.Printf("Current checkpoint: %v\nGeneration checkpoint: %v", safeDereference(checkpoint), safeDereference(generation.Checkpoint))
+	log.Printf("Current checkpoint: %v", safeDereference(checkpoint))
+	log.Printf("Generation checkpoint: %v", safeDereference(generation.Checkpoint))
 
 	if generation.Checkpoint != nil && !ptrStringCompare(checkpoint, generation.Checkpoint) {
 		log.Printf("Changing checkpoint to: %v", *generation.Checkpoint)

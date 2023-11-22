@@ -52,9 +52,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	hiresFix := false
 	restoreFaces := false
 	var stringValue string
-	var vae string
-	var checkpoint string
-	var hypernetwork string
+	var vae *string
+	var checkpoint *string
+	var hypernetwork *string
 
 	if option, ok := optionMap[promptOption]; ok {
 		prompt = option.StringValue()
@@ -82,17 +82,20 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		if option, ok := optionMap[checkpointOption]; ok {
-			checkpoint = option.StringValue()
+			value := option.StringValue()
+			checkpoint = &value
 			log.Printf("user wants to change checkpoint to %v", checkpoint)
 		}
 
 		if option, ok := optionMap[vaeOption]; ok {
-			vae = option.StringValue()
+			value := option.StringValue()
+			vae = &value
 			log.Printf("user wants to use vae %v", vae)
 		}
 
 		if option, ok := optionMap[hypernetworkOption]; ok {
-			hypernetwork = option.StringValue()
+			value := option.StringValue()
+			hypernetwork = &value
 			log.Printf("user wants to use hypernetwork %v", hypernetwork)
 		}
 
@@ -156,9 +159,9 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			RestoreFaces:       restoreFaces,
 			DiscordInteraction: i.Interaction,
 			ADetailerString:    stringValue,
-			Checkpoint:         &checkpoint,
-			VAE:                &vae,
-			Hypernetwork:       &hypernetwork,
+			Checkpoint:         checkpoint,
+			VAE:                vae,
+			Hypernetwork:       hypernetwork,
 		}
 
 		position, queueError = b.imagineQueue.AddImagine(imagine)
