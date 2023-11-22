@@ -375,7 +375,7 @@ func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
 	if err != nil {
 		return errors.New("error marshalling config: " + err.Error())
 	}
-	fmt.Printf("Passing '%v' to sdapi/v1/options", string(body))
+	log.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
 	if !handlers.CheckAPIAlive(api.host) {
 		return fmt.Errorf(handlers.DeadAPI)
@@ -399,7 +399,7 @@ func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("Response status:", resp.Status)
+	log.Printf("Response status: %v", resp.Status)
 
 	return nil
 }
