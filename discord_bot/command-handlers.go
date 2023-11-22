@@ -67,10 +67,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			sampler = option.StringValue()
 		}
 
-		if option, ok := optionMap[hiresFixOption]; ok {
-			hiresFix, _ = strconv.ParseBool(option.StringValue())
-		}
-
 		if option, ok := optionMap[restoreFacesOption]; ok {
 			restoreFaces, _ = strconv.ParseBool(option.StringValue())
 		}
@@ -136,6 +132,11 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		if option, ok := optionMap[hiresFixSize]; ok {
 			prompt += " --zoom " + option.StringValue()
+			hiresFix = true
+		}
+
+		if option, ok := optionMap[hiresFixOption]; ok {
+			hiresFix, _ = strconv.ParseBool(option.StringValue())
 		}
 
 		if option, ok := optionMap[cfgScaleOption]; ok {
