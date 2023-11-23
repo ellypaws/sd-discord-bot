@@ -71,36 +71,35 @@ const DeadAPI = "API is not running"
 
 // errorFollowup [ErrorFollowup] sends an error message as a followup message with a deletion button.
 func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	errorString := formatError(errorContent)
+	embed, toPrint := errorEmbed(i, errorContent...)
 	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
-	logError(errorString, i)
+	logError(toPrint, i)
 
 	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
-		Content:    *sanitizeToken(&errorString),
+		Content:    *sanitizeToken(&toPrint),
 		Components: components,
+		Embeds:     embed,
 	})
 }
 
 // ErrorEdit [ErrorResponse] responds to the interaction with an error message and a deletion button.
 func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	errorString := formatError(errorContent)
+	embed, toPrint := errorEmbed(i, errorContent...)
 	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
-	logError(errorString, i)
+	logError(toPrint, i)
 
 	_, _ = bot.InteractionResponseEdit(i, &discordgo.WebhookEdit{
-		Content:    sanitizeToken(&errorString),
+		Content:    sanitizeToken(&toPrint),
 		Components: &components,
+		Embeds:     &embed,
 	})
 }
 
 // ErrorEphemeralResponse [ErrorEphemeral] responds to the interaction with an ephemeral error message.
 func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	if errorContent == nil || len(errorContent) == 0 {
-		errorContent = []any{"An unknown error has occurred"}
-	}
-	embed, toPrint := errorEmbed(errorContent, i)
+	embed, toPrint := errorEmbed(i, errorContent...)
 
 	_ = bot.InteractionRespond(i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -116,15 +115,12 @@ func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, er
 }
 
 func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	if errorContent == nil || len(errorContent) == 0 {
-		errorContent = []any{"An unknown error has occurred"}
-	}
-	embed, toPrint := errorEmbed(errorContent, i)
+	embed, toPrint := errorEmbed(i, errorContent...)
 
 	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
+		Flags:   discordgo.MessageFlagsEphemeral,
 		Content: *sanitizeToken(&toPrint),
 		Embeds:  embed,
-		Flags:   discordgo.MessageFlagsEphemeral,
 	})
 }
 
@@ -151,7 +147,7 @@ func formatError(errorContent ...any) string {
 	return errorString
 }
 
-func errorEmbed(errorContent []any, i *discordgo.Interaction) ([]*discordgo.MessageEmbed, string) {
+func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.MessageEmbed, string) {
 	errorString := formatError(errorContent)
 
 	logError(errorString, i)
