@@ -29,8 +29,8 @@ var Errors = map[int]ErrorResponseType{
 
 // ErrorHandler responds to the interaction with an error message and a deletion button.
 // Deprecated: Use ErrorEdit instead.
-func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent any) {
-	Errors[ErrorResponse](s, i, errorContent)
+func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
+	Errors[ErrorResponse](s, i, errorContent...)
 	//var errorString string
 	//
 	//switch content := errorContent.(type) {
@@ -132,8 +132,16 @@ func formatError(errorContent ...any) string {
 	var errors []string
 	for _, content := range errorContent {
 		switch content := content.(type) {
-		case string, error:
-			errors = append(errors, fmt.Sprint(content)) // Convert the error to a string
+		case string:
+			errors = append(errors, content)
+		case []string:
+			errors = append(errors, content...)
+		case error:
+			errors = append(errors, fmt.Sprint(content.Error())) // Convert the error to a string
+		case []any:
+			errors = append(errors, formatError(content...)) // Recursively format the error
+		//case any:
+		//	errors = append(errors, fmt.Sprintf("%v", content))
 		default:
 			errors = append(errors, fmt.Sprintf("An unknown error has occured\nReceived: %v", content))
 		}
