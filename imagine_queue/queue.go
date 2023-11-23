@@ -1339,10 +1339,14 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &updateModelMessage,
 		})
+		if err != nil {
+			log.Printf("Error editing interaction: %v", err)
+		}
 
 		err = q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.APIConfig{SDModelCheckpoint: generation.Checkpoint})
 		if err != nil {
 			log.Printf("Error updating model: %v", err)
+			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error updating model: %v", err))
 
 			return
 		}
