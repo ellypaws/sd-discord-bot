@@ -182,12 +182,12 @@ func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.Mes
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
 		toPrint = fmt.Sprintf(
-			"Could not run the [command](https://github.com/ellypaws/go-clippy) `%v`",
+			"Could not run the [command](https://github.com/ellypaws/sd-discord-bot) `%v`",
 			i.ApplicationCommandData().Name,
 		)
 	case discordgo.InteractionMessageComponent:
 		toPrint = fmt.Sprintf(
-			"Could not run the [button](https://github.com/ellypaws/go-clippy) `%v` on message https://discord.com/channels/%v/%v/%v",
+			"Could not run the [button](https://github.com/ellypaws/sd-discord-bot) `%v` on message https://discord.com/channels/%v/%v/%v",
 			i.MessageComponentData().CustomID,
 			i.GuildID,
 			i.ChannelID,
