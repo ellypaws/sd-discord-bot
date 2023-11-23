@@ -1326,15 +1326,20 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 	log.Printf("Found generation: %v", generation)
 
-	checkpoint, _ := q.stableDiffusionAPI.GetCheckpoint()
+	config, err := q.stableDiffusionAPI.GetConfig()
+	if err != nil {
+		log.Printf("Error getting config: %v", err)
+		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error getting config: %v", err))
+		return
+	}
 
-	log.Printf("Current checkpoint: %v", safeDereference(checkpoint))
+	log.Printf("Current checkpoint: %v", safeDereference(config.SDModelCheckpoint))
 	log.Printf("Generation checkpoint: %v", safeDereference(generation.Checkpoint))
 
-	if generation.Checkpoint != nil && !ptrStringCompare(checkpoint, generation.Checkpoint) {
+	if generation.Checkpoint != nil && !ptrStringCompare(config.SDModelCheckpoint, generation.Checkpoint) {
 		log.Printf("Changing checkpoint to: %v", *generation.Checkpoint)
 
-		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", safeDereference(checkpoint), safeDereference(generation.Checkpoint))
+		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", safeDereference(config.SDModelCheckpoint), safeDereference(generation.Checkpoint))
 
 		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &updateModelMessage,
@@ -1343,11 +1348,6 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			log.Printf("Error editing interaction: %v", err)
 		}
 
-		config, err := q.stableDiffusionAPI.GetConfig()
-		if err != nil {
-			log.Printf("Error getting config: %v", err)
-			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error getting config: %v", err))
-		}
 		err = q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(generation, config, []stable_diffusion_api.Cacheable{
 			stable_diffusion_api.CheckpointCache,
 			stable_diffusion_api.VAECache,
