@@ -620,8 +620,8 @@ func (q *queueImplementation) processCurrentImagine() {
 		if enableHR1 == true {
 			upscaleRate1 = promptResZ.ZoomScale
 			upscalerName1 = "R-ESRGAN 2x+"
-			hiresWidth = 0
-			hiresHeight = 0
+			hiresWidth = int(float64(scaledWidth) * upscaleRate1)
+			hiresHeight = int(float64(scaledHeight) * upscaleRate1)
 			// hrSecondPassSteps = 10
 		} else {
 			enableHR1 = false
