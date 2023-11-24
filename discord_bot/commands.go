@@ -241,16 +241,10 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		},
 	},
 	cfgScaleOption: {
-		Type:        discordgo.ApplicationCommandOptionInteger,
+		Type:        discordgo.ApplicationCommandOptionNumber,
 		Name:        string(cfgScaleOption),
-		Description: "upscale multiplier for cfg. default=7",
+		Description: "value for cfg. default=7.0",
 		Required:    false,
-		Choices: []*discordgo.ApplicationCommandOptionChoice{
-			{
-				Name:  "7",
-				Value: "7",
-			},
-		},
 	},
 	restoreFacesOption: {
 		Type:        discordgo.ApplicationCommandOptionString,

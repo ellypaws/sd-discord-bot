@@ -95,9 +95,13 @@ const (
 type QueueItem struct {
 	Prompt             string
 	NegativePrompt     string
+	Steps              int
 	SamplerName1       string
 	Type               ItemType
 	UseHiresFix        bool
+	HiresUpscaleRate   float64
+	CfgScale           float64
+	AspectRatio        string
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
@@ -105,6 +109,34 @@ type QueueItem struct {
 	Checkpoint         *string
 	VAE                *string
 	Hypernetwork       *string
+}
+
+func DefaultQueueItem() *QueueItem {
+	return &QueueItem{
+		NegativePrompt:   defaultNegative,
+		Steps:            20,
+		SamplerName1:     "Euler a",
+		Type:             ItemTypeImagine,
+		UseHiresFix:      false,
+		HiresUpscaleRate: 1.0,
+		CfgScale:         7.0,
+	}
+}
+
+func NewQueueItem(options ...func(*QueueItem)) *QueueItem {
+	q := DefaultQueueItem()
+
+	for _, option := range options {
+		option(q)
+	}
+
+	return q
+}
+
+func WithPrompt(prompt string) func(*QueueItem) {
+	return func(q *QueueItem) {
+		q.Prompt = prompt
+	}
 }
 
 func (q *queueImplementation) AddImagine(item *QueueItem) (int, error) {
@@ -411,6 +443,45 @@ func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsR
 	}, nil
 }
 
+// input is 2:3 for example, without the `--ar` part
+func aspectRatioCalculation(aspectRatio string, w, h int) (width, height int) {
+	// split
+	aspectRatioSplit := strings.Split(aspectRatio, ":")
+	if len(aspectRatioSplit) != 2 {
+		return w, h
+	}
+
+	// convert to int
+	widthRatio, err := strconv.Atoi(aspectRatioSplit[0])
+	if err != nil {
+		return w, h
+	}
+	heightRatio, err := strconv.Atoi(aspectRatioSplit[1])
+	if err != nil {
+		return w, h
+	}
+
+	// calculate
+	if widthRatio > heightRatio {
+		scaledWidth := float64(h) * (float64(widthRatio) / float64(heightRatio))
+
+		// Round up to the nearest 8
+		width = (int(scaledWidth) + 7) & (-8)
+		height = h
+	} else if heightRatio > widthRatio {
+		scaledHeight := float64(w) * (float64(heightRatio) / float64(widthRatio))
+
+		// Round up to the nearest 8
+		height = (int(scaledHeight) + 7) & (-8)
+		width = w
+	} else {
+		width = w
+		height = h
+	}
+
+	return width, height
+}
+
 // Deprecated: This was inadvertently adding backticks to the prompt inside the database as well
 func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
 	// backtick(code) is shown as monospace in Discord client
@@ -551,113 +622,100 @@ func (q *queueImplementation) processCurrentImagine() {
 			return
 		}
 
-		defaultWidth, err := q.defaultWidth()
+		newGeneration, err := &entities.ImageGeneration{
+			Prompt:            q.currentImagine.Prompt,
+			NegativePrompt:    q.currentImagine.NegativePrompt,
+			Width:             initializedWidth,
+			Height:            initializedHeight,
+			RestoreFaces:      q.currentImagine.RestoreFaces,
+			EnableHR:          q.currentImagine.UseHiresFix,
+			HRUpscaleRate:     q.currentImagine.HiresUpscaleRate,
+			HRUpscaler:        "R-ESRGAN 2x+",
+			HiresWidth:        initializedWidth,
+			HiresHeight:       initializedHeight,
+			DenoisingStrength: 0.7,
+			Seed:              int64(-1),
+			Subseed:           -1,
+			SubseedStrength:   0,
+			SamplerName:       q.currentImagine.SamplerName1,
+			CfgScale:          q.currentImagine.CfgScale,
+			Steps:             q.currentImagine.Steps,
+			Processed:         false,
+			Checkpoint:        q.currentImagine.Checkpoint,
+			VAE:               q.currentImagine.VAE,
+			Hypernetwork:      q.currentImagine.Hypernetwork,
+		}, error(nil)
+
+		newGeneration.Width, err = q.defaultWidth()
 		if err != nil {
 			log.Printf("Error getting default width: %v", err)
-
-			return
 		}
 
-		defaultHeight, err := q.defaultHeight()
+		newGeneration.Height, err = q.defaultHeight()
 		if err != nil {
 			log.Printf("Error getting default height: %v", err)
-
-			return
 		}
 
 		// add optional parameter: Negative prompt
-		negativePrompt := ""
-
 		if q.currentImagine.NegativePrompt == "" {
-			negativePrompt = defaultNegative
-		} else {
-			negativePrompt = q.currentImagine.NegativePrompt
+			newGeneration.NegativePrompt = defaultNegative
 		}
 
 		// add optional parameter: sampler
-		samplerName1 := ""
 		if q.currentImagine.SamplerName1 == "" {
-			samplerName1 = "Euler a"
+			newGeneration.SamplerName = "Euler a"
+		}
+
+		if q.currentImagine.AspectRatio != "" && q.currentImagine.AspectRatio != "1:1" {
+			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(q.currentImagine.AspectRatio, newGeneration.Width, newGeneration.Height)
 		} else {
-			samplerName1 = q.currentImagine.SamplerName1
+			dimensions, err := extractDimensionsFromPrompt(newGeneration.Prompt, newGeneration.Width, newGeneration.Height)
+			if err != nil {
+				log.Printf("Error extracting dimensions from prompt: %v", err)
+			} else {
+				newGeneration.Prompt = dimensions.SanitizedPrompt
+				newGeneration.Width = max(dimensions.Width, newGeneration.Width)
+				newGeneration.Height = max(dimensions.Height, newGeneration.Height)
+			}
 		}
-
-		promptRes, err := extractDimensionsFromPrompt(q.currentImagine.Prompt, defaultWidth, defaultHeight)
-		if err != nil {
-			log.Printf("Error extracting dimensions from prompt: %v", err)
-
-			return
-		}
-
-		scaledWidth := defaultWidth
-		scaledHeight := defaultHeight
-		hiresWidth := defaultWidth
-		hiresHeight := defaultHeight
-
-		if promptRes.Width > defaultWidth || promptRes.Height > defaultHeight {
-			scaledWidth = promptRes.Width
-			scaledHeight = promptRes.Height
-			hiresWidth = promptRes.Width
-			hiresHeight = promptRes.Height
-		}
-
-		// add optional parameter: enable hires.fix
-		enableHR1 := false
-		upscaleRate1 := 1.0
-		upscalerName1 := ""
 
 		// extract --zoom parameter
-
-		defaultZoomValue1 := 2.0
-		promptResZ, errZ := extractZoomScaleFromPrompt(promptRes.SanitizedPrompt, defaultZoomValue1)
+		zoom, errZ := extractZoomScaleFromPrompt(newGeneration.Prompt, newGeneration.HRUpscaleRate)
 		if errZ != nil {
 			log.Printf("Error extracting zoom scale from prompt: %v", errZ)
-
-			return
-		}
-
-		enableHR1 = q.currentImagine.UseHiresFix
-		if enableHR1 == true {
-			upscaleRate1 = promptResZ.ZoomScale
-			upscalerName1 = "R-ESRGAN 2x+"
-			hiresWidth = int(float64(scaledWidth) * upscaleRate1)
-			hiresHeight = int(float64(scaledHeight) * upscaleRate1)
+		} else if newGeneration.EnableHR {
+			newGeneration.HRUpscaleRate = max(newGeneration.HRUpscaleRate, zoom.ZoomScale)
+			newGeneration.HiresWidth = int(float64(newGeneration.Width) * newGeneration.HRUpscaleRate)
+			newGeneration.HiresHeight = int(float64(newGeneration.Height) * newGeneration.HRUpscaleRate)
 			// hrSecondPassSteps = 10
 		} else {
-			enableHR1 = false
-			upscaleRate1 = 1.0
-			upscalerName1 = ""
-			hiresWidth = scaledWidth
-			hiresHeight = scaledHeight
+			newGeneration.HRUpscaleRate = 1.0
+			newGeneration.HRUpscaler = ""
+			newGeneration.HiresWidth = newGeneration.Width
+			newGeneration.HiresHeight = newGeneration.Height
 		}
 
-		stepValue := 20 // default steps value
-		promptRes2, err := extractStepsFromPrompt(promptResZ.SanitizedPrompt, stepValue)
+		steps, err := extractStepsFromPrompt(newGeneration.Prompt, newGeneration.Steps)
 		if err != nil {
 			log.Printf("Error extracting step from prompt: %v", err)
-		} else if promptRes2.Steps != stepValue {
-			stepValue = promptRes2.Steps
+		} else if steps.Steps != newGeneration.Steps {
+			newGeneration.Prompt = steps.SanitizedPrompt
+			newGeneration.Steps = steps.Steps
 		}
 
-		cfgScaleValue := 7.0 // default CFG scale value
-		promptRes3, err := extractCFGScaleFromPrompt(promptRes2.SanitizedPrompt, cfgScaleValue)
+		cfgScale, err := extractCFGScaleFromPrompt(newGeneration.Prompt, newGeneration.CfgScale)
 		if err != nil {
 			log.Printf("Error extracting cfg scale from prompt: %v", err)
-		} else if promptRes3.CFGScale != cfgScaleValue {
-			cfgScaleValue = promptRes3.CFGScale
+		} else if cfgScale.CFGScale != newGeneration.CfgScale {
+			newGeneration.Prompt = cfgScale.SanitizedPrompt
+			newGeneration.CfgScale = cfgScale.CFGScale
 		}
 
-		seedValue := int64(-1) // default seed is random
-		promptRes4, err := extractSeedFromPrompt(promptRes3.SanitizedPrompt)
+		seed, err := extractSeedFromPrompt(cfgScale.SanitizedPrompt)
 		if err != nil {
 			log.Printf("Error extracting seed from prompt: %v", err)
-		} else if promptRes4.Seed != seedValue {
-			seedValue = promptRes4.Seed
-		}
-
-		restoreFaces := false
-		if q.currentImagine.RestoreFaces != false {
-			restoreFaces = q.currentImagine.RestoreFaces
+		} else if seed.Seed != newGeneration.Seed {
+			newGeneration.Seed = seed.Seed
 		}
 
 		// prompt will display as Monospace in Discord
@@ -667,61 +725,17 @@ func (q *queueImplementation) processCurrentImagine() {
 		config, err := q.stableDiffusionAPI.GetConfig()
 		if err != nil {
 			log.Printf("Error getting config: %v", err)
-		}
-
-		var checkpoint *string
-		if ptrStringNotBlank(q.currentImagine.Checkpoint) {
-			checkpoint = q.currentImagine.Checkpoint
 		} else {
-			if config != nil && ptrStringNotBlank(config.SDModelCheckpoint) {
-				checkpoint = config.SDModelCheckpoint
+			if !ptrStringNotBlank(newGeneration.Checkpoint) {
+				newGeneration.Checkpoint = config.SDModelCheckpoint
+			}
+			if !ptrStringNotBlank(newGeneration.VAE) {
+				newGeneration.VAE = config.SDVae
+			}
+			if !ptrStringNotBlank(newGeneration.Hypernetwork) {
+				newGeneration.Hypernetwork = config.SDHypernetwork
 			}
 		}
-
-		var vae *string
-		if ptrStringNotBlank(q.currentImagine.VAE) {
-			vae = q.currentImagine.VAE
-		} else {
-			if config != nil && ptrStringNotBlank(config.SDVae) {
-				vae = config.SDVae
-			}
-		}
-
-		var hypernetwork *string
-		if ptrStringNotBlank(q.currentImagine.Hypernetwork) {
-			hypernetwork = q.currentImagine.Hypernetwork
-		} else {
-			if config != nil && ptrStringNotBlank(config.SDHypernetwork) {
-				hypernetwork = config.SDHypernetwork
-			}
-		}
-
-		// new generation with defaults
-		newGeneration := &entities.ImageGeneration{
-			Prompt:            promptRes.SanitizedPrompt,
-			NegativePrompt:    negativePrompt,
-			Width:             scaledWidth,
-			Height:            scaledHeight,
-			RestoreFaces:      restoreFaces,
-			EnableHR:          enableHR1,
-			HRUpscaleRate:     upscaleRate1,
-			HRUpscaler:        upscalerName1,
-			HiresWidth:        hiresWidth,
-			HiresHeight:       hiresHeight,
-			DenoisingStrength: 0.7,
-			Seed:              seedValue,
-			Subseed:           -1,
-			SubseedStrength:   0,
-			SamplerName:       samplerName1,
-			CfgScale:          cfgScaleValue,
-			Steps:             stepValue,
-			Processed:         false,
-			Checkpoint:        checkpoint,
-			VAE:               vae,
-			Hypernetwork:      hypernetwork,
-		}
-
-		segModelOptions := q.currentImagine.ADetailerString
 
 		// segModelOptions will never be nil and at least an empty string in the slice [""]
 		// because of strings.Split() in discord_bot.go
@@ -729,13 +743,12 @@ func (q *queueImplementation) processCurrentImagine() {
 		//additionalScript := make(map[string]*entities.ADetailer)
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
-		if segModelOptions != "" {
-			fmt.Println("segModelOptions: ", segModelOptions)
+		if q.currentImagine.ADetailerString != "" {
+			log.Printf("q.currentImagine.ADetailerString: %v", q.currentImagine.ADetailerString)
 
 			newGeneration.NewADetailer()
-			fmt.Println("Constructed ADetailer container: ", newGeneration.AlwaysOnScripts.ADetailer)
 
-			newGeneration.AlwaysOnScripts.ADetailer.AppendSegModelByString(segModelOptions, newGeneration)
+			newGeneration.AlwaysOnScripts.ADetailer.AppendSegModelByString(q.currentImagine.ADetailerString, newGeneration)
 		}
 
 		if newGeneration.AlwaysOnScripts != nil {
@@ -743,7 +756,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			if err != nil {
 				log.Printf("Error marshalling scripts: %v", err)
 			} else {
-				fmt.Println("Final scripts: ", string(jsonMarshalScripts))
+				log.Println("Final scripts: ", string(jsonMarshalScripts))
 			}
 		}
 

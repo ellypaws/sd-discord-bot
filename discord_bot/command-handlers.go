@@ -45,58 +45,62 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	optionMap := getOpts(i.ApplicationCommandData())
 
 	var position int
-	var queueError error
-	var prompt string
-	negative := ""
-	sampler := "Euler a"
-	hiresFix := false
-	restoreFaces := false
-	var stringValue string
-	var vae *string
-	var checkpoint *string
-	var hypernetwork *string
 
-	if option, ok := optionMap[promptOption]; ok {
-		prompt = option.StringValue()
+	var queue *imagine_queue.QueueItem
+
+	if option, ok := optionMap[promptOption]; !ok {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
+		return
+	} else {
+		queue = imagine_queue.NewQueueItem(imagine_queue.WithPrompt(option.StringValue()))
+
+		queue.Type = imagine_queue.ItemTypeImagine
+		queue.DiscordInteraction = i.Interaction
 
 		if option, ok := optionMap[negativeOption]; ok {
-			negative = option.StringValue()
+			queue.NegativePrompt = option.StringValue()
 		}
 
 		if option, ok := optionMap[samplerOption]; ok {
-			sampler = option.StringValue()
+			queue.SamplerName1 = option.StringValue()
 		}
 
 		if option, ok := optionMap[restoreFacesOption]; ok {
-			restoreFaces, _ = strconv.ParseBool(option.StringValue())
+			restoreFaces, err := strconv.ParseBool(option.StringValue())
+			if err != nil {
+				log.Printf("Error parsing restoreFaces value: %v.", err)
+			} else {
+				queue.RestoreFaces = restoreFaces
+			}
+
 		}
 
 		if option, ok := optionMap[adModelOption]; ok {
-			stringValue = option.StringValue()
+			queue.ADetailerString = option.StringValue()
 			// adModel = strings.Split(stringValue, ",")
 			// use AppendSegModelByString instead
 		}
 
 		if option, ok := optionMap[checkpointOption]; ok {
 			value := option.StringValue()
-			checkpoint = &value
-			log.Printf("user wants to change checkpoint to %v", checkpoint)
+			queue.Checkpoint = &value
+			log.Printf("user wants to change checkpoint to %v", value)
 		}
 
 		if option, ok := optionMap[vaeOption]; ok {
 			value := option.StringValue()
-			vae = &value
-			log.Printf("user wants to use vae %v", vae)
+			queue.VAE = &value
+			log.Printf("user wants to use vae %v", value)
 		}
 
 		if option, ok := optionMap[hypernetworkOption]; ok {
 			value := option.StringValue()
-			hypernetwork = &value
-			log.Printf("user wants to use hypernetwork %v", hypernetwork)
+			queue.Hypernetwork = &value
+			log.Printf("user wants to use hypernetwork %v", value)
 		}
 
 		if option, ok := optionMap[embeddingOption]; ok {
-			prompt += " " + option.StringValue()
+			queue.Prompt += " " + option.StringValue()
 			log.Printf("Adding embedding: %v", option.StringValue())
 		}
 
@@ -121,53 +125,57 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 					loraValue = re.ReplaceAllString(loraValue, "")
 					lora := ", <lora:" + loraValue + ">"
 					log.Println("Adding lora: ", lora)
-					prompt += lora
+					queue.Prompt += lora
 				}
 			}
 		}
 
 		if option, ok := optionMap[aspectRatio]; ok {
-			prompt += " --ar " + option.StringValue()
+			//queue.Prompt += " --ar " + queue.AspectRatio
+			queue.AspectRatio = option.StringValue()
 		}
 
 		if option, ok := optionMap[hiresFixSize]; ok {
-			prompt += " --zoom " + option.StringValue()
-			hiresFix = true
+			//queue.Prompt += " --zoom " + option.StringValue()
+			hiresUpscaleRate, err := strconv.ParseFloat(option.StringValue(), 64)
+			if err != nil {
+				log.Printf("Error parsing hiresUpscaleRate: %v", err)
+			} else {
+				queue.HiresUpscaleRate = hiresUpscaleRate
+				queue.UseHiresFix = true
+			}
 		}
 
 		if option, ok := optionMap[hiresFixOption]; ok {
-			hiresFix, _ = strconv.ParseBool(option.StringValue())
+			hiresFix, err := strconv.ParseBool(option.StringValue())
+			if err != nil {
+				log.Printf("Error parsing hiresFix value: %v.", err)
+			} else {
+				queue.UseHiresFix = hiresFix
+			}
 		}
 
 		if option, ok := optionMap[cfgScaleOption]; ok {
-			prompt += " --cfgscale " + fmt.Sprintf("%v", option.IntValue())
+			//prompt += " --cfgscale " + fmt.Sprintf("%v", option.IntValue())
+			queue.CfgScale = option.FloatValue()
 		}
 
 		if option, ok := optionMap[restoreFacesOption]; ok {
 			restoreFacesValue, err := strconv.ParseBool(option.StringValue())
 			if err != nil {
 				log.Printf("Error parsing restoreFaces value: %v.", err)
+			} else {
+				queue.RestoreFaces = restoreFacesValue
 			}
-			restoreFaces = restoreFacesValue
 		}
 
-		imagine := &imagine_queue.QueueItem{
-			Prompt:             prompt,
-			NegativePrompt:     negative,
-			SamplerName1:       sampler,
-			Type:               imagine_queue.ItemTypeImagine,
-			UseHiresFix:        hiresFix,
-			RestoreFaces:       restoreFaces,
-			DiscordInteraction: i.Interaction,
-			ADetailerString:    stringValue,
-			Checkpoint:         checkpoint,
-			VAE:                vae,
-			Hypernetwork:       hypernetwork,
-		}
-
-		position, queueError = b.imagineQueue.AddImagine(imagine)
-		if queueError != nil {
-			log.Printf("Error adding imagine to queue: %v\n", queueError)
+		position, err = b.imagineQueue.AddImagine(queue)
+		if err != nil {
+			log.Printf("Error adding imagine to queue: %v\n", err)
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+		} else {
+			// TODO: Remove debug message
+			log.Printf("Added imagine %#v to queue. Position: %v\n", queue, position)
 		}
 	}
 
@@ -184,7 +192,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
 		position,
 		snowflake,
-		prompt,
+		queue.Prompt,
 	)
 
 	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
