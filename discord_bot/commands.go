@@ -34,6 +34,7 @@ const (
 	restoreFacesOption CommandOption = "restore_faces"
 	adModelOption      CommandOption = "ad_model"
 	cfgScaleOption     CommandOption = "cfg_scale"
+	stepOption         CommandOption = "step"
 
 	extraLoras = 6
 )
@@ -62,6 +63,7 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 	options = []*discordgo.ApplicationCommandOption{
 		commandOptions[promptOption],
 		commandOptions[negativeOption],
+		commandOptions[stepOption],
 		commandOptions[checkpointOption],
 		commandOptions[aspectRatio],
 		commandOptions[loraOption],
@@ -95,6 +97,12 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        string(negativeOption),
 		Description: "Negative prompt",
+		Required:    false,
+	},
+	stepOption: {
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        string(stepOption),
+		Description: "Number of iterations to sample with. Default is 20",
 		Required:    false,
 	},
 	checkpointOption: {
