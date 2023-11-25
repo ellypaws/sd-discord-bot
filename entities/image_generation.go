@@ -20,6 +20,7 @@ type ImageGeneration struct {
 	EnableHR          bool      `json:"enable_hr"`
 	HRUpscaleRate     float64   `json:"hr_scale"`
 	HRUpscaler        string    `json:"hr_upscaler"`
+	HiresSteps        int64     `json:"hr_second_pass_steps"`
 	HiresWidth        int       `json:"hr_resize_x"`
 	HiresHeight       int       `json:"hr_resize_y"`
 	DenoisingStrength float64   `json:"denoising_strength"`

@@ -101,6 +101,7 @@ type QueueItem struct {
 	SamplerName1       string
 	Type               ItemType
 	UseHiresFix        bool
+	HiresSteps         int64
 	HiresUpscaleRate   float64
 	CfgScale           float64
 	AspectRatio        string
@@ -121,6 +122,7 @@ func DefaultQueueItem() *QueueItem {
 		SamplerName1:     "Euler a",
 		Type:             ItemTypeImagine,
 		UseHiresFix:      false,
+		HiresSteps:       20,
 		HiresUpscaleRate: 1.0,
 		CfgScale:         7.0,
 	}
@@ -657,6 +659,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			EnableHR:          q.currentImagine.UseHiresFix,
 			HRUpscaleRate:     between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
 			HRUpscaler:        "R-ESRGAN 2x+",
+			HiresSteps:        q.currentImagine.HiresSteps,
 			HiresWidth:        initializedWidth,
 			HiresHeight:       initializedHeight,
 			DenoisingStrength: 0.7,
@@ -1038,6 +1041,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		EnableHR:          newGeneration.EnableHR,
 		HRUpscaleRate:     newGeneration.HRUpscaleRate,
 		HRUpscaler:        newGeneration.HRUpscaler,
+		HRSteps:           newGeneration.HiresSteps,
 		HRResizeX:         newGeneration.HiresWidth,
 		HRResizeY:         newGeneration.HiresHeight,
 		DenoisingStrength: newGeneration.DenoisingStrength,
