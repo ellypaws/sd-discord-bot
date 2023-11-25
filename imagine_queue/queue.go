@@ -2,6 +2,7 @@ package imagine_queue
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -402,6 +403,7 @@ func fixEmDash(prompt string) string {
 
 var arRegex = regexp.MustCompile(`\s?--ar (\d*):(\d*)\s?`)
 
+// Deprecated: Use extractKeyValuePairsFromPrompt instead
 func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsResult, error) {
 	// Sanitize em dashes. Some phones will autocorrect to em dashes
 	prompt = fixEmDash(prompt)
@@ -493,6 +495,7 @@ func quotePromptAsMonospace(promptIn string) (quotedprompt string) {
 // recieve sampling process steps value
 var stepRegex = regexp.MustCompile(`\s?--step (\d*)\s?`)
 
+// Deprecated: Use extractKeyValuePairsFromPrompt instead
 func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, error) {
 
 	stepMatches := stepRegex.FindStringSubmatch(prompt)
@@ -522,6 +525,7 @@ func extractStepsFromPrompt(prompt string, defaultsteps int) (*stepsResult, erro
 
 var cfgscaleRegex = regexp.MustCompile(`\s?--cfgscale (\d\d?\.?\d?)\s?`)
 
+// Deprecated: Use extractKeyValuePairsFromPrompt instead
 func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleResult, error) {
 
 	cfgscaleMatches := cfgscaleRegex.FindStringSubmatch(prompt)
@@ -550,6 +554,7 @@ func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleRe
 
 var seedRegex = regexp.MustCompile(`\s?--seed (\d+)\s?`)
 
+// Deprecated: Use extractKeyValuePairsFromPrompt instead
 func extractSeedFromPrompt(prompt string, defaultSeed int64) (*seedResult, error) {
 
 	seedMatches := seedRegex.FindStringSubmatch(prompt)
@@ -585,6 +590,7 @@ func extractSeedFromPrompt(prompt string, defaultSeed int64) (*seedResult, error
 // hires.fix upscaleby
 var zoomRegex = regexp.MustCompile(`\s?--zoom (\d\d?\.?\d?)\s?`)
 
+// Deprecated: Use extractKeyValuePairsFromPrompt instead
 func extractZoomScaleFromPrompt(prompt string, defaultZoomScale float64) (*zoomScaleResult, error) {
 
 	zoomMatches := zoomRegex.FindStringSubmatch(prompt)
@@ -609,6 +615,18 @@ func extractZoomScaleFromPrompt(prompt string, defaultZoomScale float64) (*zoomS
 		SanitizedPrompt: prompt,
 		ZoomScale:       zoomValue,
 	}, nil
+}
+
+var keyValue = regexp.MustCompile(`\B(?:--|—)+(\w+)(?: ([\w.\/\\]+))?`)
+
+func extractKeyValuePairsFromPrompt(prompt string) (parameters map[string]string, sanitized string) {
+	parameters = make(map[string]string)
+	sanitized = keyValue.ReplaceAllString(prompt, "")
+	sanitized = strings.TrimSpace(sanitized)
+	for _, match := range keyValue.FindAllStringSubmatch(prompt, -1) {
+		parameters[match[1]] = match[2]
+	}
+	return
 }
 
 const defaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
@@ -637,7 +655,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			Height:            initializedHeight,
 			RestoreFaces:      q.currentImagine.RestoreFaces,
 			EnableHR:          q.currentImagine.UseHiresFix,
-			HRUpscaleRate:     q.currentImagine.HiresUpscaleRate,
+			HRUpscaleRate:     between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
 			HRUpscaler:        "R-ESRGAN 2x+",
 			HiresWidth:        initializedWidth,
 			HiresHeight:       initializedHeight,
@@ -674,57 +692,69 @@ func (q *queueImplementation) processCurrentImagine() {
 			newGeneration.SamplerName = "Euler a"
 		}
 
+		// extract key value pairs from prompt
+		var parameters map[string]string
+		parameters, newGeneration.Prompt = extractKeyValuePairsFromPrompt(newGeneration.Prompt)
+
+		defaultWidth := newGeneration.Width
+		defaultHeight := newGeneration.Height
 		if q.currentImagine.AspectRatio != "" && q.currentImagine.AspectRatio != "1:1" {
-			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(q.currentImagine.AspectRatio, newGeneration.Width, newGeneration.Height)
+			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(q.currentImagine.AspectRatio, defaultWidth, defaultHeight)
 		} else {
-			dimensions, err := extractDimensionsFromPrompt(newGeneration.Prompt, newGeneration.Width, newGeneration.Height)
-			if err != nil {
-				log.Printf("Error extracting dimensions from prompt: %v", err)
-			} else {
-				newGeneration.Prompt = dimensions.SanitizedPrompt
-				newGeneration.Width = max(dimensions.Width, newGeneration.Width)
-				newGeneration.Height = max(dimensions.Height, newGeneration.Height)
+			if aspectRatio, ok := parameters["ar"]; ok {
+				newGeneration.Width, newGeneration.Height = aspectRatioCalculation(aspectRatio, defaultWidth, defaultHeight)
 			}
 		}
 
 		// extract --zoom parameter
-		zoom, errZ := extractZoomScaleFromPrompt(newGeneration.Prompt, newGeneration.HRUpscaleRate)
-		if errZ != nil {
-			log.Printf("Error extracting zoom scale from prompt: %v", errZ)
-		} else if newGeneration.EnableHR {
-			newGeneration.HRUpscaleRate = max(newGeneration.HRUpscaleRate, zoom.ZoomScale)
-			newGeneration.HiresWidth = int(float64(newGeneration.Width) * newGeneration.HRUpscaleRate)
-			newGeneration.HiresHeight = int(float64(newGeneration.Height) * newGeneration.HRUpscaleRate)
-			// hrSecondPassSteps = 10
+		adjustedWidth := newGeneration.Width
+		adjustedHeight := newGeneration.Height
+		if newGeneration.EnableHR && newGeneration.HRUpscaleRate > 1.0 {
+			newGeneration.HiresWidth = int(float64(adjustedWidth) * newGeneration.HRUpscaleRate)
+			newGeneration.HiresHeight = int(float64(adjustedHeight) * newGeneration.HRUpscaleRate)
 		} else {
-			newGeneration.HRUpscaleRate = 1.0
-			newGeneration.HRUpscaler = ""
-			newGeneration.HiresWidth = newGeneration.Width
-			newGeneration.HiresHeight = newGeneration.Height
+			newGeneration.EnableHR = false
+			newGeneration.HiresWidth = adjustedWidth
+			newGeneration.HiresHeight = adjustedHeight
 		}
 
-		steps, err := extractStepsFromPrompt(newGeneration.Prompt, newGeneration.Steps)
-		if err != nil {
-			log.Printf("Error extracting step from prompt: %v", err)
-		} else if steps.Steps != newGeneration.Steps {
-			newGeneration.Prompt = steps.SanitizedPrompt
-			newGeneration.Steps = steps.Steps
+		if zoom, ok := parameters["zoom"]; ok {
+			zoomScale, err := strconv.ParseFloat(zoom, 64)
+			if err != nil {
+				log.Printf("Error extracting zoom scale from prompt: %v", err)
+			} else {
+				newGeneration.EnableHR = true
+				newGeneration.HRUpscaleRate = between(zoomScale, 1.0, 2.0)
+				newGeneration.HiresWidth = int(float64(adjustedWidth) * newGeneration.HRUpscaleRate)
+				newGeneration.HiresHeight = int(float64(adjustedHeight) * newGeneration.HRUpscaleRate)
+			}
 		}
 
-		cfgScale, err := extractCFGScaleFromPrompt(newGeneration.Prompt, newGeneration.CfgScale)
-		if err != nil {
-			log.Printf("Error extracting cfg scale from prompt: %v", err)
-		} else if cfgScale.CFGScale != newGeneration.CfgScale {
-			newGeneration.Prompt = cfgScale.SanitizedPrompt
-			newGeneration.CfgScale = cfgScale.CFGScale
+		if step, ok := parameters["step"]; ok {
+			stepInt, err := strconv.Atoi(step)
+			if err != nil {
+				log.Printf("Error extracting step from prompt: %v", err)
+			} else {
+				newGeneration.Steps = stepInt
+			}
 		}
 
-		seed, err := extractSeedFromPrompt(newGeneration.Prompt, newGeneration.Seed)
-		if err != nil {
-			log.Printf("Error extracting seed from prompt: %v", err)
-		} else if seed.Seed != newGeneration.Seed {
-			newGeneration.Prompt = seed.SanitizedPrompt
-			newGeneration.Seed = seed.Seed
+		if cfgscale, ok := parameters["cfgscale"]; ok {
+			cfgScaleFloat, err := strconv.ParseFloat(cfgscale, 64)
+			if err != nil {
+				log.Printf("Error extracting cfg scale from prompt: %v", err)
+			} else {
+				newGeneration.CfgScale = cfgScaleFloat
+			}
+		}
+
+		if seed, ok := parameters["seed"]; ok {
+			seedInt, err := strconv.ParseInt(seed, 10, 64)
+			if err != nil {
+				log.Printf("Error extracting seed from prompt: %v", err)
+			} else {
+				newGeneration.Seed = seedInt
+			}
 		}
 
 		// prompt will display as Monospace in Discord
@@ -806,6 +836,10 @@ func (q *queueImplementation) processCurrentImagine() {
 			return
 		}
 	}()
+}
+
+func between[T cmp.Ordered](value, minimum, maximum T) T {
+	return min(max(minimum, value), maximum)
 }
 
 func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*entities.ImageGeneration, error) {
