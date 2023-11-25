@@ -235,17 +235,17 @@ func (b *botImpl) registerCommands() error {
 // the keys are copied from the commands and commandHandlers map, deleted, and then re-added with the new command
 func (b *botImpl) customImagineCommand() {
 	//imagine
-	b.rebuildMap((*botImpl).imagineCommandString, &imagineCommand, &commands, &commandHandlers)
+	b.rebuildMap((*botImpl).imagineCommandString, &imagineCommand, commands, commandHandlers)
 
 	//imagine_settings
-	b.rebuildMap((*botImpl).imagineSettingsCommandString, &imagineSettingsCommand, &commands, &commandHandlers)
+	b.rebuildMap((*botImpl).imagineSettingsCommandString, &imagineSettingsCommand, commands, commandHandlers)
 }
 
 func (b *botImpl) rebuildMap(
 	f func(*botImpl) Command,
 	key *Command,
-	m *map[Command]*discordgo.ApplicationCommand,
-	h *map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate,
+	m map[Command]*discordgo.ApplicationCommand,
+	h map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate,
 	)) {
 	oldKey := *key
 
@@ -255,11 +255,11 @@ func (b *botImpl) rebuildMap(
 	}
 	log.Printf("Rebuilding map for '%v' to '%v'", oldKey, *key)
 
-	(*m)[*key] = (*m)[oldKey]
-	(*m)[*key].Name = string(*key)
-	(*h)[*key] = (*h)[oldKey]
-	delete(*m, oldKey)
-	delete(*h, oldKey)
+	m[*key] = m[oldKey]
+	m[*key].Name = string(*key)
+	h[*key] = h[oldKey]
+	delete(m, oldKey)
+	delete(h, oldKey)
 }
 
 func (b *botImpl) Start() {
