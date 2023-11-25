@@ -35,6 +35,7 @@ const (
 	adModelOption      CommandOption = "ad_model"
 	cfgScaleOption     CommandOption = "cfg_scale"
 	stepOption         CommandOption = "step"
+	seedOption         CommandOption = "seed"
 
 	extraLoras = 6
 )
@@ -64,6 +65,7 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[promptOption],
 		commandOptions[negativeOption],
 		commandOptions[stepOption],
+		commandOptions[seedOption],
 		commandOptions[checkpointOption],
 		commandOptions[aspectRatio],
 		commandOptions[loraOption],
@@ -104,6 +106,11 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Name:        string(stepOption),
 		Description: "Number of iterations to sample with. Default is 20",
 		Required:    false,
+	},
+	seedOption: {
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        string(seedOption),
+		Description: "Seed to use for sampling. Default is random (-1)",
 	},
 	checkpointOption: {
 		Type:         discordgo.ApplicationCommandOptionString,

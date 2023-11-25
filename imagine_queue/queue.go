@@ -96,6 +96,7 @@ type QueueItem struct {
 	Prompt             string
 	NegativePrompt     string
 	Steps              int
+	Seed               int64
 	SamplerName1       string
 	Type               ItemType
 	UseHiresFix        bool
@@ -115,6 +116,7 @@ func DefaultQueueItem() *QueueItem {
 	return &QueueItem{
 		NegativePrompt:   defaultNegative,
 		Steps:            20,
+		Seed:             -1,
 		SamplerName1:     "Euler a",
 		Type:             ItemTypeImagine,
 		UseHiresFix:      false,
@@ -548,10 +550,10 @@ func extractCFGScaleFromPrompt(prompt string, defaultScale float64) (*cfgScaleRe
 
 var seedRegex = regexp.MustCompile(`\s?--seed (\d+)\s?`)
 
-func extractSeedFromPrompt(prompt string) (*seedResult, error) {
+func extractSeedFromPrompt(prompt string, defaultSeed int64) (*seedResult, error) {
 
 	seedMatches := seedRegex.FindStringSubmatch(prompt)
-	var seedValue int64 = 0
+	var seedValue int64 = -1
 	var SeedMaxvalue = int64(math.MaxInt64) // although SD accepts: 12345678901234567890
 
 	if len(seedMatches) == 2 {
@@ -565,7 +567,13 @@ func extractSeedFromPrompt(prompt string) (*seedResult, error) {
 		seedValue = min(SeedMaxvalue, s)
 
 	} else {
-		seedValue = int64(-1)
+		if defaultSeed == 0 {
+			// if seed is 0, then we want to generate a random seed
+			seedValue = -1
+		} else {
+			// if seed is not 0, then we want to use the seed value
+			seedValue = min(SeedMaxvalue, defaultSeed)
+		}
 	}
 
 	return &seedResult{
@@ -634,7 +642,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			HiresWidth:        initializedWidth,
 			HiresHeight:       initializedHeight,
 			DenoisingStrength: 0.7,
-			Seed:              int64(-1),
+			Seed:              q.currentImagine.Seed,
 			Subseed:           -1,
 			SubseedStrength:   0,
 			SamplerName:       q.currentImagine.SamplerName1,
@@ -711,10 +719,11 @@ func (q *queueImplementation) processCurrentImagine() {
 			newGeneration.CfgScale = cfgScale.CFGScale
 		}
 
-		seed, err := extractSeedFromPrompt(cfgScale.SanitizedPrompt)
+		seed, err := extractSeedFromPrompt(newGeneration.Prompt, newGeneration.Seed)
 		if err != nil {
 			log.Printf("Error extracting seed from prompt: %v", err)
 		} else if seed.Seed != newGeneration.Seed {
+			newGeneration.Prompt = seed.SanitizedPrompt
 			newGeneration.Seed = seed.Seed
 		}
 

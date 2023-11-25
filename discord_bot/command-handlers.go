@@ -69,6 +69,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			queue.Steps = int(option.IntValue())
 		}
 
+		if option, ok := optionMap[seedOption]; ok {
+			queue.Seed = option.IntValue()
+		}
+
 		if option, ok := optionMap[restoreFacesOption]; ok {
 			restoreFaces, err := strconv.ParseBool(option.StringValue())
 			if err != nil {
