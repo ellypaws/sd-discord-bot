@@ -365,10 +365,35 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	return body, nil
 }
 
+func (api *apiImplementation) POST(postURL string, jsonData []byte) (*http.Response, error) {
+	// Create a new POST request
+	request, err := http.NewRequest("POST", api.host+postURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set headers
+	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
+
+	// Create an HTTP client
+	client := &http.Client{}
+
+	// Send the POST request
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("API URL: %s", api.host+postURL)
+		log.Printf("Error with API Request: %s", string(jsonData))
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	return response, nil
+}
+
 func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
-	headers := map[string]string{
-		"accept":       "application/json",
-		"Content-Type": "application/json",
+	if !handlers.CheckAPIAlive(api.host) {
+		return fmt.Errorf(handlers.DeadAPI)
 	}
 
 	body, err := config.Marshal()
@@ -377,29 +402,22 @@ func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
 	}
 	log.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
-	if !handlers.CheckAPIAlive(api.host) {
-		return fmt.Errorf(handlers.DeadAPI)
-	}
-
-	req, err := http.NewRequest("POST", api.host+"/sdapi/v1/options", bytes.NewBuffer(body))
+	resp, err := api.POST("/sdapi/v1/options", body)
 	if err != nil {
-		fmt.Println("Error creating request:", err)
 		return err
 	}
 
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
+	log.Printf("Response status: %v", resp)
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	return nil
+}
+
+// interrupt by posting to /sdapi/v1/interrupt using the POST() function
+func (api *apiImplementation) Interrupt() error {
+	_, err := api.POST("/sdapi/v1/interrupt", nil)
 	if err != nil {
-		fmt.Println("Error sending request:", err)
 		return err
 	}
-	defer resp.Body.Close()
-
-	log.Printf("Response status: %v", resp.Status)
 
 	return nil
 }
