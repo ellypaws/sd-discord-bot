@@ -524,7 +524,7 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 	err := b.StableDiffusionApi.UpdateConfiguration(config)
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
-		handlers.Responses[handlers.ErrorFollowupEphemeral].(handlers.ErrorResponseType)(s, i.Interaction,
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction,
 			fmt.Sprintf("Error updating [%v] model name settings...", modelType))
 
 		return
@@ -533,7 +533,7 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
 	if err != nil {
 		log.Printf("error retrieving bot settings: %v", err)
-		handlers.Responses[handlers.ErrorEphemeral].(handlers.ErrorResponseType)(s, i.Interaction, "Error retrieving bot settings...")
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Error retrieving bot settings...")
 		return
 	}
 

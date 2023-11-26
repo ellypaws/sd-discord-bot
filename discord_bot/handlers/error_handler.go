@@ -12,19 +12,20 @@ import (
 var Token *string
 
 const (
-	ErrorResponse          = iota // ErrorResponseType Respond with an error message and a deletion button.
-	ErrorFollowup                 // ErrorResponseType Respond with an error message as a followup message with a deletion button.
-	ErrorEphemeral                // ErrorResponseType Respond with an ephemeral error message and a deletion button.
-	ErrorFollowupEphemeral        // ErrorResponseType Respond with an ephemeral error message as a followup message with a deletion button.
+	ErrorResponse          errorEnum = iota // errorResponseType Respond with an error message and a deletion button.
+	ErrorFollowup                           // errorResponseType Respond with an error message as a followup message with a deletion button.
+	ErrorEphemeral                          // errorResponseType Respond with an ephemeral error message and a deletion button.
+	ErrorFollowupEphemeral                  // errorResponseType Respond with an ephemeral error message as a followup message with a deletion button.
 )
 
-type ErrorResponseType MsgResponseType
+type errorResponseType MsgResponseType
+type errorEnum int
 
-var Errors = map[int]ErrorResponseType{
-	ErrorResponse:          ErrorResponseType(ErrorEdit),
-	ErrorFollowup:          ErrorResponseType(errorFollowup),
-	ErrorEphemeral:         ErrorResponseType(ErrorEphemeralResponse),
-	ErrorFollowupEphemeral: ErrorResponseType(errorEphemeralFollowup),
+var Errors = map[errorEnum]errorResponseType{
+	ErrorResponse:          errorResponseType(ErrorEdit),
+	ErrorFollowup:          errorResponseType(errorFollowup),
+	ErrorEphemeral:         errorResponseType(ErrorEphemeralResponse),
+	ErrorFollowupEphemeral: errorResponseType(errorEphemeralFollowup),
 }
 
 // ErrorHandler responds to the interaction with an error message and a deletion button.
