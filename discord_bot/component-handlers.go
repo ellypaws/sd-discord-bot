@@ -1,6 +1,7 @@
 package discord_bot
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
@@ -23,7 +24,24 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 
 	handlers.DeleteGeneration: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		handlers.Responses[handlers.EphemeralThink].(handlers.NewResponseType)(s, i)
-		if i.Member.User.ID != i.Message.Mentions[0].ID {
+
+		var originalInteractionUser string
+
+		switch {
+		case i.Message.Interaction != nil:
+			originalInteractionUser = i.Message.Interaction.User.ID
+		case i.Message.Mentions != nil:
+			log.Printf("WARN: Using mentions to determine original interaction user")
+			originalInteractionUser = i.Message.Mentions[0].ID
+		default:
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Unable to determine original interaction user")
+			log.Printf("Unable to determine original interaction user: %#v", i)
+			byteArr, _ := json.MarshalIndent(i, "", "  ")
+			log.Printf("Interaction: %v", string(byteArr))
+			return
+		}
+
+		if i.Member.User.ID != originalInteractionUser {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You can only delete your own generations")
 			return
 		}

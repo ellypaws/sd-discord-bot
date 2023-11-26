@@ -35,12 +35,7 @@ func getOpts(data discordgo.ApplicationCommandInteractionData) map[CommandOption
 }
 
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
 
 	optionMap := getOpts(i.ApplicationCommandData())
 
@@ -177,6 +172,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
+		var err error
 		position, err = b.imagineQueue.AddImagine(queue)
 		if err != nil {
 			log.Printf("Error adding imagine to queue: %v\n", err)
