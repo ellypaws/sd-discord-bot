@@ -202,6 +202,8 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, queueString, handlers.Components[handlers.CancelButton])
 }
 
+var weightRegex = regexp.MustCompile(`.+\\|\.(?:safetensors|ckpt|pth?)|(:[\d.]+$)`)
+
 func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ApplicationCommandData()
 	log.Printf("running autocomplete handler")
@@ -227,8 +229,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					log.Printf("Error retrieving loras cache: %v", err)
 				}
 
-				re := regexp.MustCompile(`.+\\|\.safetensors.*|(:[\d.]+$)`)
-				sanitized := re.ReplaceAllString(input, "")
+				sanitized := weightRegex.ReplaceAllString(input, "")
 
 				log.Printf("looking up lora: %v", sanitized)
 				results := fuzzy.FindFrom(sanitized, cache)
@@ -257,8 +258,8 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					})
 				}
 
-				weight := re.FindStringSubmatch(input)
-				log.Printf("weight: %v", weight)
+				weightMatches := weightRegex.FindAllStringSubmatch(input, -1)
+				log.Printf("weightMatches: %v", weightMatches)
 
 				var tooltip string
 				if len(results) > 0 {
@@ -269,9 +270,10 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					tooltip = fmt.Sprintf("❌%v", input)
 				}
 
-				if weight != nil && weight[1] != "" {
-					input += weight[1]
-					tooltip += fmt.Sprintf(" 🪄%v", weight[1])
+				if weightMatches != nil && weightMatches[len(weightMatches)-1][1] != "" {
+					weight := weightMatches[len(weightMatches)-1][1]
+					input += weight
+					tooltip += fmt.Sprintf(" 🪄%v", weight)
 				} else {
 					tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
 				}
