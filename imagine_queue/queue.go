@@ -1032,29 +1032,46 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 	}()
 
-	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
-		Prompt:            newGeneration.Prompt,
-		NegativePrompt:    newGeneration.NegativePrompt,
-		Width:             newGeneration.Width,
-		Height:            newGeneration.Height,
-		RestoreFaces:      newGeneration.RestoreFaces,
-		EnableHR:          newGeneration.EnableHR,
-		HRUpscaleRate:     newGeneration.HRUpscaleRate,
-		HRUpscaler:        newGeneration.HRUpscaler,
-		HRSteps:           newGeneration.HiresSteps,
-		HRResizeX:         newGeneration.HiresWidth,
-		HRResizeY:         newGeneration.HiresHeight,
-		DenoisingStrength: newGeneration.DenoisingStrength,
-		BatchSize:         newGeneration.BatchSize,
-		Seed:              newGeneration.Seed,
-		Subseed:           newGeneration.Subseed,
-		SubseedStrength:   newGeneration.SubseedStrength,
-		SamplerName:       newGeneration.SamplerName,
-		CfgScale:          newGeneration.CfgScale,
-		Steps:             newGeneration.Steps,
-		NIter:             newGeneration.BatchCount,
-		AlwaysOnScripts:   newGeneration.AlwaysOnScripts,
+	intTo64 := func(i *int) *int64 {
+		if i == nil {
+			return nil
+		}
+		i64 := int64(*i)
+		return &i64
+	}
+
+	floatTo64 := func(f *float64) *float64 {
+		if f == nil {
+			return nil
+		}
+		f64 := float64(*f)
+		return &f64
+	}
+
+	resp, err := q.stableDiffusionAPI.TextToImageRequest(&entities.TextToImageRequest{
+		Prompt:            &newGeneration.Prompt,
+		NegativePrompt:    &newGeneration.NegativePrompt,
+		Width:             intTo64(&newGeneration.Width),
+		Height:            intTo64(&newGeneration.Height),
+		RestoreFaces:      &newGeneration.RestoreFaces,
+		EnableHr:          &newGeneration.EnableHR,
+		HrScale:           floatTo64(&newGeneration.HRUpscaleRate),
+		HrUpscaler:        &newGeneration.HRUpscaler,
+		HrSecondPassSteps: &newGeneration.HiresSteps,
+		HrResizeX:         intTo64(&newGeneration.HiresWidth),
+		HrResizeY:         intTo64(&newGeneration.HiresHeight),
+		DenoisingStrength: &newGeneration.DenoisingStrength,
+		BatchSize:         intTo64(&newGeneration.BatchSize),
+		Seed:              &newGeneration.Seed,
+		Subseed:           intTo64(&newGeneration.Subseed),
+		SubseedStrength:   &newGeneration.SubseedStrength,
+		SamplerName:       &newGeneration.SamplerName,
+		CFGScale:          &newGeneration.CfgScale,
+		Steps:             intTo64(&newGeneration.Steps),
+		NIter:             intTo64(&newGeneration.BatchCount),
+		AlwaysonScripts:   newGeneration.AlwaysOnScripts,
 	})
+
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
 

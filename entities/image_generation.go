@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+// Deprecated: use ImageGenerationRequest instead, it inherits from TextToImageRequest
+// TODO: rewrite all methods and code using this struct to use ImageGenerationRequest instead
 type ImageGeneration struct {
 	ID                int64     `json:"id"`
 	InteractionID     string    `json:"interaction_id"`
@@ -38,6 +40,21 @@ type ImageGeneration struct {
 	Checkpoint        *string   `json:"checkpoint,omitempty"`
 	VAE               *string   `json:"vae,omitempty"`
 	Hypernetwork      *string   `json:"hypernetwork,omitempty"`
+}
+
+type ImageGenerationRequest struct {
+	ID            int64     `json:"id"`
+	InteractionID string    `json:"interaction_id"`
+	MessageID     string    `json:"message_id"`
+	MemberID      string    `json:"member_id"`
+	SortOrder     int       `json:"sort_order"`
+	BatchCount    int       `json:"batch_count"`
+	Processed     bool      `json:"processed"`
+	Checkpoint    *string   `json:"checkpoint,omitempty"`
+	VAE           *string   `json:"vae,omitempty"`
+	Hypernetwork  *string   `json:"hypernetwork,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	*TextToImageRequest
 }
 
 func NewGeneration() *ImageGeneration {

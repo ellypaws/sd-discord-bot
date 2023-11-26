@@ -1,12 +1,15 @@
 package stable_diffusion_api
 
+import "stable_diffusion_bot/entities"
+
 type StableDiffusionAPI interface {
 	SDModels() ([]StableDiffusionModel, error) // Deprecated: use SDCheckpointsCache instead
 
 	PopulateCache() (errors []error)
 	CachePreview(c Cacheable) (Cacheable, error)
 
-	TextToImage(req *TextToImageRequest) (*TextToImageResponse, error)
+	TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) // Deprecated: use TextToImageRequest instead
+	TextToImageRequest(req *entities.TextToImageRequest) (*TextToImageResponse, error)
 	UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error)
 	GetCurrentProgress() (*ProgressResponse, error)
 

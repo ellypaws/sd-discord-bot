@@ -61,6 +61,7 @@ type StableDiffusionModel struct {
 	Config    string `json:"config"`
 }
 
+// Deprecated: Use the entities.TextToImageRequest in entities.ImageGeneration instead
 type TextToImageRequest struct {
 	Prompt            string            `json:"prompt"`
 	NegativePrompt    string            `json:"negative_prompt"`
@@ -142,6 +143,7 @@ func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
 	return sdModels, nil
 }
 
+// Deprecated: Use TextToImageRequest instead with an entities.ImageGeneration object
 func (api *apiImplementation) TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) {
 	//fmt.Println("TextToImageRequest", req)
 	if req == nil {
@@ -196,6 +198,53 @@ func (api *apiImplementation) TextToImage(req *TextToImageRequest) (*TextToImage
 	if err != nil {
 		log.Printf("API URL: %s", postURL)
 		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, err
+	}
+
+	return &TextToImageResponse{
+		Images:   respStruct.Images,
+		Seeds:    infoStruct.AllSeeds,
+		Subseeds: infoStruct.AllSubseeds,
+	}, nil
+}
+
+func (api *apiImplementation) TextToImageRequest(req *entities.TextToImageRequest) (*TextToImageResponse, error) {
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
+	if req == nil {
+		return nil, errors.New("missing request")
+	}
+
+	jsonData, err := req.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := api.POST("/sdapi/v1/txt2img", jsonData)
+	if err != nil {
+		log.Printf("Error with API POST: %s", string(jsonData))
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	respStruct := &jsonTextToImageResponse{}
+
+	err = json.Unmarshal(body, respStruct)
+	if err != nil {
+		log.Printf("Unexpected API response for jsonTextToImageResponse: %s", string(body))
+
+		return nil, err
+	}
+
+	infoStruct := &jsonInfoResponse{}
+
+	err = json.Unmarshal([]byte(respStruct.Info), infoStruct)
+	if err != nil {
+		log.Printf("Unexpected API response for jsonInfoResponse: %s", string(body))
 
 		return nil, err
 	}
@@ -386,9 +435,6 @@ func (api *apiImplementation) POST(postURL string, jsonData []byte) (*http.Respo
 		log.Printf("Error with API Request: %s", string(jsonData))
 		return nil, err
 	}
-
-	defer response.Body.Close()
-
 	return response, nil
 }
 
@@ -403,12 +449,13 @@ func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
 	}
 	log.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
-	resp, err := api.POST("/sdapi/v1/options", body)
+	response, err := api.POST("/sdapi/v1/options", body)
+	defer response.Body.Close()
 	if err != nil {
 		return err
 	}
 
-	log.Printf("Response status: %v", resp)
+	log.Printf("Response status: %v", response)
 
 	return nil
 }
