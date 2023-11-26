@@ -29,6 +29,7 @@ type StableDiffusionAPI interface {
 	SDVAECache() (*VAEModels, error)                   // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
 	SDHypernetworkCache() (*HypernetworkModels, error) // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
 	SDEmbeddingCache() (*EmbeddingModels, error)       // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
+	Interrupt() error
 }
 
 type Cacheable interface {

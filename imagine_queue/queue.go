@@ -49,6 +49,7 @@ type queueImplementation struct {
 	compositeRenderer   composite_renderer.Renderer
 	defaultSettingsRepo default_settings.Repository
 	botDefaultSettings  *entities.DefaultSettings
+	cancelledItems      map[string]bool
 }
 
 type Config struct {
@@ -81,6 +82,7 @@ func New(cfg Config) (Queue, error) {
 		queue:               make(chan *QueueItem, 100),
 		compositeRenderer:   compositeRenderer,
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
+		cancelledItems:      make(map[string]bool),
 	}, nil
 }
 
@@ -190,16 +192,33 @@ func (q *queueImplementation) StartPolling(botSession *discordgo.Session) {
 }
 
 func (q *queueImplementation) pullNextInQueue() {
-	if len(q.queue) > 0 {
-		element := <-q.queue
-
-		q.mu.Lock()
-		defer q.mu.Unlock()
-
-		q.currentImagine = element
-
-		q.processCurrentImagine()
+	for len(q.queue) > 0 {
+		// Peek at the next item without blocking
+		select {
+		case element := <-q.queue:
+			if !q.cancelledItems[element.DiscordInteraction.ID] {
+				q.mu.Lock()
+				q.currentImagine = element
+				q.mu.Unlock()
+				q.processCurrentImagine()
+				return // Process this item
+			}
+			// If the item is cancelled, skip it
+			delete(q.cancelledItems, element.DiscordInteraction.ID)
+		default:
+			return // Queue is empty
+		}
 	}
+}
+
+func (q *queueImplementation) RemoveFromQueue(interaction *discordgo.MessageInteraction) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	// Mark the item as cancelled
+	q.cancelledItems[interaction.ID] = true
+
+	return nil
 }
 
 func (q *queueImplementation) fillInBotDefaults(settings *entities.DefaultSettings) (*entities.DefaultSettings, bool) {
@@ -968,7 +987,8 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
 
 	message, err := q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		Content: &newContent,
+		Content:    &newContent,
+		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
 	})
 	if err != nil {
 		log.Printf("Error editing interaction: %v", err)

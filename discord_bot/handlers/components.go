@@ -37,6 +37,9 @@ const (
 	paginationButtons Component = "pagination_button"
 	okCancelButtons   Component = "ok_cancel_buttons"
 
+	CancelButton Component = "cancel"
+	Interrupt    Component = "interrupt"
+
 	roleSelect = "role_select"
 )
 
@@ -161,6 +164,27 @@ var Components = map[Component]discordgo.MessageComponent{
 				MenuType:    discordgo.RoleSelectMenu,
 				CustomID:    roleSelect,
 				Placeholder: "Pick a role",
+			},
+		},
+	},
+	CancelButton: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Cancel",
+				Style:    discordgo.DangerButton,
+				CustomID: string(CancelButton),
+			},
+		},
+	},
+	Interrupt: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Interrupt",
+				Style:    discordgo.DangerButton,
+				CustomID: string(Interrupt),
+				Emoji: discordgo.ComponentEmoji{
+					Name: "⚠️",
+				},
 			},
 		},
 	},

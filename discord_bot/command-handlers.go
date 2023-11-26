@@ -203,12 +203,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		queue.Prompt,
 	)
 
-	_, err = s.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
-		Content: &queueString,
-	})
-	if err != nil {
-		log.Printf("Error editing interaction: %v", err)
-	}
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, queueString, handlers.Components[handlers.CancelButton])
 }
 
 func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {

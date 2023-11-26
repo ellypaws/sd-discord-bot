@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
-	"regexp"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
@@ -24,13 +23,7 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 
 	handlers.DeleteGeneration: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		handlers.Responses[handlers.EphemeralThink].(handlers.NewResponseType)(s, i)
-		msg, _ := bot.botSession.ChannelMessage(i.ChannelID, i.Message.ID)
-
-		content := msg.Content
-		userRegex := regexp.MustCompile("<@!?(\\d+)>")
-		userID := userRegex.FindStringSubmatch(content)[1]
-
-		if userID != i.Member.User.ID {
+		if i.Member.User.ID != i.Message.Mentions[0].ID {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You can only delete your own generations")
 			return
 		}
@@ -161,9 +154,7 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
-	handlers.RerollButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
-		bot.processImagineReroll(s, i)
-	},
+	handlers.RerollButton: (*botImpl).processImagineReroll,
 
 	handlers.UpscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
 		customID := i.MessageComponentData().CustomID
@@ -192,6 +183,9 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 
 		bot.processImagineVariation(s, i, interactionIndexInt)
 	},
+
+	handlers.CancelButton: (*botImpl).removeImagineFromQueue, // Cancel button is used when still in queue
+	handlers.Interrupt:    (*botImpl).interrupt,              // Interrupt button is used when currently generating, using the api.Interrupt() method
 }
 
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -537,4 +531,41 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 			newComponents,
 		)
 	})
+}
+
+// check if the user using the cancel button is the same user that started the generation, then remove it from the queue
+func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Member.User.ID != i.Message.Interaction.User.ID {
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "You can only cancel your own generations")
+		return
+	}
+
+	log.Printf("Removing imagine from queue: %#v", i.Message.Interaction)
+
+	err := b.imagineQueue.RemoveFromQueue(i.Message.Interaction)
+	if err != nil {
+		log.Printf("Error removing imagine from queue: %v", err)
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error removing imagine from queue")
+		return
+	}
+	log.Printf("Removed imagine from queue: %#v", i.Message.Interaction)
+
+	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction, "Generation cancelled", handlers.Components[handlers.DeleteButton])
+}
+
+// check if the user using the interrupt button is the same user that started the generation
+func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if i.Member.User.ID != i.Message.Interaction.User.ID {
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "You can only interrupt your own generations")
+		return
+	}
+
+	err := b.StableDiffusionApi.Interrupt()
+	if err != nil {
+		log.Printf("Error interrupting generation: %v", err)
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error interrupting generation")
+		return
+	}
+
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, "Generation interrupted", nil)
 }
