@@ -71,7 +71,7 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing default settings repository")
 	}
 
-	compositeRenderer, err := composite_renderer.New(composite_renderer.Config{})
+	compositeRenderer, err := composite_renderer.New(true)
 	if err != nil {
 		return nil, err
 	}

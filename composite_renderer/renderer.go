@@ -8,14 +8,10 @@ import (
 	"image/png"
 )
 
+// Deprecated: Use tilerImpl instead.
 type rendererImpl struct{}
 
-type Config struct{}
-
-func New(cfg Config) (Renderer, error) {
-	return &rendererImpl{}, nil
-}
-
+// Deprecated: Use TileImages instead.
 func (r *rendererImpl) TileImages(imageBufs []*bytes.Buffer) (*bytes.Buffer, error) {
 	if len(imageBufs) != 4 {
 		return nil, errors.New("invalid number of images")
