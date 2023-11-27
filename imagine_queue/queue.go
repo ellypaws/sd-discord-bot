@@ -1,10 +1,8 @@
 package imagine_queue
 
 import (
-	"bytes"
 	"cmp"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +13,6 @@ import (
 	"os/signal"
 	"regexp"
 	"stable_diffusion_bot/composite_renderer"
-	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	p "stable_diffusion_bot/gui/progress"
 	"stable_diffusion_bot/repositories"
@@ -93,6 +90,7 @@ const (
 	ItemTypeReroll
 	ItemTypeUpscale
 	ItemTypeVariation
+	ItemTypeImg2Img
 )
 
 type QueueItem struct {
@@ -111,6 +109,9 @@ type QueueItem struct {
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
 	ADetailerString    string // use AppendSegModelByString
+	Attachments        map[string]*discordgo.MessageAttachment
+	Images             map[string]string
+	DenoisingStrength  float64
 	Checkpoint         *string
 	VAE                *string
 	Hypernetwork       *string
@@ -118,15 +119,16 @@ type QueueItem struct {
 
 func DefaultQueueItem() *QueueItem {
 	return &QueueItem{
-		NegativePrompt:   defaultNegative,
-		Steps:            20,
-		Seed:             -1,
-		SamplerName1:     "Euler a",
-		Type:             ItemTypeImagine,
-		UseHiresFix:      false,
-		HiresSteps:       20,
-		HiresUpscaleRate: 1.0,
-		CfgScale:         7.0,
+		NegativePrompt:    defaultNegative,
+		Steps:             20,
+		Seed:              -1,
+		SamplerName1:      "Euler a",
+		Type:              ItemTypeImagine,
+		UseHiresFix:       false,
+		HiresSteps:        20,
+		HiresUpscaleRate:  1.0,
+		CfgScale:          7.0,
+		DenoisingStrength: 0.7,
 	}
 }
 
@@ -200,7 +202,12 @@ func (q *queueImplementation) pullNextInQueue() {
 				q.mu.Lock()
 				q.currentImagine = element
 				q.mu.Unlock()
-				q.processCurrentImagine()
+				switch element.Type {
+				case ItemTypeImagine:
+					q.processCurrentImagine()
+				case ItemTypeImg2Img:
+					q.processImg2ImgImagine()
+				}
 				return // Process this item
 			}
 			// If the item is cancelled, skip it
@@ -654,214 +661,6 @@ const defaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, po
 	"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 	"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
 
-func (q *queueImplementation) processCurrentImagine() {
-	go func() {
-		defer func() {
-			q.mu.Lock()
-			defer q.mu.Unlock()
-
-			q.currentImagine = nil
-		}()
-
-		if q.currentImagine.Type == ItemTypeUpscale {
-			q.processUpscaleImagine(q.currentImagine)
-
-			return
-		}
-
-		newGeneration, err := &entities.ImageGenerationRequest{
-			Processed:    false,
-			Checkpoint:   q.currentImagine.Checkpoint,
-			VAE:          q.currentImagine.VAE,
-			Hypernetwork: q.currentImagine.Hypernetwork,
-			TextToImageRequest: &entities.TextToImageRequest{
-				Prompt:            q.currentImagine.Prompt,
-				NegativePrompt:    q.currentImagine.NegativePrompt,
-				Width:             initializedWidth,
-				Height:            initializedHeight,
-				RestoreFaces:      q.currentImagine.RestoreFaces,
-				EnableHr:          q.currentImagine.UseHiresFix,
-				HrScale:           between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
-				HrUpscaler:        "R-ESRGAN 2x+",
-				HrSecondPassSteps: q.currentImagine.HiresSteps,
-				HrResizeX:         initializedWidth,
-				HrResizeY:         initializedHeight,
-				DenoisingStrength: 0.7,
-				Seed:              q.currentImagine.Seed,
-				Subseed:           -1,
-				SubseedStrength:   0,
-				SamplerName:       q.currentImagine.SamplerName1,
-				CFGScale:          q.currentImagine.CfgScale,
-				Steps:             q.currentImagine.Steps,
-			},
-		}, error(nil)
-
-		newGeneration.Width, err = q.defaultWidth()
-		if err != nil {
-			log.Printf("Error getting default width: %v", err)
-		}
-
-		newGeneration.Height, err = q.defaultHeight()
-		if err != nil {
-			log.Printf("Error getting default height: %v", err)
-		}
-
-		// add optional parameter: Negative prompt
-		if q.currentImagine.NegativePrompt == "" {
-			newGeneration.NegativePrompt = defaultNegative
-		}
-
-		// add optional parameter: sampler
-		if q.currentImagine.SamplerName1 == "" {
-			newGeneration.SamplerName = "Euler a"
-		}
-
-		// extract key value pairs from prompt
-		var parameters map[string]string
-		parameters, newGeneration.Prompt = extractKeyValuePairsFromPrompt(newGeneration.Prompt)
-
-		defaultWidth := newGeneration.Width
-		defaultHeight := newGeneration.Height
-		if q.currentImagine.AspectRatio != "" && q.currentImagine.AspectRatio != "1:1" {
-			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(q.currentImagine.AspectRatio, defaultWidth, defaultHeight)
-		} else {
-			if aspectRatio, ok := parameters["ar"]; ok {
-				newGeneration.Width, newGeneration.Height = aspectRatioCalculation(aspectRatio, defaultWidth, defaultHeight)
-			}
-		}
-
-		// extract --zoom parameter
-		adjustedWidth := newGeneration.Width
-		adjustedHeight := newGeneration.Height
-		if newGeneration.EnableHr && newGeneration.HrScale > 1.0 {
-			newGeneration.HrResizeX = int(float64(adjustedWidth) * newGeneration.HrScale)
-			newGeneration.HrResizeY = int(float64(adjustedHeight) * newGeneration.HrScale)
-		} else {
-			newGeneration.EnableHr = false
-			newGeneration.HrResizeX = adjustedWidth
-			newGeneration.HrResizeY = adjustedHeight
-		}
-
-		if zoom, ok := parameters["zoom"]; ok {
-			zoomScale, err := strconv.ParseFloat(zoom, 64)
-			if err != nil {
-				log.Printf("Error extracting zoom scale from prompt: %v", err)
-			} else {
-				newGeneration.EnableHr = true
-				newGeneration.HrScale = between(zoomScale, 1.0, 2.0)
-				newGeneration.HrResizeX = int(float64(adjustedWidth) * newGeneration.HrScale)
-				newGeneration.HrResizeY = int(float64(adjustedHeight) * newGeneration.HrScale)
-			}
-		}
-
-		if step, ok := parameters["step"]; ok {
-			stepInt, err := strconv.Atoi(step)
-			if err != nil {
-				log.Printf("Error extracting step from prompt: %v", err)
-			} else {
-				newGeneration.Steps = stepInt
-			}
-		}
-
-		if cfgscale, ok := parameters["cfgscale"]; ok {
-			cfgScaleFloat, err := strconv.ParseFloat(cfgscale, 64)
-			if err != nil {
-				log.Printf("Error extracting cfg scale from prompt: %v", err)
-			} else {
-				newGeneration.CFGScale = cfgScaleFloat
-			}
-		}
-
-		if seed, ok := parameters["seed"]; ok {
-			seedInt, err := strconv.ParseInt(seed, 10, 64)
-			if err != nil {
-				log.Printf("Error extracting seed from prompt: %v", err)
-			} else {
-				newGeneration.Seed = seedInt
-			}
-		}
-
-		// prompt will display as Monospace in Discord
-		//var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
-		//promptRes.SanitizedPrompt = quotedPrompt
-
-		config, err := q.stableDiffusionAPI.GetConfig()
-		if err != nil {
-			log.Printf("Error getting config: %v", err)
-		} else {
-			if !ptrStringNotBlank(newGeneration.Checkpoint) {
-				newGeneration.Checkpoint = config.SDModelCheckpoint
-			}
-			if !ptrStringNotBlank(newGeneration.VAE) {
-				newGeneration.VAE = config.SDVae
-			}
-			if !ptrStringNotBlank(newGeneration.Hypernetwork) {
-				newGeneration.Hypernetwork = config.SDHypernetwork
-			}
-		}
-
-		// segModelOptions will never be nil and at least an empty string in the slice [""]
-		// because of strings.Split() in discord_bot.go
-
-		//additionalScript := make(map[string]*entities.ADetailer)
-		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
-
-		if q.currentImagine.ADetailerString != "" {
-			log.Printf("q.currentImagine.ADetailerString: %v", q.currentImagine.ADetailerString)
-
-			newGeneration.NewADetailer()
-
-			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(q.currentImagine.ADetailerString, newGeneration)
-		}
-
-		if newGeneration.AlwaysonScripts != nil {
-			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysonScripts, "", "  ")
-			if err != nil {
-				log.Printf("Error marshalling scripts: %v", err)
-			} else {
-				log.Println("Final scripts: ", string(jsonMarshalScripts))
-			}
-		}
-
-		// Should not create a new map here, because it will be overwritten by the map in newGeneration
-		// if newGeneration.AlwaysOnScripts == nil {
-		// 	newGeneration.AlwaysOnScripts = make(map[string]*entities.ADetailer)
-		// }
-
-		//if additionalScript["ADetailer"] != nil {
-		//	newGeneration.AlwaysOnScripts["ADetailer"] = additionalScript["ADetailer"]
-		//}
-
-		switch q.currentImagine.Type {
-		case ItemTypeReroll, ItemTypeVariation:
-			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
-			if err != nil {
-				log.Printf("Error getting prompt for reroll: %v", err)
-
-				return
-			}
-
-			// if we are rerolling, or generating variations, we simply replace some defaults
-			newGeneration = foundGeneration
-
-			// for variations, we need random subseeds
-			newGeneration.Subseed = -1
-
-			// for variations, the subseed strength determines how much variation we get
-			if q.currentImagine.Type == ItemTypeVariation {
-				newGeneration.SubseedStrength = 0.15
-			}
-		}
-
-		err = q.processImagineGrid(newGeneration, q.currentImagine)
-		if err != nil {
-			log.Printf("Error processing imagine grid: %v", err)
-
-			return
-		}
-	}()
-}
-
 func between[T cmp.Ordered](value, minimum, maximum T) T {
 	return min(max(minimum, value), maximum)
 }
@@ -962,312 +761,6 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 	return out.String()
 }
 
-func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGenerationRequest, imagine *QueueItem) error {
-	config, err := q.stableDiffusionAPI.GetConfig()
-	if err != nil {
-		log.Printf("Error getting config: %v", err)
-	} else {
-		if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
-			!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
-			!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
-			handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, imagine.DiscordInteraction,
-				fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
-					safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
-					safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
-					safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
-				))
-
-			// Insert code to update the configuration here
-			err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
-				stable_diffusion_api.CheckpointCache,
-				stable_diffusion_api.VAECache,
-				stable_diffusion_api.HypernetworkCache,
-			}))
-			if err != nil {
-				log.Printf("Error updating configuration: %v", err)
-			}
-		}
-	}
-
-	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
-
-	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
-
-	message, err := q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		Content:    &newContent,
-		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
-	})
-	if err != nil {
-		log.Printf("Error editing interaction: %v", err)
-		return err
-	}
-
-	defaultBatchCount, err := q.defaultBatchCount()
-	if err != nil {
-		log.Printf("Error getting default batch count: %v", err)
-
-		return err
-	}
-
-	defaultBatchSize, err := q.defaultBatchSize()
-	if err != nil {
-		log.Printf("Error getting default batch size: %v", err)
-
-		return err
-	}
-	newGeneration.InteractionID = imagine.DiscordInteraction.ID
-	newGeneration.MessageID = message.ID
-	newGeneration.MemberID = imagine.DiscordInteraction.Member.User.ID
-	newGeneration.SortOrder = 0
-	newGeneration.BatchCount = defaultBatchCount
-	newGeneration.BatchSize = defaultBatchSize
-	newGeneration.Processed = true
-
-	_, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
-	if err != nil {
-		log.Printf("Error creating image generation record: %v\n", err)
-	}
-
-	generationDone := make(chan bool)
-
-	go func() {
-		for {
-			select {
-			case <-generationDone:
-				return
-			case <-time.After(1 * time.Second):
-				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
-				if progressErr != nil {
-					log.Printf("Error getting current progress: %v", progressErr)
-
-					return
-				}
-
-				if progress.Progress == 0 {
-					continue
-				}
-
-				progressContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, progress.Progress)
-
-				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-					Content: &progressContent,
-				})
-				if progressErr != nil {
-					log.Printf("Error editing interaction: %v", err)
-				}
-			}
-		}
-	}()
-
-	resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
-
-	if err != nil {
-		log.Printf("Error processing image: %v\n", err)
-
-		errorContent := fmt.Sprint("I'm sorry, but I had a problem imagining your image. ", err)
-
-		//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		//	Content: &errorContent,
-		//})
-
-		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
-		//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
-
-		return err
-	}
-
-	generationDone <- true
-
-	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
-
-	log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
-
-	imageBufs := make([]*bytes.Buffer, len(resp.Images))
-
-	for idx, image := range resp.Images {
-		decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)
-		if decodeErr != nil {
-			log.Printf("Error decoding image: %v\n", decodeErr)
-		}
-
-		imageBuf := bytes.NewBuffer(decodedImage)
-
-		imageBufs[idx] = imageBuf
-	}
-
-	for idx := range resp.Seeds {
-		subGeneration := newGeneration
-		subGeneration.SortOrder = idx + 1
-		subGeneration.Seed = resp.Seeds[idx]
-		subGeneration.Subseed = int64(resp.Subseeds[idx])
-		subGeneration.Checkpoint = config.SDModelCheckpoint
-		subGeneration.VAE = config.SDVae
-		subGeneration.Hypernetwork = config.SDHypernetwork
-
-		_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
-		if createErr != nil {
-			log.Printf("Error creating image generation record: %v\n", createErr)
-		}
-	}
-
-	compositeImage, err := q.compositeRenderer.TileImages(imageBufs)
-	if err != nil {
-		log.Printf("Error tiling images: %v\n", err)
-
-		return err
-	}
-
-	// TODO: Add ephemeral follow up to delete message
-	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		Content: &finishedContent,
-		Files: []*discordgo.File{
-			{
-				ContentType: "image/png",
-				// append timestamp for grid image result
-				Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
-				Reader: compositeImage,
-			},
-		},
-		Components: &[]discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "1",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_variation_1",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "2",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_variation_2",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "3",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_variation_3",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "4",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_variation_4",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "Re-roll",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.PrimaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_reroll",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "🎲",
-						},
-					},
-				},
-			},
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "1",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_upscale_1",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "2",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_upscale_2",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "3",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_upscale_3",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "4",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_upscale_4",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
-					},
-					handlers.Components[handlers.DeleteGeneration].(discordgo.ActionsRow).Components[0],
-				},
-			},
-		},
-	})
-	if err != nil {
-		log.Printf("Error editing interaction: %v\n", err)
-
-		return err
-	}
-
-	//handlers.EphemeralFollowup(q.botSession, imagine.DiscordInteraction, "Delete generation", handlers.Components[handlers.DeleteAboveButton])
-
-	return nil
-}
-
 func (q *queueImplementation) switchModel(generation *entities.ImageGenerationRequest, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
 	for _, c := range c {
 		var toLoad *string
@@ -1346,221 +839,6 @@ func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress 
 	} else {
 		return fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
 			user.ID)
-	}
-}
-
-func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
-	interactionID := imagine.DiscordInteraction.ID
-	messageID := ""
-
-	if imagine.DiscordInteraction.Message != nil {
-		messageID = imagine.DiscordInteraction.Message.ID
-	}
-
-	log.Printf("Upscaling image: %v, Message: %v, Upscale Index: %d",
-		interactionID, messageID, imagine.InteractionIndex)
-
-	generation, err := q.imageGenerationRepo.GetByMessageAndSort(context.Background(), messageID, imagine.InteractionIndex)
-	if err != nil {
-		log.Printf("Error getting image generation: %v", err)
-
-		return
-	}
-
-	log.Printf("Found generation: %v", generation)
-
-	config, err := q.stableDiffusionAPI.GetConfig()
-	if err != nil {
-		log.Printf("Error getting config: %v", err)
-		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error getting config: %v", err))
-		return
-	}
-
-	log.Printf("Current checkpoint: %v", safeDereference(config.SDModelCheckpoint))
-	log.Printf("Generation checkpoint: %v", safeDereference(generation.Checkpoint))
-
-	if generation.Checkpoint != nil && !ptrStringCompare(config.SDModelCheckpoint, generation.Checkpoint) {
-		log.Printf("Changing checkpoint to: %v", *generation.Checkpoint)
-
-		updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", safeDereference(config.SDModelCheckpoint), safeDereference(generation.Checkpoint))
-
-		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-			Content: &updateModelMessage,
-		})
-		if err != nil {
-			log.Printf("Error editing interaction: %v", err)
-		}
-
-		err = q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(generation, config, []stable_diffusion_api.Cacheable{
-			stable_diffusion_api.CheckpointCache,
-			stable_diffusion_api.VAECache,
-			stable_diffusion_api.HypernetworkCache,
-		}))
-		if err != nil {
-			log.Printf("Error updating models: %v", err)
-			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error updating models: %v", err))
-
-			return
-		}
-	}
-
-	newContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, 0, 0)
-
-	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		Content: &newContent,
-	})
-	if err != nil {
-		log.Printf("Error editing interaction: %v", err)
-	}
-
-	generationDone := make(chan bool)
-
-	go func() {
-		lastProgress := float64(0)
-		fetchProgress := float64(0)
-		upscaleProgress := float64(0)
-		elapsedTime := 0
-
-		for {
-			select {
-			case <-generationDone:
-				return
-			case <-time.After(1 * time.Second):
-				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
-				if progressErr != nil {
-					log.Printf("Error getting current progress: %v", progressErr)
-					return
-				}
-				elapsedTime += 1
-
-				if elapsedTime > 60 {
-					msg := "Upscale timed out after 60 seconds"
-					log.Printf(msg)
-
-					_, _ = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-						Content: &msg,
-					})
-
-					return
-				}
-
-				if progress.Progress == 0 {
-					continue
-				}
-
-				if progress.Progress < lastProgress || upscaleProgress > 0 {
-					upscaleProgress = progress.Progress
-					fetchProgress = 1
-				} else {
-					fetchProgress = progress.Progress
-				}
-
-				lastProgress = progress.Progress
-
-				progressContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, fetchProgress, upscaleProgress)
-
-				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-					Content: &progressContent,
-				})
-				if progressErr != nil {
-					log.Printf("Error editing interaction: %v", err)
-				}
-			}
-		}
-	}()
-
-	//// Check if ADetailer is in the scripts and add it to the object generation with method by using AppendToArgs
-	//_, exist := generation.AlwaysOnScripts["ADetailer"]
-	//if !exist {
-	//	model := entities.ADetailerParameters{AdModel: "face_yolov8n.pt"}
-	//	generation.AlwaysOnScripts["ADetailer"] = &entities.ADetailer{}
-	//	generation.AlwaysOnScripts["ADetailer"].AppendSegModel(model)
-	//}
-
-	// Use face segm model if we're upscaling but there's no ADetailer models
-	if generation.AlwaysonScripts == nil {
-		generation.NewScripts()
-	}
-	if generation.AlwaysonScripts.ADetailer == nil {
-		generation.AlwaysonScripts.NewADetailerWithArgs()
-		generation.AlwaysonScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
-	}
-
-	t2iRequest := generation.TextToImageRequest
-	t2iRequest.BatchSize = 1
-	t2iRequest.NIter = 1
-
-	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
-		ResizeMode:         0,
-		UpscalingResize:    2,
-		Upscaler1:          "R-ESRGAN 2x+",
-		TextToImageRequest: t2iRequest,
-	})
-	if err != nil {
-		log.Printf("Error processing image upscale: %v\n", err)
-
-		errorContent := fmt.Sprint("I'm sorry, but I had a problem upscaling your image. ", err)
-
-		//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		//	Content: &errorContent,
-		//})
-
-		handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
-		//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
-
-		generationDone <- true
-		return
-	}
-
-	generationDone <- true
-
-	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
-	if decodeErr != nil {
-		log.Printf("Error decoding image: %v\n", decodeErr)
-
-		return
-	}
-
-	imageBuf := bytes.NewBuffer(decodedImage)
-
-	// save imageBuf to disk
-	//err = ioutil.WriteFile("upscaled.png", imageBuf.Bytes(), 0644)
-
-	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
-		interactionID, messageID, imagine.InteractionIndex)
-
-	var scriptsString string
-
-	if generation.AlwaysonScripts != nil {
-		scripts, err := json.Marshal(generation.AlwaysonScripts)
-		if err != nil {
-			log.Printf("Error marshalling scripts: %v", err)
-		} else {
-			scriptsString = string(scripts)
-		}
-	}
-
-	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",
-		imagine.DiscordInteraction.Member.User.ID,
-		generation.Seed,
-		scriptsString,
-	)
-
-	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		Content: &finishedContent,
-		Files: []*discordgo.File{
-			{
-				ContentType: "image/png",
-				// add timestamp to output file
-				Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
-				Reader: imageBuf,
-			},
-		},
-	})
-	if err != nil {
-		log.Printf("Error editing interaction: %v\n", err)
-
-		return
 	}
 }
 

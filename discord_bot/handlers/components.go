@@ -185,6 +185,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Emoji: discordgo.ComponentEmoji{
 					Name: "⚠️",
 				},
+				Disabled: true,
 			},
 		},
 	},

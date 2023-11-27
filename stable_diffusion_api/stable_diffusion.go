@@ -52,6 +52,13 @@ type TextToImageResponse struct {
 	Subseeds []int    `json:"subseeds"`
 }
 
+// Deprecated: Use the entities.ImageToImageResponse instead
+type ImageToImageResponse struct {
+	Images     []string          `json:"images,omitempty"`
+	Info       string            `json:"info"`
+	Parameters map[string]string `json:"parameters"`
+}
+
 type StableDiffusionModel struct {
 	Title     string `json:"title"`
 	ModelName string `json:"model_name"`
@@ -261,6 +268,31 @@ func (api *apiImplementation) TextToImageRequest(req *entities.TextToImageReques
 		Seeds:    infoStruct.AllSeeds,
 		Subseeds: infoStruct.AllSubseeds,
 	}, nil
+}
+
+func (api *apiImplementation) ImageToImageRequest(req *entities.ImageToImageRequest) (*entities.ImageToImageResponse, error) {
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
+	if req == nil {
+		return nil, errors.New("missing request")
+	}
+
+	jsonData, err := req.Marshal()
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := api.POST("/sdapi/v1/img2img", jsonData)
+	if err != nil {
+		log.Printf("Error with API POST: %s", string(jsonData))
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	bytes, _ := io.ReadAll(response.Body)
+
+	return entities.UnmarshalImageToImageResponse(bytes)
 }
 
 type UpscaleRequest struct {

@@ -42,6 +42,11 @@ type ImageGeneration struct {
 }
 
 type ImageGenerationRequest struct {
+	GenerationInfo
+	*TextToImageRequest
+}
+
+type GenerationInfo struct {
 	ID            int64     `json:"id"`
 	InteractionID string    `json:"interaction_id"`
 	MessageID     string    `json:"message_id"`
@@ -53,7 +58,6 @@ type ImageGenerationRequest struct {
 	VAE           *string   `json:"vae,omitempty"`
 	Hypernetwork  *string   `json:"hypernetwork,omitempty"`
 	CreatedAt     time.Time `json:"created_at"`
-	*TextToImageRequest
 }
 
 func NewGeneration() *ImageGeneration {

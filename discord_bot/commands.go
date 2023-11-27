@@ -42,6 +42,9 @@ const (
 	stepOption         CommandOption = "step"
 	seedOption         CommandOption = "seed"
 
+	img2imgOption   CommandOption = "img2img"
+	denoisingOption CommandOption = "denoising"
+
 	refreshLoraOption CommandOption = "refresh_lora"
 	refreshCheckpoint CommandOption = "refresh_checkpoint"
 	refreshVAEOption  CommandOption = "refresh_vae"
@@ -100,6 +103,8 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[vaeOption],
 		commandOptions[hypernetworkOption],
 		commandOptions[embeddingOption],
+		commandOptions[img2imgOption],
+		commandOptions[denoisingOption],
 	}
 
 	for i := 0; i < extraLoras; i++ {
@@ -338,6 +343,16 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionSubCommand,
 		Name:        strings.TrimPrefix(string(refreshAllOption), "refresh_"),
 		Description: "Refresh all models from the API.",
+	},
+	img2imgOption: {
+		Type:        discordgo.ApplicationCommandOptionAttachment,
+		Name:        string(img2imgOption),
+		Description: "Attach an image to use as input for img2img",
+	},
+	denoisingOption: {
+		Type:        discordgo.ApplicationCommandOptionNumber,
+		Name:        string(denoisingOption),
+		Description: "Denoising level for img2img. Default is 0.7",
 	},
 }
 

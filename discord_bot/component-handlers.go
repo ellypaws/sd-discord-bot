@@ -573,7 +573,7 @@ func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.Inte
 
 // check if the user using the interrupt button is the same user that started the generation
 func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if i.Member.User.ID != i.Message.Interaction.User.ID {
+	if i.Member == nil || i.Message.Interaction == nil || i.Member.User.ID != i.Message.Interaction.User.ID {
 		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "You can only interrupt your own generations")
 		return
 	}

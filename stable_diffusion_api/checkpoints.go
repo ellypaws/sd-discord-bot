@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net/http"
 )
 
 type SDModels []SDModel
@@ -65,7 +66,7 @@ func (c *SDModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
 	}
 	defer response.Body.Close()
 
-	if response.StatusCode != 200 {
+	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
 		log.Printf("API URL: %s", postURL)
 		log.Printf("Unexpected API response: %s", string(body))

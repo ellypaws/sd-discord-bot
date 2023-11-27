@@ -14,6 +14,7 @@ type StableDiffusionAPI interface {
 
 	TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) // Deprecated: use TextToImageRequest instead
 	TextToImageRequest(req *entities.TextToImageRequest) (*TextToImageResponse, error)
+	ImageToImageRequest(req *entities.ImageToImageRequest) (*entities.ImageToImageResponse, error)
 	UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error)
 	GetCurrentProgress() (*ProgressResponse, error)
 

@@ -2,6 +2,7 @@ package discord_bot
 
 import (
 	"fmt"
+	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"github.com/sahilm/fuzzy"
 	"log"
@@ -173,6 +174,42 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
+		if _, ok := optionMap[img2imgOption]; ok {
+			if i.ApplicationCommandData().Resolved == nil || i.ApplicationCommandData().Resolved.Attachments == nil {
+				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
+				return
+			}
+			queue.Type = imagine_queue.ItemTypeImg2Img
+			queue.Attachments = i.ApplicationCommandData().Resolved.Attachments
+
+			queue.Images = make(map[string]string, len(queue.Attachments))
+
+			for snowflake, attachment := range queue.Attachments {
+				log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
+				if !strings.HasPrefix(attachment.ContentType, "image") {
+					log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
+					delete(queue.Attachments, snowflake)
+				}
+
+				image, err := utils.GetImageBase64(attachment.URL)
+				if err != nil {
+					log.Printf("Error getting image from URL: %v", err)
+					handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
+					return
+				}
+
+				queue.Images[snowflake] = image
+			}
+			if len(queue.Attachments) == 0 {
+				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
+				return
+			}
+
+			if option, ok := optionMap[denoisingOption]; ok {
+				queue.DenoisingStrength = option.FloatValue()
+			}
+		}
+
 		var err error
 		position, err = b.imagineQueue.AddImagine(queue)
 		if err != nil {
@@ -180,7 +217,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
 		} else {
 			// TODO: Remove debug message
-			log.Printf("Added imagine %#v to queue. Position: %v\n", queue, position)
+			//log.Printf("Added imagine %#v to queue. Position: %v\n", queue, position)
 		}
 	}
 
