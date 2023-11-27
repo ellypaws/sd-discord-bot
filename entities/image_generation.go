@@ -7,7 +7,6 @@ import (
 )
 
 // Deprecated: use ImageGenerationRequest instead, it inherits from TextToImageRequest
-// TODO: rewrite all methods and code using this struct to use ImageGenerationRequest instead
 type ImageGeneration struct {
 	ID                int64     `json:"id"`
 	InteractionID     string    `json:"interaction_id"`
@@ -29,11 +28,11 @@ type ImageGeneration struct {
 	BatchCount        int       `json:"batch_count"`
 	BatchSize         int       `json:"batch_size"`
 	Seed              int64     `json:"seed"`
-	Subseed           int       `json:"subseed"`
+	Subseed           int64     `json:"subseed"`
 	SubseedStrength   float64   `json:"subseed_strength"`
 	SamplerName       string    `json:"sampler_name"`
 	CfgScale          float64   `json:"cfg_scale"`
-	Steps             int       `json:"steps"`
+	Steps             int64     `json:"steps"`
 	Processed         bool      `json:"processed"`
 	CreatedAt         time.Time `json:"created_at"`
 	AlwaysOnScripts   *Scripts  `json:"alwayson_scripts,omitempty"`

@@ -59,7 +59,7 @@ func (detailer *ADetailer) AppendSegModel(parameters ADetailerParameters) {
 	detailer.Args = append(detailer.Args, &parameters)
 }
 
-func (detailer *ADetailer) AppendSegModelByString(segmModelName string, genProperties *ImageGeneration) {
+func (detailer *ADetailer) AppendSegModelByString(segmModelName string, genProperties *ImageGenerationRequest) {
 	stringsToSlice := strings.Split(segmModelName, ",")
 	for _, eachModel := range stringsToSlice {
 		convertToParams := SegModelParameters(eachModel, genProperties) // SegModelParameters also sets the width and height
@@ -73,19 +73,19 @@ var segModelDimensions = map[string][]int{
 }
 
 // SetAdInpaintWidthAndHeight is a function that add width and height based on the segment model
-func (parameters *ADetailerParameters) SetAdInpaintWidthAndHeight(segModel string, genProperties *ImageGeneration) {
-	calculatedWidth := int(genProperties.HRUpscaleRate * float64(genProperties.Width))
-	calculatedHeight := int(genProperties.HRUpscaleRate * float64(genProperties.Height))
+func (parameters *ADetailerParameters) SetAdInpaintWidthAndHeight(segModel string, genProperties *ImageGenerationRequest) {
+	calculatedWidth := int(genProperties.HrScale * float64(genProperties.Width))
+	calculatedHeight := int(genProperties.HrScale * float64(genProperties.Height))
 
 	if defaultDimensions, exist := segModelDimensions[segModel]; exist {
-		parameters.AdInpaintWidth = max(defaultDimensions[0], genProperties.Width, genProperties.HiresWidth, calculatedWidth)
-		parameters.AdInpaintHeight = max(defaultDimensions[1], genProperties.Height, genProperties.HiresHeight, calculatedHeight)
+		parameters.AdInpaintWidth = max(defaultDimensions[0], int(genProperties.Width), genProperties.HrResizeX, calculatedWidth)
+		parameters.AdInpaintHeight = max(defaultDimensions[1], genProperties.Height, genProperties.HrResizeY, calculatedHeight)
 	}
 }
 
 // SegModelParameters creates an ADetailerParameters for a given segmentation model.
-// It uses information from an ImageGeneration instance to configure the parameters.
-func SegModelParameters(segModel string, genProperties *ImageGeneration) ADetailerParameters {
+// It uses information from an ImageGenerationRequest instance to configure the parameters.
+func SegModelParameters(segModel string, genProperties *ImageGenerationRequest) ADetailerParameters {
 	parameters := ADetailerParameters{AdModel: segModel}
 
 	parameters.SetAdInpaintWidthAndHeight(segModel, genProperties)
@@ -95,8 +95,8 @@ func SegModelParameters(segModel string, genProperties *ImageGeneration) ADetail
 		parameters.AdSampler = genProperties.SamplerName
 	}
 
-	if genProperties.CfgScale != 0 {
-		parameters.AdCfgScale = genProperties.CfgScale
+	if genProperties.CFGScale != 0 {
+		parameters.AdCfgScale = genProperties.CFGScale
 	}
 
 	return parameters

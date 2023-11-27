@@ -20,53 +20,53 @@ func (r *TextToImageRequest) Marshal() ([]byte, error) {
 
 type TextToImageRequest struct {
 	AlwaysonScripts                   *Scripts          `json:"alwayson_scripts,omitempty"`
-	BatchSize                         *int64            `json:"batch_size,omitempty"`
-	CFGScale                          *float64          `json:"cfg_scale,omitempty"`
+	BatchSize                         int               `json:"batch_size,omitempty"`
+	CFGScale                          float64           `json:"cfg_scale,omitempty"`
 	Comments                          map[string]string `json:"comments,omitempty"`
-	DenoisingStrength                 *float64          `json:"denoising_strength,omitempty"`
+	DenoisingStrength                 float64           `json:"denoising_strength,omitempty"`
 	DisableExtraNetworks              *bool             `json:"disable_extra_networks,omitempty"`
 	DoNotSaveGrid                     *bool             `json:"do_not_save_grid,omitempty"`
 	DoNotSaveSamples                  *bool             `json:"do_not_save_samples,omitempty"`
-	EnableHr                          *bool             `json:"enable_hr,omitempty"`
+	EnableHr                          bool              `json:"enable_hr,omitempty"`
 	Eta                               *float64          `json:"eta,omitempty"`
 	FirstphaseHeight                  *int64            `json:"firstphase_height,omitempty"`
 	FirstphaseWidth                   *int64            `json:"firstphase_width,omitempty"`
-	Height                            *int64            `json:"height,omitempty"`
+	Height                            int               `json:"height,omitempty"`
 	HrCheckpointName                  *string           `json:"hr_checkpoint_name,omitempty"`
 	HrNegativePrompt                  *string           `json:"hr_negative_prompt,omitempty"`
 	HrPrompt                          *string           `json:"hr_prompt,omitempty"`
-	HrResizeX                         *int64            `json:"hr_resize_x,omitempty"`
-	HrResizeY                         *int64            `json:"hr_resize_y,omitempty"`
+	HrResizeX                         int               `json:"hr_resize_x,omitempty"` // Hires width
+	HrResizeY                         int               `json:"hr_resize_y,omitempty"` // Hires height
 	HrSamplerName                     *string           `json:"hr_sampler_name,omitempty"`
-	HrScale                           *float64          `json:"hr_scale,omitempty"`
-	HrSecondPassSteps                 *int64            `json:"hr_second_pass_steps,omitempty"`
-	HrUpscaler                        *string           `json:"hr_upscaler,omitempty"`
-	NIter                             *int64            `json:"n_iter,omitempty"`
-	NegativePrompt                    *string           `json:"negative_prompt,omitempty"`
+	HrScale                           float64           `json:"hr_scale,omitempty"`
+	HrSecondPassSteps                 int64             `json:"hr_second_pass_steps,omitempty"`
+	HrUpscaler                        string            `json:"hr_upscaler,omitempty"`
+	NIter                             int               `json:"n_iter,omitempty"` // Batch count
+	NegativePrompt                    string            `json:"negative_prompt,omitempty"`
 	OverrideSettings                  map[string]string `json:"override_settings,omitempty"`
 	OverrideSettingsRestoreAfterwards *bool             `json:"override_settings_restore_afterwards,omitempty"`
-	Prompt                            *string           `json:"prompt,omitempty"`
+	Prompt                            string            `json:"prompt,omitempty"`
 	RefinerCheckpoint                 *string           `json:"refiner_checkpoint,omitempty"`
 	RefinerSwitchAt                   *float64          `json:"refiner_switch_at,omitempty"`
-	RestoreFaces                      *bool             `json:"restore_faces,omitempty"`
+	RestoreFaces                      bool              `json:"restore_faces,omitempty"`
 	SChurn                            *float64          `json:"s_churn,omitempty"`
 	SMinUncond                        *float64          `json:"s_min_uncond,omitempty"`
 	SNoise                            *float64          `json:"s_noise,omitempty"`
 	STmax                             *float64          `json:"s_tmax,omitempty"`
 	STmin                             *float64          `json:"s_tmin,omitempty"`
 	SamplerIndex                      *string           `json:"sampler_index,omitempty"`
-	SamplerName                       *string           `json:"sampler_name,omitempty"`
+	SamplerName                       string            `json:"sampler_name,omitempty"`
 	SaveImages                        *bool             `json:"save_images,omitempty"`
 	ScriptArgs                        []string          `json:"script_args,omitempty"`
 	ScriptName                        *string           `json:"script_name,omitempty"`
-	Seed                              *int64            `json:"seed,omitempty"`
+	Seed                              int64             `json:"seed,omitempty"`
 	SeedResizeFromH                   *int64            `json:"seed_resize_from_h,omitempty"`
 	SeedResizeFromW                   *int64            `json:"seed_resize_from_w,omitempty"`
 	SendImages                        *bool             `json:"send_images,omitempty"`
-	Steps                             *int64            `json:"steps,omitempty"`
+	Steps                             int               `json:"steps,omitempty"`
 	Styles                            []string          `json:"styles,omitempty"`
-	Subseed                           *int64            `json:"subseed,omitempty"`
-	SubseedStrength                   *float64          `json:"subseed_strength,omitempty"`
+	Subseed                           int64             `json:"subseed,omitempty"`
+	SubseedStrength                   float64           `json:"subseed_strength,omitempty"`
 	Tiling                            *bool             `json:"tiling,omitempty"`
-	Width                             *int64            `json:"width,omitempty"`
+	Width                             int               `json:"width,omitempty"`
 }

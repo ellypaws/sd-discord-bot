@@ -77,7 +77,7 @@ type TextToImageRequest struct {
 	DenoisingStrength float64           `json:"denoising_strength"`
 	BatchSize         int               `json:"batch_size"`
 	Seed              int64             `json:"seed"`
-	Subseed           int               `json:"subseed"`
+	Subseed           int64             `json:"subseed"`
 	SubseedStrength   float64           `json:"subseed_strength"`
 	SamplerName       string            `json:"sampler_name"`
 	CfgScale          float64           `json:"cfg_scale"`
@@ -257,10 +257,10 @@ func (api *apiImplementation) TextToImageRequest(req *entities.TextToImageReques
 }
 
 type UpscaleRequest struct {
-	ResizeMode         int                 `json:"resize_mode"`
-	UpscalingResize    int                 `json:"upscaling_resize"`
-	Upscaler1          string              `json:"upscaler_1"`
-	TextToImageRequest *TextToImageRequest `json:"text_to_image_request"`
+	ResizeMode         int                          `json:"resize_mode"`
+	UpscalingResize    int                          `json:"upscaling_resize"`
+	Upscaler1          string                       `json:"upscaler_1"`
+	TextToImageRequest *entities.TextToImageRequest `json:"text_to_image_request"`
 }
 
 type upscaleJSONRequest struct {
@@ -287,7 +287,7 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 	textToImageReq.NIter = 1
 
-	regeneratedImage, err := api.TextToImage(textToImageReq)
+	regeneratedImage, err := api.TextToImageRequest(textToImageReq)
 	if err != nil {
 		return nil, err
 	}

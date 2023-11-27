@@ -6,7 +6,7 @@ import (
 )
 
 type Repository interface {
-	Create(ctx context.Context, generation *entities.ImageGeneration) (*entities.ImageGeneration, error)
-	GetByMessage(ctx context.Context, messageID string) (*entities.ImageGeneration, error)
-	GetByMessageAndSort(ctx context.Context, messageID string, sortOrder int) (*entities.ImageGeneration, error)
+	Create(ctx context.Context, generation *entities.ImageGenerationRequest) (*entities.ImageGenerationRequest, error)
+	GetByMessage(ctx context.Context, messageID string) (*entities.ImageGenerationRequest, error)
+	GetByMessageAndSort(ctx context.Context, messageID string, sortOrder int) (*entities.ImageGenerationRequest, error)
 }

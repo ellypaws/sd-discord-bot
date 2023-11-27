@@ -62,10 +62,10 @@ func NewRepository(cfg *Config) (Repository, error) {
 	return newRepo, nil
 }
 
-func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGeneration) (*entities.ImageGeneration, error) {
+func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGenerationRequest) (*entities.ImageGenerationRequest, error) {
 	generation.CreatedAt = repo.clock.Now()
 
-	marshalAlwaysonScripts, err := json.Marshal(generation.AlwaysOnScripts)
+	marshalAlwaysonScripts, err := json.Marshal(generation.AlwaysonScripts)
 	if err != nil {
 		marshalAlwaysonScripts = []byte("{}")
 	}
@@ -73,9 +73,9 @@ func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGe
 	res, err := repo.dbConn.ExecContext(ctx, insertGenerationQuery,
 		generation.InteractionID, generation.MessageID, generation.MemberID, generation.SortOrder, generation.Prompt,
 		generation.NegativePrompt, generation.Width, generation.Height, generation.RestoreFaces,
-		generation.EnableHR, generation.HRUpscaleRate, generation.HRUpscaler, generation.HiresWidth, generation.HiresHeight, generation.DenoisingStrength,
+		generation.EnableHr, generation.HrScale, generation.HrUpscaler, generation.HrResizeX, generation.HrResizeY, generation.DenoisingStrength,
 		generation.BatchCount, generation.BatchSize, generation.Seed, generation.Subseed,
-		generation.SubseedStrength, generation.SamplerName, generation.CfgScale, generation.Steps, generation.Processed, generation.CreatedAt,
+		generation.SubseedStrength, generation.SamplerName, generation.CFGScale, generation.Steps, generation.Processed, generation.CreatedAt,
 		marshalAlwaysonScriptstoString,
 		generation.Checkpoint, generation.VAE, generation.Hypernetwork,
 	)
@@ -93,16 +93,16 @@ func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGe
 	return generation, nil
 }
 
-func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*entities.ImageGeneration, error) {
-	var generation entities.ImageGeneration
+func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*entities.ImageGenerationRequest, error) {
+	var generation = entities.ImageGenerationRequest{TextToImageRequest: &entities.TextToImageRequest{}}
 	var alwaysonScriptsString string
 
 	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageID, messageID).Scan(
 		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
 		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
-		&generation.EnableHR, &generation.HRUpscaleRate, &generation.HRUpscaler, &generation.HiresWidth, &generation.HiresHeight, &generation.DenoisingStrength,
+		&generation.EnableHr, &generation.HrScale, &generation.HrUpscaler, &generation.HrResizeX, &generation.HrResizeY, &generation.DenoisingStrength,
 		&generation.BatchCount, &generation.BatchSize, &generation.Seed, &generation.Subseed,
-		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
+		&generation.SubseedStrength, &generation.SamplerName, &generation.CFGScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
 		&alwaysonScriptsString,
 		&generation.Checkpoint, &generation.VAE, &generation.Hypernetwork,
 	)
@@ -111,7 +111,7 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 	}
 
 	generation.NewADetailer()
-	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysOnScripts)
+	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
 	if err != nil {
 		return nil, err
 	}
@@ -119,16 +119,16 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 	return &generation, nil
 }
 
-func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID string, sortOrder int) (*entities.ImageGeneration, error) {
-	var generation entities.ImageGeneration
+func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID string, sortOrder int) (*entities.ImageGenerationRequest, error) {
+	var generation = entities.ImageGenerationRequest{TextToImageRequest: &entities.TextToImageRequest{}}
 	var alwaysonScriptsString string
 
 	err := repo.dbConn.QueryRowContext(ctx, getGenerationByMessageIDAndSortOrder, messageID, sortOrder).Scan(
 		&generation.ID, &generation.InteractionID, &generation.MessageID, &generation.MemberID, &generation.SortOrder, &generation.Prompt,
 		&generation.NegativePrompt, &generation.Width, &generation.Height, &generation.RestoreFaces,
-		&generation.EnableHR, &generation.HRUpscaleRate, &generation.HRUpscaler, &generation.HiresWidth, &generation.HiresHeight, &generation.DenoisingStrength,
+		&generation.EnableHr, &generation.HrScale, &generation.HrUpscaler, &generation.HrResizeX, &generation.HrResizeY, &generation.DenoisingStrength,
 		&generation.BatchCount, &generation.BatchSize, &generation.Seed, &generation.Subseed,
-		&generation.SubseedStrength, &generation.SamplerName, &generation.CfgScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
+		&generation.SubseedStrength, &generation.SamplerName, &generation.CFGScale, &generation.Steps, &generation.Processed, &generation.CreatedAt,
 		&alwaysonScriptsString,
 		&generation.Checkpoint, &generation.VAE, &generation.Hypernetwork,
 	)
@@ -138,7 +138,7 @@ func (repo *sqliteRepo) GetByMessageAndSort(ctx context.Context, messageID strin
 	}
 
 	// generation.NewADetailer()
-	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysOnScripts)
+	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.AlwaysonScripts)
 	if err != nil {
 		return nil, err
 	}

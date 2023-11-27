@@ -669,29 +669,31 @@ func (q *queueImplementation) processCurrentImagine() {
 			return
 		}
 
-		newGeneration, err := &entities.ImageGeneration{
-			Prompt:            q.currentImagine.Prompt,
-			NegativePrompt:    q.currentImagine.NegativePrompt,
-			Width:             initializedWidth,
-			Height:            initializedHeight,
-			RestoreFaces:      q.currentImagine.RestoreFaces,
-			EnableHR:          q.currentImagine.UseHiresFix,
-			HRUpscaleRate:     between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
-			HRUpscaler:        "R-ESRGAN 2x+",
-			HiresSteps:        q.currentImagine.HiresSteps,
-			HiresWidth:        initializedWidth,
-			HiresHeight:       initializedHeight,
-			DenoisingStrength: 0.7,
-			Seed:              q.currentImagine.Seed,
-			Subseed:           -1,
-			SubseedStrength:   0,
-			SamplerName:       q.currentImagine.SamplerName1,
-			CfgScale:          q.currentImagine.CfgScale,
-			Steps:             q.currentImagine.Steps,
-			Processed:         false,
-			Checkpoint:        q.currentImagine.Checkpoint,
-			VAE:               q.currentImagine.VAE,
-			Hypernetwork:      q.currentImagine.Hypernetwork,
+		newGeneration, err := &entities.ImageGenerationRequest{
+			Processed:    false,
+			Checkpoint:   q.currentImagine.Checkpoint,
+			VAE:          q.currentImagine.VAE,
+			Hypernetwork: q.currentImagine.Hypernetwork,
+			TextToImageRequest: &entities.TextToImageRequest{
+				Prompt:            q.currentImagine.Prompt,
+				NegativePrompt:    q.currentImagine.NegativePrompt,
+				Width:             initializedWidth,
+				Height:            initializedHeight,
+				RestoreFaces:      q.currentImagine.RestoreFaces,
+				EnableHr:          q.currentImagine.UseHiresFix,
+				HrScale:           between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
+				HrUpscaler:        "R-ESRGAN 2x+",
+				HrSecondPassSteps: q.currentImagine.HiresSteps,
+				HrResizeX:         initializedWidth,
+				HrResizeY:         initializedHeight,
+				DenoisingStrength: 0.7,
+				Seed:              q.currentImagine.Seed,
+				Subseed:           -1,
+				SubseedStrength:   0,
+				SamplerName:       q.currentImagine.SamplerName1,
+				CFGScale:          q.currentImagine.CfgScale,
+				Steps:             q.currentImagine.Steps,
+			},
 		}, error(nil)
 
 		newGeneration.Width, err = q.defaultWidth()
@@ -731,13 +733,13 @@ func (q *queueImplementation) processCurrentImagine() {
 		// extract --zoom parameter
 		adjustedWidth := newGeneration.Width
 		adjustedHeight := newGeneration.Height
-		if newGeneration.EnableHR && newGeneration.HRUpscaleRate > 1.0 {
-			newGeneration.HiresWidth = int(float64(adjustedWidth) * newGeneration.HRUpscaleRate)
-			newGeneration.HiresHeight = int(float64(adjustedHeight) * newGeneration.HRUpscaleRate)
+		if newGeneration.EnableHr && newGeneration.HrScale > 1.0 {
+			newGeneration.HrResizeX = int(float64(adjustedWidth) * newGeneration.HrScale)
+			newGeneration.HrResizeY = int(float64(adjustedHeight) * newGeneration.HrScale)
 		} else {
-			newGeneration.EnableHR = false
-			newGeneration.HiresWidth = adjustedWidth
-			newGeneration.HiresHeight = adjustedHeight
+			newGeneration.EnableHr = false
+			newGeneration.HrResizeX = adjustedWidth
+			newGeneration.HrResizeY = adjustedHeight
 		}
 
 		if zoom, ok := parameters["zoom"]; ok {
@@ -745,10 +747,10 @@ func (q *queueImplementation) processCurrentImagine() {
 			if err != nil {
 				log.Printf("Error extracting zoom scale from prompt: %v", err)
 			} else {
-				newGeneration.EnableHR = true
-				newGeneration.HRUpscaleRate = between(zoomScale, 1.0, 2.0)
-				newGeneration.HiresWidth = int(float64(adjustedWidth) * newGeneration.HRUpscaleRate)
-				newGeneration.HiresHeight = int(float64(adjustedHeight) * newGeneration.HRUpscaleRate)
+				newGeneration.EnableHr = true
+				newGeneration.HrScale = between(zoomScale, 1.0, 2.0)
+				newGeneration.HrResizeX = int(float64(adjustedWidth) * newGeneration.HrScale)
+				newGeneration.HrResizeY = int(float64(adjustedHeight) * newGeneration.HrScale)
 			}
 		}
 
@@ -766,7 +768,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			if err != nil {
 				log.Printf("Error extracting cfg scale from prompt: %v", err)
 			} else {
-				newGeneration.CfgScale = cfgScaleFloat
+				newGeneration.CFGScale = cfgScaleFloat
 			}
 		}
 
@@ -809,11 +811,11 @@ func (q *queueImplementation) processCurrentImagine() {
 
 			newGeneration.NewADetailer()
 
-			newGeneration.AlwaysOnScripts.ADetailer.AppendSegModelByString(q.currentImagine.ADetailerString, newGeneration)
+			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(q.currentImagine.ADetailerString, newGeneration)
 		}
 
-		if newGeneration.AlwaysOnScripts != nil {
-			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysOnScripts, "", "  ")
+		if newGeneration.AlwaysonScripts != nil {
+			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysonScripts, "", "  ")
 			if err != nil {
 				log.Printf("Error marshalling scripts: %v", err)
 			} else {
@@ -864,7 +866,12 @@ func between[T cmp.Ordered](value, minimum, maximum T) T {
 	return min(max(minimum, value), maximum)
 }
 
-func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*entities.ImageGeneration, error) {
+func betweenPtr[T cmp.Ordered](value, minimum, maximum T) *T {
+	out := min(max(minimum, value), maximum)
+	return &out
+}
+
+func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*entities.ImageGenerationRequest, error) {
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
@@ -886,13 +893,13 @@ func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrde
 	return generation, nil
 }
 
-func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo.User, progress float64) string {
+func imagineMessageContent(generation *entities.ImageGenerationRequest, user *discordgo.User, progress float64) string {
 	var out = strings.Builder{}
 
 	var scriptsString string
 
-	if generation.AlwaysOnScripts != nil && generation.AlwaysOnScripts.ADetailer != nil {
-		scripts, err := json.Marshal(generation.AlwaysOnScripts)
+	if generation.AlwaysonScripts != nil && generation.AlwaysonScripts.ADetailer != nil {
+		scripts, err := json.Marshal(generation.AlwaysonScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
 			return fmt.Sprintf("Error marshalling scripts: %v", err)
@@ -909,19 +916,19 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 	out.WriteString(fmt.Sprintf("<@%s> asked me to imagine with step: `%d` cfg: `%s` seed: `%s` sampler: `%s`",
 		user.ID,
 		generation.Steps,
-		strconv.FormatFloat(generation.CfgScale, 'f', 1, 64),
+		strconv.FormatFloat(generation.CFGScale, 'f', 1, 64),
 		seedString,
 		generation.SamplerName,
 	))
 
 	out.WriteString(fmt.Sprintf(" `%d x %d`", generation.Width, generation.Height))
 
-	if generation.EnableHR == true {
+	if generation.EnableHr == true {
 		// " -> (x %x) = %d x %d"
 		out.WriteString(fmt.Sprintf(" -> (x `%s` by hires.fix) = `%d x %d`",
-			strconv.FormatFloat(generation.HRUpscaleRate, 'f', 1, 64),
-			generation.HiresWidth,
-			generation.HiresHeight),
+			strconv.FormatFloat(generation.HrScale, 'f', 1, 64),
+			generation.HrResizeX,
+			generation.HrResizeY),
 		)
 	}
 
@@ -955,7 +962,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 	return out.String()
 }
 
-func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
+func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGenerationRequest, imagine *QueueItem) error {
 	config, err := q.stableDiffusionAPI.GetConfig()
 	if err != nil {
 		log.Printf("Error getting config: %v", err)
@@ -1052,45 +1059,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 	}()
 
-	intTo64 := func(i *int) *int64 {
-		if i == nil {
-			return nil
-		}
-		i64 := int64(*i)
-		return &i64
-	}
-
-	floatTo64 := func(f *float64) *float64 {
-		if f == nil {
-			return nil
-		}
-		f64 := float64(*f)
-		return &f64
-	}
-
-	resp, err := q.stableDiffusionAPI.TextToImageRequest(&entities.TextToImageRequest{
-		Prompt:            &newGeneration.Prompt,
-		NegativePrompt:    &newGeneration.NegativePrompt,
-		Width:             intTo64(&newGeneration.Width),
-		Height:            intTo64(&newGeneration.Height),
-		RestoreFaces:      &newGeneration.RestoreFaces,
-		EnableHr:          &newGeneration.EnableHR,
-		HrScale:           floatTo64(&newGeneration.HRUpscaleRate),
-		HrUpscaler:        &newGeneration.HRUpscaler,
-		HrSecondPassSteps: &newGeneration.HiresSteps,
-		HrResizeX:         intTo64(&newGeneration.HiresWidth),
-		HrResizeY:         intTo64(&newGeneration.HiresHeight),
-		DenoisingStrength: &newGeneration.DenoisingStrength,
-		BatchSize:         intTo64(&newGeneration.BatchSize),
-		Seed:              &newGeneration.Seed,
-		Subseed:           intTo64(&newGeneration.Subseed),
-		SubseedStrength:   &newGeneration.SubseedStrength,
-		SamplerName:       &newGeneration.SamplerName,
-		CFGScale:          &newGeneration.CfgScale,
-		Steps:             intTo64(&newGeneration.Steps),
-		NIter:             intTo64(&newGeneration.BatchCount),
-		AlwaysonScripts:   newGeneration.AlwaysOnScripts,
-	})
+	resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
 
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
@@ -1127,36 +1096,13 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	}
 
 	for idx := range resp.Seeds {
-		subGeneration := &entities.ImageGeneration{
-			InteractionID:     newGeneration.InteractionID,
-			MessageID:         newGeneration.MessageID,
-			MemberID:          newGeneration.MemberID,
-			SortOrder:         idx + 1,
-			Prompt:            newGeneration.Prompt,
-			NegativePrompt:    newGeneration.NegativePrompt,
-			Width:             newGeneration.Width,
-			Height:            newGeneration.Height,
-			RestoreFaces:      newGeneration.RestoreFaces,
-			EnableHR:          newGeneration.EnableHR,
-			HRUpscaleRate:     newGeneration.HRUpscaleRate,
-			HRUpscaler:        newGeneration.HRUpscaler,
-			HiresWidth:        newGeneration.HiresWidth,
-			HiresHeight:       newGeneration.HiresHeight,
-			DenoisingStrength: newGeneration.DenoisingStrength,
-			BatchCount:        newGeneration.BatchCount,
-			BatchSize:         newGeneration.BatchSize,
-			Seed:              resp.Seeds[idx],
-			Subseed:           resp.Subseeds[idx],
-			SubseedStrength:   newGeneration.SubseedStrength,
-			SamplerName:       newGeneration.SamplerName,
-			CfgScale:          newGeneration.CfgScale,
-			Steps:             newGeneration.Steps,
-			Processed:         true,
-			Checkpoint:        config.SDModelCheckpoint,
-			VAE:               config.SDVae,
-			Hypernetwork:      config.SDHypernetwork,
-			AlwaysOnScripts:   newGeneration.AlwaysOnScripts,
-		}
+		subGeneration := newGeneration
+		subGeneration.SortOrder = idx + 1
+		subGeneration.Seed = resp.Seeds[idx]
+		subGeneration.Subseed = int64(resp.Subseeds[idx])
+		subGeneration.Checkpoint = config.SDModelCheckpoint
+		subGeneration.VAE = config.SDVae
+		subGeneration.Hypernetwork = config.SDHypernetwork
 
 		_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
 		if createErr != nil {
@@ -1322,7 +1268,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	return nil
 }
 
-func (q *queueImplementation) switchModel(generation *entities.ImageGeneration, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
+func (q *queueImplementation) switchModel(generation *entities.ImageGenerationRequest, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
 	for _, c := range c {
 		var toLoad *string
 		var loadedModel *string
@@ -1532,40 +1478,23 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 	//}
 
 	// Use face segm model if we're upscaling but there's no ADetailer models
-	if generation.AlwaysOnScripts == nil {
+	if generation.AlwaysonScripts == nil {
 		generation.NewScripts()
 	}
-	if generation.AlwaysOnScripts.ADetailer == nil {
-		generation.AlwaysOnScripts.NewADetailerWithArgs()
-		generation.AlwaysOnScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
+	if generation.AlwaysonScripts.ADetailer == nil {
+		generation.AlwaysonScripts.NewADetailerWithArgs()
+		generation.AlwaysonScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
 	}
 
+	t2iRequest := generation.TextToImageRequest
+	t2iRequest.BatchSize = 1
+	t2iRequest.NIter = 1
+
 	resp, err := q.stableDiffusionAPI.UpscaleImage(&stable_diffusion_api.UpscaleRequest{
-		ResizeMode:      0,
-		UpscalingResize: 2,
-		Upscaler1:       "R-ESRGAN 2x+",
-		TextToImageRequest: &stable_diffusion_api.TextToImageRequest{
-			Prompt:            generation.Prompt,
-			NegativePrompt:    generation.NegativePrompt,
-			Width:             generation.Width,
-			Height:            generation.Height,
-			RestoreFaces:      generation.RestoreFaces,
-			EnableHR:          generation.EnableHR,
-			HRUpscaleRate:     generation.HRUpscaleRate,
-			HRUpscaler:        generation.HRUpscaler,
-			HRResizeX:         generation.HiresWidth,
-			HRResizeY:         generation.HiresHeight,
-			DenoisingStrength: generation.DenoisingStrength,
-			BatchSize:         1,
-			Seed:              generation.Seed,
-			Subseed:           generation.Subseed,
-			SubseedStrength:   generation.SubseedStrength,
-			SamplerName:       generation.SamplerName,
-			CfgScale:          generation.CfgScale,
-			Steps:             generation.Steps,
-			NIter:             1,
-			AlwaysOnScripts:   generation.AlwaysOnScripts,
-		},
+		ResizeMode:         0,
+		UpscalingResize:    2,
+		Upscaler1:          "R-ESRGAN 2x+",
+		TextToImageRequest: t2iRequest,
 	})
 	if err != nil {
 		log.Printf("Error processing image upscale: %v\n", err)
@@ -1602,8 +1531,8 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 	var scriptsString string
 
-	if generation.AlwaysOnScripts != nil {
-		scripts, err := json.Marshal(generation.AlwaysOnScripts)
+	if generation.AlwaysonScripts != nil {
+		scripts, err := json.Marshal(generation.AlwaysonScripts)
 		if err != nil {
 			log.Printf("Error marshalling scripts: %v", err)
 		} else {
