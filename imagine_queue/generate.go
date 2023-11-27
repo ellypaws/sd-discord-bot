@@ -49,7 +49,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	var files []*discordgo.File
 	var embeds []*discordgo.MessageEmbed
 	for snowflake, attachment := range imagine.Attachments {
-		imageReader, err := utils.GetImageReaderByBase64(imagine.Images[snowflake])
+		imageReader, err := utils.GetImageReaderByBase64(imagine.Attachments[snowflake].Image)
 		if err != nil {
 			log.Printf("Error getting image reader: %v", err)
 			continue

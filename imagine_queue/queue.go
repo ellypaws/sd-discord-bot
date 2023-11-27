@@ -109,8 +109,7 @@ type QueueItem struct {
 	DiscordInteraction *discordgo.Interaction
 	RestoreFaces       bool
 	ADetailerString    string // use AppendSegModelByString
-	Attachments        map[string]*discordgo.MessageAttachment
-	Images             map[string]string
+	Attachments        map[string]*entities.MessageAttachment
 	DenoisingStrength  float64
 	Checkpoint         *string
 	VAE                *string

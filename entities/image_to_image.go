@@ -6,7 +6,15 @@
 
 package entities
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/bwmarrin/discordgo"
+)
+
+type MessageAttachment struct {
+	discordgo.MessageAttachment
+	Image string `json:"image"`
+}
 
 func UnmarshalImageToImageRequest(data []byte) (ImageToImageRequest, error) {
 	var r ImageToImageRequest

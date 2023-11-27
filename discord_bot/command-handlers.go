@@ -8,6 +8,7 @@ import (
 	"log"
 	"regexp"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
@@ -180,11 +181,14 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				return
 			}
 			queue.Type = imagine_queue.ItemTypeImg2Img
-			queue.Attachments = i.ApplicationCommandData().Resolved.Attachments
+			attachments := i.ApplicationCommandData().Resolved.Attachments
 
-			queue.Images = make(map[string]string, len(queue.Attachments))
+			queue.Attachments = make(map[string]*entities.MessageAttachment, len(attachments))
 
-			for snowflake, attachment := range queue.Attachments {
+			for snowflake, attachment := range attachments {
+				queue.Attachments[snowflake] = &entities.MessageAttachment{
+					MessageAttachment: *attachment,
+				}
 				log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
 				if !strings.HasPrefix(attachment.ContentType, "image") {
 					log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
@@ -197,8 +201,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 					handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
 					return
 				}
-
-				queue.Images[snowflake] = image
+				queue.Attachments[snowflake].Image = image
 			}
 			if len(queue.Attachments) == 0 {
 				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")

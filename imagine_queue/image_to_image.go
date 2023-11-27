@@ -12,6 +12,7 @@ import (
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"strings"
 	"time"
 )
 
@@ -76,8 +77,8 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		return a
 	}
 
-	for snowflake := range q.currentImagine.Attachments {
-		width, height, err := utils.GetImageSizeFromBase64(q.currentImagine.Images[snowflake])
+	for _, attachment := range q.currentImagine.Attachments {
+		width, height, err := utils.GetImageSizeFromBase64(attachment.Image)
 		if err != nil {
 			handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
 			return err, true
@@ -89,7 +90,7 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 		*img2img.Width, *img2img.Height = aspectRatioCalculation(aspectRatio, initializedWidth, initializedHeight)
 
-		img2img.InitImages = append(img2img.InitImages, q.currentImagine.Images[snowflake])
+		img2img.InitImages = append(img2img.InitImages, attachment.Image)
 	}
 
 	marshal, err := img2img.Marshal()
@@ -153,16 +154,44 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
 
+	message, err := q.botSession.InteractionResponse(q.currentImagine.DiscordInteraction)
+
+	var files []*discordgo.File
+
+	for snowflake, attachment := range imagine.Attachments {
+		imageReader, err := utils.GetImageReaderByBase64(imagine.Attachments[snowflake].Image)
+		if err != nil {
+			log.Printf("Error getting image reader: %v", err)
+			continue
+		}
+		if strings.Contains(attachment.ContentType, "image") {
+			files = append(files, &discordgo.File{
+				ContentType: attachment.ContentType,
+				Name:        attachment.Filename,
+				Reader:      imageReader,
+			})
+			message.Embeds[0].Thumbnail = &discordgo.MessageEmbedThumbnail{
+				URL: fmt.Sprintf("attachment://%v", attachment.Filename),
+			}
+		} else {
+			log.Printf("Attachment is not an image: %#v", attachment)
+		}
+	}
+
+	files = append(files, &discordgo.File{
+		ContentType: "image/png",
+		// append timestamp for grid image result
+		Name:   fmt.Sprintf("imagine_%v.png", time.Now().Format("20060102150405")),
+		Reader: compositeImage,
+	})
+	message.Embeds[0].Image = &discordgo.MessageEmbedImage{
+		URL: fmt.Sprintf("attachment://%v", files[len(files)-1].Name),
+	}
+
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
-		Files: []*discordgo.File{
-			{
-				ContentType: "image/png",
-				// append timestamp for grid image result
-				Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
-				Reader: compositeImage,
-			},
-		},
+		Files:   files,
+		Embeds:  &message.Embeds,
 		Components: &[]discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
@@ -202,7 +231,7 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 						// Style provides coloring of the button. There are not so many styles tho.
 						Style: discordgo.SecondaryButton,
 						// Disabled allows bot to disable some buttons for users.
-						Disabled: false,
+						Disabled: true,
 						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_upscale_1",
 						Emoji: discordgo.ComponentEmoji{
