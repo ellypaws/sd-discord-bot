@@ -19,6 +19,7 @@ var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *disc
 	},
 	imagineCommand:         (*botImpl).processImagineCommand,
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
+	refreshCommand:         (*botImpl).processRefreshCommand,
 }
 
 var autocompleteHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -428,4 +429,46 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 	//if err != nil {
 	//	log.Printf("Error responding to interaction: %v", err)
 	//}
+}
+
+func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+
+	var errors []error
+	var content = strings.Builder{}
+
+	var toRefresh []stable_diffusion_api.Cacheable
+
+	switch CommandOption("refresh_" + i.ApplicationCommandData().Options[0].Name) {
+	case refreshLoraOption:
+		toRefresh = []stable_diffusion_api.Cacheable{stable_diffusion_api.LoraCache}
+	case refreshCheckpoint:
+		toRefresh = []stable_diffusion_api.Cacheable{stable_diffusion_api.CheckpointCache}
+	case refreshVAEOption:
+		toRefresh = []stable_diffusion_api.Cacheable{stable_diffusion_api.VAECache}
+	case refreshAllOption:
+		toRefresh = []stable_diffusion_api.Cacheable{
+			stable_diffusion_api.LoraCache,
+			stable_diffusion_api.CheckpointCache,
+			stable_diffusion_api.VAECache,
+		}
+	}
+
+	for _, cache := range toRefresh {
+		newCache, err := b.StableDiffusionApi.RefreshCache(cache)
+		if err != nil || newCache == nil {
+			errors = append(errors, err)
+			content.WriteString(fmt.Sprintf("`%T` cache refresh failed.\n", cache))
+			continue
+		}
+		content.WriteString(fmt.Sprintf("`%T` cache refreshed. %v items loaded.\n", cache, cache.Len()))
+		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, content.String())
+	}
+
+	if errors != nil {
+		log.Printf("Error refreshing cache: %v", errors)
+		handlers.Errors[handlers.ErrorFollowup](s, i.Interaction, "Error refreshing cache.", errors)
+	}
+
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, content.String())
 }

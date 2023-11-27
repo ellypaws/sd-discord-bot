@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"strings"
 )
 
 type (
@@ -13,9 +14,13 @@ type (
 
 var (
 	// Command names
-	helloCommand           Command = "hello"
 	imagineCommand         Command = "imagine"
 	imagineSettingsCommand Command = "imagine_settings"
+)
+
+const (
+	helloCommand   Command = "hello"
+	refreshCommand Command = "refresh"
 )
 
 const (
@@ -37,6 +42,13 @@ const (
 	stepOption         CommandOption = "step"
 	seedOption         CommandOption = "seed"
 
+	refreshLoraOption CommandOption = "refresh_lora"
+	refreshCheckpoint CommandOption = "refresh_checkpoint"
+	refreshVAEOption  CommandOption = "refresh_vae"
+	//refreshHypernetworkOption CommandOption = "refresh_hypernetwork"
+	//refreshEmbeddingOption    CommandOption = "refresh_embedding"
+	refreshAllOption CommandOption = "refresh_all"
+
 	extraLoras = 6
 )
 
@@ -57,6 +69,16 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 	imagineSettingsCommand: {
 		Name:        string(imagineSettingsCommand),
 		Description: "Change the default settings for the imagine command",
+	},
+	refreshCommand: {
+		Name:        string(refreshCommand),
+		Description: "Refresh the loaded models from the API",
+		Options: []*discordgo.ApplicationCommandOption{
+			commandOptions[refreshLoraOption],
+			commandOptions[refreshCheckpoint],
+			commandOptions[refreshVAEOption],
+			commandOptions[refreshAllOption],
+		},
 	},
 }
 
@@ -296,6 +318,26 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 				Value: "person_yolov8n-seg.pt,face_yolov8n.pt",
 			},
 		},
+	},
+	refreshLoraOption: {
+		Type:        discordgo.ApplicationCommandOptionSubCommand,
+		Name:        strings.TrimPrefix(string(refreshLoraOption), "refresh_"),
+		Description: "Refresh the lora models from the API.",
+	},
+	refreshCheckpoint: {
+		Type:        discordgo.ApplicationCommandOptionSubCommand,
+		Name:        strings.TrimPrefix(string(refreshCheckpoint), "refresh_"),
+		Description: "Refresh the checkpoint models from the API.",
+	},
+	refreshVAEOption: {
+		Type:        discordgo.ApplicationCommandOptionSubCommand,
+		Name:        strings.TrimPrefix(string(refreshVAEOption), "refresh_"),
+		Description: "Refresh the vae models from the API.",
+	},
+	refreshAllOption: {
+		Type:        discordgo.ApplicationCommandOptionSubCommand,
+		Name:        strings.TrimPrefix(string(refreshAllOption), "refresh_"),
+		Description: "Refresh all models from the API.",
 	},
 }
 

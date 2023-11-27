@@ -125,6 +125,13 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 	return
 }
 
+func (api *apiImplementation) RefreshCache(cache Cacheable) (Cacheable, error) {
+	if cache == nil {
+		return cache.GetCache(api)
+	}
+	return cache.Refresh(api)
+}
+
 // Deprecated: Use SDCheckpointsCache instead
 func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
 	// Make an HTTP request to fetch the stable diffusion models

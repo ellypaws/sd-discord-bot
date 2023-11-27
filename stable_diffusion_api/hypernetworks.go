@@ -6,7 +6,10 @@
 
 package stable_diffusion_api
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"log"
+)
 
 type HypernetworkModels []HypernetworkModel
 
@@ -44,6 +47,11 @@ func (c *HypernetworkModels) GetCache(api StableDiffusionAPI) (Cacheable, error)
 		return HypernetworkCache, nil
 	}
 	return c.apiGET(api)
+}
+
+func (c *HypernetworkModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
+	log.Println("No endpoint to refresh hypernetworks cache")
+	return c.GetCache(api)
 }
 
 func (c *HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {

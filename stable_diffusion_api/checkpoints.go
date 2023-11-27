@@ -8,6 +8,8 @@ package stable_diffusion_api
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 )
 
@@ -51,6 +53,26 @@ func (c *SDModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	if CheckpointCache != nil {
 		return CheckpointCache, nil
 	}
+	return c.apiGET(api)
+}
+
+func (c *SDModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
+	postURL := "/sdapi/v1/refresh-checkpoints"
+
+	response, err := api.POST(postURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer response.Body.Close()
+
+	if response.StatusCode != 200 {
+		body, _ := io.ReadAll(response.Body)
+		log.Printf("API URL: %s", postURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, errors.New("unexpected API response")
+	}
+
 	return c.apiGET(api)
 }
 

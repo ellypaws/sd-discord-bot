@@ -63,6 +63,11 @@ func (c *EmbeddingModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 	return c.apiGET(api)
 }
 
+func (c *EmbeddingModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
+	log.Println("No endpoint to refresh embeddings cache")
+	return c.GetCache(api)
+}
+
 func (c *EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 	getURL := "/sdapi/v1/embeddings"
 
