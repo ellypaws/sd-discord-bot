@@ -13,6 +13,7 @@ import (
 	"os/signal"
 	"regexp"
 	"stable_diffusion_bot/composite_renderer"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	p "stable_diffusion_bot/gui/progress"
 	"stable_diffusion_bot/repositories"
@@ -202,10 +203,15 @@ func (q *queueImplementation) pullNextInQueue() {
 				q.currentImagine = element
 				q.mu.Unlock()
 				switch element.Type {
-				case ItemTypeImagine:
+				case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 					q.processCurrentImagine()
 				case ItemTypeImg2Img:
 					q.processImg2ImgImagine()
+				case ItemTypeUpscale:
+					q.processUpscaleImagine(element)
+				default:
+					handlers.Errors[handlers.ErrorResponse](q.botSession, element.DiscordInteraction, fmt.Errorf("unknown item type: %v", element.Type))
+					log.Printf("Unknown item type: %v", element.Type)
 				}
 				return // Process this item
 			}
