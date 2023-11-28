@@ -173,20 +173,21 @@ func (q *queueImplementation) StartPolling(botSession *discordgo.Session) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	stopPolling := false
+	var wait bool
 
+Polling:
 	for {
 		select {
 		case <-stop:
-			stopPolling = true
+			break Polling
 		case <-time.After(1 * time.Second):
 			if q.currentImagine == nil {
 				q.pullNextInQueue()
+				wait = false
+			} else if !wait {
+				log.Printf("Waiting for current imagine to finish...\n")
+				wait = true
 			}
-		}
-
-		if stopPolling {
-			break
 		}
 	}
 
@@ -196,31 +197,40 @@ func (q *queueImplementation) StartPolling(botSession *discordgo.Session) {
 func (q *queueImplementation) pullNextInQueue() {
 	for len(q.queue) > 0 {
 		// Peek at the next item without blocking
+		if q.currentImagine != nil {
+			log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
+			return // Already processing an item
+		}
 		select {
-		case element := <-q.queue:
-			if !q.cancelledItems[element.DiscordInteraction.ID] {
-				q.mu.Lock()
-				q.currentImagine = element
-				q.mu.Unlock()
-				switch element.Type {
+		case q.currentImagine = <-q.queue:
+			if !q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
+				switch q.currentImagine.Type {
 				case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 					q.processCurrentImagine()
 				case ItemTypeImg2Img:
 					q.processImg2ImgImagine()
 				case ItemTypeUpscale:
-					q.processUpscaleImagine(element)
+					q.processUpscaleImagine(q.currentImagine)
 				default:
-					handlers.Errors[handlers.ErrorResponse](q.botSession, element.DiscordInteraction, fmt.Errorf("unknown item type: %v", element.Type))
-					log.Printf("Unknown item type: %v", element.Type)
+					handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
+					log.Printf("Unknown item type: %v", q.currentImagine.Type)
 				}
 				return // Process this item
 			}
 			// If the item is cancelled, skip it
-			delete(q.cancelledItems, element.DiscordInteraction.ID)
+			delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
 		default:
+			log.Printf("WARNING: we're trying to pull the next item in the queue, but the queue is empty")
 			return // Queue is empty
 		}
 	}
+}
+
+func (q *queueImplementation) done() {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.currentImagine = nil
 }
 
 func (q *queueImplementation) RemoveFromQueue(interaction *discordgo.MessageInteraction) error {

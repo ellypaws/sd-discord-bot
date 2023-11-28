@@ -9,12 +9,7 @@ import (
 
 func (q *queueImplementation) processCurrentImagine() {
 	go func() {
-		defer func() {
-			q.mu.Lock()
-			defer q.mu.Unlock()
-
-			q.currentImagine = nil
-		}()
+		defer q.done()
 
 		if q.currentImagine.Type == ItemTypeUpscale {
 			q.processUpscaleImagine(q.currentImagine)
