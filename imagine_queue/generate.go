@@ -120,6 +120,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 				if progressErr != nil {
 					log.Printf("Error getting current progress: %v", progressErr)
+					handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 
 					return
 				}
@@ -141,7 +142,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	}()
 
 	switch q.currentImagine.Type {
-	case ItemTypeImagine:
+	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 		resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
 
 		if err != nil {
