@@ -13,7 +13,7 @@ import (
 
 type MessageAttachment struct {
 	discordgo.MessageAttachment
-	Image string `json:"image"`
+	Image *string `json:"image"`
 }
 
 func UnmarshalImageToImageRequest(data []byte) (ImageToImageRequest, error) {

@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGenerationRequest, imagine *QueueItem) error {
+func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGenerationRequest, c *QueueItem) error {
 	config, err := q.stableDiffusionAPI.GetConfig()
 	if err != nil {
 		log.Printf("Error getting config: %v", err)
@@ -23,7 +23,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
 			!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
 			!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
-			handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, imagine.DiscordInteraction,
+			handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction,
 				fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
 					safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
 					safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
@@ -42,17 +42,24 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 	}
 
-	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
+	log.Printf("Processing imagine #%s: %v\n", c.DiscordInteraction.ID, newGeneration.Prompt)
 
-	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
+	newContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 0)
 
 	var files []*discordgo.File
 	var embeds []*discordgo.MessageEmbed
-	for snowflake, attachment := range imagine.Attachments {
-		imageReader, err := utils.GetImageReaderByBase64(imagine.Attachments[snowflake].Image)
+	for snowflake, attachment := range c.Attachments {
+		imageReader, err := utils.GetImageReaderByBase64(safeDereference(c.Attachments[snowflake].Image))
 		if err != nil {
 			log.Printf("Error getting image reader: %v", err)
 			continue
+		}
+		var title string
+		if c.ControlnetItem.MessageAttachment != nil && snowflake == c.ControlnetItem.MessageAttachment.ID {
+			title = fmt.Sprintf("Controlnet")
+		}
+		if c.Img2ImgItem.MessageAttachment != nil && snowflake == c.Img2ImgItem.MessageAttachment.ID {
+			title = fmt.Sprintf("Img2Img")
 		}
 		if strings.Contains(attachment.ContentType, "image") {
 			files = append(files, &discordgo.File{
@@ -62,7 +69,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			})
 			embeds = append(embeds, &discordgo.MessageEmbed{
 				Type:  discordgo.EmbedTypeImage,
-				Title: "Img2Img",
+				Title: title,
 				Image: &discordgo.MessageEmbedImage{
 					URL: fmt.Sprintf("attachment://%v", attachment.Filename),
 				},
@@ -72,7 +79,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 	}
 
-	message, err := q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+	message, err := q.botSession.InteractionResponseEdit(c.DiscordInteraction, &discordgo.WebhookEdit{
 		Content:    &newContent,
 		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
 		Files:      files,
@@ -96,9 +103,9 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 		return err
 	}
-	newGeneration.InteractionID = imagine.DiscordInteraction.ID
+	newGeneration.InteractionID = c.DiscordInteraction.ID
 	newGeneration.MessageID = message.ID
-	newGeneration.MemberID = imagine.DiscordInteraction.Member.User.ID
+	newGeneration.MemberID = c.DiscordInteraction.Member.User.ID
 	newGeneration.SortOrder = 0
 	newGeneration.BatchCount = defaultBatchCount
 	newGeneration.BatchSize = defaultBatchSize
@@ -120,7 +127,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 				if progressErr != nil {
 					log.Printf("Error getting current progress: %v", progressErr)
-					handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
+					handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 
 					return
 				}
@@ -129,9 +136,9 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 					continue
 				}
 
-				progressContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, progress.Progress)
+				progressContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, progress.Progress)
 
-				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+				_, progressErr = q.botSession.InteractionResponseEdit(c.DiscordInteraction, &discordgo.WebhookEdit{
 					Content: &progressContent,
 				})
 				if progressErr != nil {
@@ -141,7 +148,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 	}()
 
-	switch q.currentImagine.Type {
+	switch c.Type {
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 		resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
 
@@ -154,7 +161,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			//	Content: &errorContent,
 			//})
 
-			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
+			handlers.ErrorHandler(q.botSession, c.DiscordInteraction, errorContent)
 			//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
 
 			return err
@@ -192,26 +199,43 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			}
 		}
 
-		compositeImage, err := q.compositeRenderer.TileImages(imageBufs)
+		compositeImage, err := q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
 		if err != nil {
 			log.Printf("Error tiling images: %v\n", err)
-
+			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
 			return err
 		}
+		files = append(files, &discordgo.File{
+			ContentType: "image/png",
+			// append timestamp for grid image result
+			Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
+			Reader: compositeImage,
+		})
+		embeds[0].Image.URL = fmt.Sprintf("attachment://%v", files[0].Name)
 
-		finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
+		if c.Enabled && c.Type != ItemTypeImg2Img {
+			extraImage, err := q.compositeRenderer.TileImages(imageBufs[4:])
+			if err != nil {
+				log.Printf("Error tiling images: %v\n", err)
+				handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+				return err
+			}
+			files = append(files, &discordgo.File{
+				ContentType: "image/png",
+				Name:        "controlnet.png",
+				Reader:      extraImage,
+			})
+			embeds[0].Thumbnail = &discordgo.MessageEmbedThumbnail{
+				URL: "attachment://controlnet.png",
+			}
+		}
 
-		// TODO: Add ephemeral follow up to delete message
-		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		finishedContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 1)
+
+		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &finishedContent,
-			Files: []*discordgo.File{
-				{
-					ContentType: "image/png",
-					// append timestamp for grid image result
-					Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
-					Reader: compositeImage,
-				},
-			},
+			Files:   files,
+			Embeds:  &embeds,
 			Components: &[]discordgo.MessageComponent{
 				discordgo.ActionsRow{
 					Components: []discordgo.MessageComponent{
@@ -347,7 +371,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			return err
 		}
 	case ItemTypeImg2Img:
-		err, done := q.imageToImage(newGeneration, imagine, generationDone)
+		err, done := q.imageToImage(newGeneration, c, generationDone)
 		if done {
 			return err
 		}

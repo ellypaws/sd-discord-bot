@@ -64,7 +64,9 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		Width:                             &newGeneration.Width,
 	}
 
-	if len(q.currentImagine.Attachments) == 0 {
+	c := q.currentImagine
+
+	if len(c.Attachments) == 0 {
 		err := errors.New("No attached images found, skipping img2img generation")
 		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
 		return err, true
@@ -77,21 +79,19 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		return a
 	}
 
-	for _, attachment := range q.currentImagine.Attachments {
-		width, height, err := utils.GetImageSizeFromBase64(attachment.Image)
-		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
-			return err, true
-		}
-
-		//calculate aspect ratio. e.g. 512x768 = 2:3 to the nearest whole number
-		gcd := calculateGCD(width, height)
-		aspectRatio := fmt.Sprintf("%d:%d", width/gcd, height/gcd)
-
-		*img2img.Width, *img2img.Height = aspectRatioCalculation(aspectRatio, initializedWidth, initializedHeight)
-
-		img2img.InitImages = append(img2img.InitImages, attachment.Image)
+	width, height, err := utils.GetImageSizeFromBase64(safeDereference(c.Img2ImgItem.Image))
+	if err != nil {
+		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
+		return err, true
 	}
+
+	//calculate aspect ratio. e.g. 512x768 = 2:3 to the nearest whole number
+	gcd := calculateGCD(width, height)
+	aspectRatio := fmt.Sprintf("%d:%d", width/gcd, height/gcd)
+
+	*img2img.Width, *img2img.Height = aspectRatioCalculation(aspectRatio, initializedWidth, initializedHeight)
+
+	img2img.InitImages = append(img2img.InitImages, safeDereference(c.Img2ImgItem.Image))
 
 	marshal, err := img2img.Marshal()
 	if err != nil {
@@ -140,13 +140,9 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		imageBufs[idx] = imageBuf
 	}
 
-	q.compositeRenderer, err = composite_renderer.New(false)
-	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
-		return err, true
-	}
+	q.compositeRenderer = composite_renderer.New(false)
 
-	compositeImage, err := q.compositeRenderer.TileImages(imageBufs)
+	compositeImage, err := q.compositeRenderer.TileImages(imageBufs[:1])
 	if err != nil {
 		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
 		return err, true
@@ -154,12 +150,31 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
 
-	message, err := q.botSession.InteractionResponse(q.currentImagine.DiscordInteraction)
+	message, err := q.botSession.InteractionResponse(c.DiscordInteraction)
 
 	var files []*discordgo.File
 
+	//if c.Enabled {
+	//	extraImage, err := q.compositeRenderer.TileImages(imageBufs[1:])
+	//	if err != nil {
+	//		log.Printf("Error tiling images: %v\n", err)
+	//		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
+	//		return err, true
+	//	}
+	//	files = []*discordgo.File{
+	//		{
+	//			ContentType: "image/png",
+	//			Name:        "controlnet.png",
+	//			Reader:      extraImage,
+	//		},
+	//	}
+	//	message.Embeds[0].Thumbnail = &discordgo.MessageEmbedThumbnail{
+	//		URL: "attachment://controlnet.png",
+	//	}
+	//}
+
 	for snowflake, attachment := range imagine.Attachments {
-		imageReader, err := utils.GetImageReaderByBase64(imagine.Attachments[snowflake].Image)
+		imageReader, err := utils.GetImageReaderByBase64(safeDereference(imagine.Attachments[snowflake].Image))
 		if err != nil {
 			log.Printf("Error getting image reader: %v", err)
 			continue

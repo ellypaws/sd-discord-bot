@@ -20,8 +20,8 @@ func (r *ControlnetTypes) Marshal() ([]byte, error) {
 
 type ControlnetTypes struct {
 	ControlTypes map[string]ControlType `json:"control_types"`
-	Modules      *ControlnetModules     `json:"-"`
-	Models       *ControlnetModels      `json:"-"`
+	Modules      *ControlnetModules     `json:"-"` // Deprecated: Do not use this field. Use ControlnetModulesCache instead.
+	Models       *ControlnetModels      `json:"-"` // Deprecated: Do not use this field. Use ControlnetModelsCache instead.
 }
 
 type ControlType struct {
@@ -89,7 +89,7 @@ func (c *ControlnetTypes) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 				Default: controlType.DefaultOption == module,
 			})
 		}
-		c.Modules = ControlnetModulesCache
+		//c.Modules = ControlnetModulesCache
 		for _, model := range controlType.ModelList {
 			if ControlnetModelsCache == nil {
 				ControlnetModelsCache = &ControlnetModels{}
@@ -101,7 +101,7 @@ func (c *ControlnetTypes) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 				Default: controlType.DefaultModel == model,
 			})
 		}
-		c.Models = ControlnetModelsCache
+		//c.Models = ControlnetModelsCache
 	}
 
 	return ControlnetTypesCache, nil

@@ -196,7 +196,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 						handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
 						return
 					}
-					queue.Attachments[snowflake].Image = image
+					queue.Attachments[snowflake].Image = &image
 				}
 			}
 		}
@@ -208,7 +208,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			} else {
 				queue.Type = imagine_queue.ItemTypeImg2Img
 
-				queue.Img2ImgItem.Image = attachment
+				queue.Img2ImgItem.MessageAttachment = attachment
 
 				if option, ok := optionMap[denoisingOption]; ok {
 					queue.DenoisingStrength = option.FloatValue()
@@ -216,49 +216,49 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
-		var controlnet bool
-
 		if option, ok := optionMap[controlnetImage]; ok {
-			if attachment, ok := queue.Attachments[option.Value.(string)]; !ok {
+			if attachment, ok := queue.Attachments[option.Value.(string)]; ok {
+				queue.ControlnetItem.MessageAttachment = attachment
+			} else {
 				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to controlnet.")
 				return
-			} else {
-				queue.ControlnetItem.Image = attachment
 			}
-			controlnet = true
+			queue.ControlnetItem.Enabled = true
 		}
 
 		if option, ok := optionMap[controlnetControlMode]; ok {
-			queue.ControlnetItem.ControlMode = option.StringValue()
-			controlnet = true
+			queue.ControlnetItem.ControlMode = entities.ControlMode(option.StringValue())
+			queue.ControlnetItem.Enabled = true
 		}
 
 		if option, ok := optionMap[controlnetResizeMode]; ok {
-			queue.ControlnetItem.ResizeMode = option.StringValue()
-			controlnet = true
+			queue.ControlnetItem.ResizeMode = entities.ResizeMode(option.StringValue())
+			queue.ControlnetItem.Enabled = true
 		}
 
 		if option, ok := optionMap[controlnetType]; ok {
 			queue.ControlnetItem.Type = option.StringValue()
-			controlnet = true
+			cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
+			if err != nil {
+				log.Printf("Error retrieving controlnet types cache: %v", err)
+			} else {
+				// set default preprocessor and model
+				if types, ok := cache.(*stable_diffusion_api.ControlnetTypes).ControlTypes[queue.ControlnetItem.Type]; ok {
+					queue.ControlnetItem.Preprocessor = types.DefaultOption
+					queue.ControlnetItem.Model = types.DefaultModel
+				}
+			}
+			queue.ControlnetItem.Enabled = true
 		}
 
 		if option, ok := optionMap[controlnetPreprocessor]; ok {
 			queue.ControlnetItem.Preprocessor = option.StringValue()
-			controlnet = true
+			queue.ControlnetItem.Enabled = true
 		}
 
 		if option, ok := optionMap[controlnetModel]; ok {
 			queue.ControlnetItem.Model = option.StringValue()
-			controlnet = true
-		}
-
-		// TODO: Finish implementation of processing controlnet JSON object to be passed to the API
-		if controlnet {
-			// Debugging for now
-			log.Printf("Controlnet item: %#v", queue.ControlnetItem)
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Controlnet is not yet implemented.")
-			return
+			queue.ControlnetItem.Enabled = true
 		}
 
 		var err error

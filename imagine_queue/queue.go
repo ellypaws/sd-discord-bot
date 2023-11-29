@@ -69,10 +69,7 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing default settings repository")
 	}
 
-	compositeRenderer, err := composite_renderer.New(true)
-	if err != nil {
-		return nil, err
-	}
+	compositeRenderer := composite_renderer.New(false)
 
 	return &queueImplementation{
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
@@ -119,17 +116,18 @@ type QueueItem struct {
 }
 
 type Img2ImgItem struct {
-	Image             *entities.MessageAttachment
+	*entities.MessageAttachment
 	DenoisingStrength float64
 }
 
 type ControlnetItem struct {
-	Image        *entities.MessageAttachment
-	ControlMode  string
-	ResizeMode   string
+	*entities.MessageAttachment
+	ControlMode  entities.ControlMode
+	ResizeMode   entities.ResizeMode
 	Type         string
 	Preprocessor string // also called the module in entities.ControlNetParameters
 	Model        string
+	Enabled      bool
 }
 
 func DefaultQueueItem() *QueueItem {
@@ -145,6 +143,10 @@ func DefaultQueueItem() *QueueItem {
 		CfgScale:         7.0,
 		Img2ImgItem: Img2ImgItem{
 			DenoisingStrength: 0.7,
+		},
+		ControlnetItem: ControlnetItem{
+			ControlMode: entities.ControlModeBalanced,
+			ResizeMode:  entities.ResizeModeScaleToFit,
 		},
 	}
 }

@@ -2,6 +2,7 @@ package imagine_queue
 
 import (
 	"encoding/json"
+	"github.com/SpenserCai/sd-webui-discord/utils"
 	"log"
 	"stable_diffusion_bot/entities"
 	"strconv"
@@ -17,32 +18,34 @@ func (q *queueImplementation) processCurrentImagine() {
 			return
 		}
 
+		c := q.currentImagine
+
 		newGeneration, err := &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
 				Processed:    false,
-				Checkpoint:   q.currentImagine.Checkpoint,
-				VAE:          q.currentImagine.VAE,
-				Hypernetwork: q.currentImagine.Hypernetwork,
+				Checkpoint:   c.Checkpoint,
+				VAE:          c.VAE,
+				Hypernetwork: c.Hypernetwork,
 			},
 			TextToImageRequest: &entities.TextToImageRequest{
-				Prompt:            q.currentImagine.Prompt,
-				NegativePrompt:    q.currentImagine.NegativePrompt,
+				Prompt:            c.Prompt,
+				NegativePrompt:    c.NegativePrompt,
 				Width:             initializedWidth,
 				Height:            initializedHeight,
-				RestoreFaces:      q.currentImagine.RestoreFaces,
-				EnableHr:          q.currentImagine.UseHiresFix,
-				HrScale:           between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
+				RestoreFaces:      c.RestoreFaces,
+				EnableHr:          c.UseHiresFix,
+				HrScale:           between(c.HiresUpscaleRate, 1.0, 2.0),
 				HrUpscaler:        "R-ESRGAN 2x+",
-				HrSecondPassSteps: q.currentImagine.HiresSteps,
+				HrSecondPassSteps: c.HiresSteps,
 				HrResizeX:         initializedWidth,
 				HrResizeY:         initializedHeight,
-				DenoisingStrength: q.currentImagine.DenoisingStrength,
-				Seed:              q.currentImagine.Seed,
+				DenoisingStrength: c.DenoisingStrength,
+				Seed:              c.Seed,
 				Subseed:           -1,
 				SubseedStrength:   0,
-				SamplerName:       q.currentImagine.SamplerName1,
-				CFGScale:          q.currentImagine.CfgScale,
-				Steps:             q.currentImagine.Steps,
+				SamplerName:       c.SamplerName1,
+				CFGScale:          c.CfgScale,
+				Steps:             c.Steps,
 			},
 		}, error(nil)
 
@@ -57,12 +60,12 @@ func (q *queueImplementation) processCurrentImagine() {
 		}
 
 		// add optional parameter: Negative prompt
-		if q.currentImagine.NegativePrompt == "" {
+		if c.NegativePrompt == "" {
 			newGeneration.NegativePrompt = defaultNegative
 		}
 
 		// add optional parameter: sampler
-		if q.currentImagine.SamplerName1 == "" {
+		if c.SamplerName1 == "" {
 			newGeneration.SamplerName = "Euler a"
 		}
 
@@ -72,8 +75,8 @@ func (q *queueImplementation) processCurrentImagine() {
 
 		defaultWidth := newGeneration.Width
 		defaultHeight := newGeneration.Height
-		if q.currentImagine.AspectRatio != "" && q.currentImagine.AspectRatio != "1:1" {
-			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(q.currentImagine.AspectRatio, defaultWidth, defaultHeight)
+		if c.AspectRatio != "" && c.AspectRatio != "1:1" {
+			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(c.AspectRatio, defaultWidth, defaultHeight)
 		} else {
 			if aspectRatio, ok := parameters["ar"]; ok {
 				newGeneration.Width, newGeneration.Height = aspectRatioCalculation(aspectRatio, defaultWidth, defaultHeight)
@@ -156,12 +159,50 @@ func (q *queueImplementation) processCurrentImagine() {
 		//additionalScript := make(map[string]*entities.ADetailer)
 		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
 
-		if q.currentImagine.ADetailerString != "" {
-			log.Printf("q.currentImagine.ADetailerString: %v", q.currentImagine.ADetailerString)
+		if c.ADetailerString != "" {
+			log.Printf("q.currentImagine.ADetailerString: %v", c.ADetailerString)
 
 			newGeneration.NewADetailer()
 
-			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(q.currentImagine.ADetailerString, newGeneration)
+			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(c.ADetailerString, newGeneration)
+		}
+
+		if c.ControlnetItem.Enabled {
+			log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", c.ControlnetItem.Enabled)
+
+			if newGeneration.AlwaysonScripts == nil {
+				newGeneration.NewScripts()
+			}
+			var imageToUse *string
+			switch {
+			case c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil:
+				imageToUse = c.ControlnetItem.Image
+			case c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil:
+				imageToUse = c.Img2ImgItem.Image
+			default:
+				c.Enabled = false
+			}
+			width, height, err := utils.GetImageSizeFromBase64(*imageToUse)
+			var resolutionToUse int
+			if err != nil {
+				log.Printf("Error getting image size: %v", err)
+			} else {
+				resolutionToUse = between(max(width, height), min(newGeneration.Width, newGeneration.Height), 1024)
+			}
+			newGeneration.AlwaysonScripts.ControlNet = &entities.ControlNet{
+				Args: []*entities.ControlNetParameters{
+					{
+						InputImage:   imageToUse,
+						Module:       c.ControlnetItem.Preprocessor,
+						Model:        c.ControlnetItem.Model,
+						Weight:       1.0,
+						ResizeMode:   c.ControlnetItem.ResizeMode,
+						ProcessorRes: resolutionToUse,
+						ControlMode:  c.ControlnetItem.ControlMode,
+						PixelPerfect: false,
+					},
+				},
+			}
 		}
 
 		if newGeneration.AlwaysonScripts != nil {
@@ -182,9 +223,9 @@ func (q *queueImplementation) processCurrentImagine() {
 		//	newGeneration.AlwaysOnScripts["ADetailer"] = additionalScript["ADetailer"]
 		//}
 
-		switch q.currentImagine.Type {
+		switch c.Type {
 		case ItemTypeReroll, ItemTypeVariation:
-			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
+			foundGeneration, err := q.getPreviousGeneration(c, c.InteractionIndex)
 			if err != nil {
 				log.Printf("Error getting prompt for reroll: %v", err)
 
@@ -198,12 +239,12 @@ func (q *queueImplementation) processCurrentImagine() {
 			newGeneration.Subseed = -1
 
 			// for variations, the subseed strength determines how much variation we get
-			if q.currentImagine.Type == ItemTypeVariation {
+			if c.Type == ItemTypeVariation {
 				newGeneration.SubseedStrength = 0.15
 			}
 		}
 
-		err = q.processImagineGrid(newGeneration, q.currentImagine)
+		err = q.processImagineGrid(newGeneration, c)
 		if err != nil {
 			log.Printf("Error processing imagine grid: %v", err)
 
