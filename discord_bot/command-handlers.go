@@ -175,42 +175,90 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
-		if _, ok := optionMap[img2imgOption]; ok {
-			if i.ApplicationCommandData().Resolved == nil || i.ApplicationCommandData().Resolved.Attachments == nil {
+		if i.ApplicationCommandData().Resolved != nil {
+			if attachments := i.ApplicationCommandData().Resolved.Attachments; attachments != nil {
+				if queue.Attachments == nil {
+					queue.Attachments = make(map[string]*entities.MessageAttachment, len(attachments))
+				}
+				for snowflake, attachment := range attachments {
+					queue.Attachments[snowflake] = &entities.MessageAttachment{
+						MessageAttachment: *attachment,
+					}
+					log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
+					if !strings.HasPrefix(attachment.ContentType, "image") {
+						log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
+						delete(queue.Attachments, snowflake)
+					}
+
+					image, err := utils.GetImageBase64(attachment.URL)
+					if err != nil {
+						log.Printf("Error getting image from URL: %v", err)
+						handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
+						return
+					}
+					queue.Attachments[snowflake].Image = image
+				}
+			}
+		}
+
+		if option, ok := optionMap[img2imgOption]; ok {
+			if attachment, ok := queue.Attachments[option.Value.(string)]; !ok {
 				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
 				return
+			} else {
+				queue.Type = imagine_queue.ItemTypeImg2Img
+
+				queue.Img2ImgItem.Image = attachment
+
+				if option, ok := optionMap[denoisingOption]; ok {
+					queue.DenoisingStrength = option.FloatValue()
+				}
 			}
-			queue.Type = imagine_queue.ItemTypeImg2Img
-			attachments := i.ApplicationCommandData().Resolved.Attachments
+		}
 
-			queue.Attachments = make(map[string]*entities.MessageAttachment, len(attachments))
+		var controlnet bool
 
-			for snowflake, attachment := range attachments {
-				queue.Attachments[snowflake] = &entities.MessageAttachment{
-					MessageAttachment: *attachment,
-				}
-				log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
-				if !strings.HasPrefix(attachment.ContentType, "image") {
-					log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
-					delete(queue.Attachments, snowflake)
-				}
-
-				image, err := utils.GetImageBase64(attachment.URL)
-				if err != nil {
-					log.Printf("Error getting image from URL: %v", err)
-					handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
-					return
-				}
-				queue.Attachments[snowflake].Image = image
-			}
-			if len(queue.Attachments) == 0 {
-				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
+		if option, ok := optionMap[controlnetImage]; ok {
+			if attachment, ok := queue.Attachments[option.Value.(string)]; !ok {
+				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to controlnet.")
 				return
+			} else {
+				queue.ControlnetItem.Image = attachment
 			}
+			controlnet = true
+		}
 
-			if option, ok := optionMap[denoisingOption]; ok {
-				queue.DenoisingStrength = option.FloatValue()
-			}
+		if option, ok := optionMap[controlnetControlMode]; ok {
+			queue.ControlnetItem.ControlMode = option.StringValue()
+			controlnet = true
+		}
+
+		if option, ok := optionMap[controlnetResizeMode]; ok {
+			queue.ControlnetItem.ResizeMode = option.StringValue()
+			controlnet = true
+		}
+
+		if option, ok := optionMap[controlnetType]; ok {
+			queue.ControlnetItem.Type = option.StringValue()
+			controlnet = true
+		}
+
+		if option, ok := optionMap[controlnetPreprocessor]; ok {
+			queue.ControlnetItem.Preprocessor = option.StringValue()
+			controlnet = true
+		}
+
+		if option, ok := optionMap[controlnetModel]; ok {
+			queue.ControlnetItem.Model = option.StringValue()
+			controlnet = true
+		}
+
+		// TODO: Finish implementation of processing controlnet JSON object to be passed to the API
+		if controlnet {
+			// Debugging for now
+			log.Printf("Controlnet item: %#v", queue.ControlnetItem)
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Controlnet is not yet implemented.")
+			return
 		}
 
 		var err error
@@ -248,15 +296,14 @@ var weightRegex = regexp.MustCompile(`.+\\|\.(?:safetensors|ckpt|pth?)|(:[\d.]+$
 func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	data := i.ApplicationCommandData()
 	log.Printf("running autocomplete handler")
-	var input string
 	for optionIndex, opt := range data.Options {
 		if !opt.Focused {
 			continue
 		}
+		input := opt.StringValue()
 		switch {
 		case strings.HasPrefix(opt.Name, string(loraOption)):
 			log.Printf("Focused option (%v): %v", optionIndex, opt.Name)
-			input = opt.StringValue()
 
 			var choices []*discordgo.ApplicationCommandOptionChoice
 
@@ -354,20 +401,24 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 		default:
 			switch CommandOption(opt.Name) {
 			case checkpointOption:
-				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
+				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
 			case vaeOption:
-				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.VAECache)
+				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.VAECache)
 			case hypernetworkOption:
-				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.HypernetworkCache)
+				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.HypernetworkCache)
 			case embeddingOption:
-				input = b.autocompleteCached(s, i, optionIndex, opt, input, stable_diffusion_api.EmbeddingCache)
+				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.EmbeddingCache)
+			case controlnetPreprocessor:
+				b.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModulesCache)
+			case controlnetModel:
+				b.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModelsCache)
 			}
 		}
 		break
 	}
 }
 
-func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) string {
+func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) {
 	log.Printf("Focused option (%v): %v", index, opt.Name)
 	input = opt.StringValue()
 
@@ -376,7 +427,6 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 	if input != "" {
 		if c == nil {
 			log.Printf("Cacheable interface is nil")
-			return input
 		}
 		log.Printf("Autocompleting '%v'", input)
 
@@ -390,15 +440,14 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 		//log.Printf("Results: %v", results)
 
 		for index, result := range results {
-			if index > 25 {
-				break
-			}
-
 			// Match against String() method according to fuzzy docs
 			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
 				Name:  cache.String(result.Index),
 				Value: cache.String(result.Index),
 			})
+			if index >= 25 {
+				break
+			}
 		}
 	} else {
 		choices = []*discordgo.ApplicationCommandOptionChoice{
@@ -422,7 +471,80 @@ func (b *botImpl) autocompleteCached(s *discordgo.Session, i *discordgo.Interact
 			Choices: choices[:min(25, len(choices))],
 		},
 	})
-	return input
+}
+
+func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) {
+	input = opt.StringValue()
+
+	// check the Type first
+	optionMap := getOpts(i.ApplicationCommandData())
+
+	cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
+	if err != nil {
+		log.Printf("Error retrieving %v cache: %v", opt.Name, err)
+		return
+	}
+	controlnets := cache.(*stable_diffusion_api.ControlnetTypes)
+
+	log.Printf("Focused option (%v): %v", index, opt.Name)
+
+	var toSearch []string
+	var controlType = "All"
+	option, ok := optionMap[controlnetType]
+	if ok {
+		controlType = option.StringValue()
+	}
+
+	if types, ok := controlnets.ControlTypes[controlType]; ok {
+		switch c.(type) {
+		case *stable_diffusion_api.ControlnetModules:
+			toSearch = types.ModuleList
+		case *stable_diffusion_api.ControlnetModels:
+			toSearch = types.ModelList
+		}
+	} else {
+		log.Printf("No controlnet types found for %v: %v", opt.Name, option.StringValue())
+	}
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	if input != "" {
+		if len(toSearch) == 0 {
+			log.Printf("No controlnet types found for %v", opt.Name)
+		}
+		log.Printf("Autocompleting '%v'", input)
+
+		results := fuzzy.Find(input, toSearch)
+		//log.Printf("Finding from %v: %v", input, cache)
+		//log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
+		//log.Printf("Results: %v", results)
+
+		for index, result := range results {
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  toSearch[result.Index],
+				Value: toSearch[result.Index],
+			})
+			if index >= 25 {
+				break
+			}
+		}
+	} else {
+		for index, item := range toSearch {
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  item,
+				Value: item,
+			})
+			if index >= 25 {
+				break
+			}
+		}
+	}
+
+	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices[:min(25, len(choices))],
+		},
+	})
 }
 
 func sanitizeTooltip(input string) string {

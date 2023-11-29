@@ -1,9 +1,11 @@
 package discord_bot
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
@@ -213,6 +215,7 @@ func (b *botImpl) registerCommands() error {
 			}
 			command.Name = sanitized
 		}
+		//b.controlnetTypes()
 		cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, command)
 		if err != nil {
 			return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
@@ -287,6 +290,37 @@ func (b *botImpl) teardown() error {
 	}
 
 	return b.botSession.Close()
+}
+
+// Deprecated: If we want to dynamically update the controlnet types, we can do it here
+func (b *botImpl) controlnetTypes() {
+	if false {
+		controlnet, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
+		if err != nil {
+			log.Printf("Error getting controlnet types: %v", err)
+			panic(err)
+		}
+		// modify the choices of controlnetType by using the controlnetTypes cache
+		var keys map[string]bool = make(map[string]bool)
+		for key := range controlnet.(*stable_diffusion_api.ControlnetTypes).ControlTypes {
+			if keys[key] {
+				continue
+			}
+			keys[key] = true
+
+			commandOptions[controlnetType].Choices = append(commandOptions[controlnetType].Choices,
+				&discordgo.ApplicationCommandOptionChoice{
+					Name:  key,
+					Value: key,
+				})
+			if len(commandOptions[controlnetType].Choices) >= 25 {
+				break
+			}
+		}
+		sort.Slice(commandOptions[controlnetType].Choices, func(i, j int) bool {
+			return cmp.Less(commandOptions[controlnetType].Choices[i].Name, commandOptions[controlnetType].Choices[j].Name)
+		})
+	}
 }
 
 func shortenString(s string) string {

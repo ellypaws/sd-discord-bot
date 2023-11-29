@@ -1,6 +1,7 @@
 package stable_diffusion_api
 
 import (
+	"github.com/sahilm/fuzzy"
 	"net/http"
 	"stable_diffusion_bot/entities"
 )
@@ -40,8 +41,7 @@ type StableDiffusionAPI interface {
 }
 
 type Cacheable interface {
-	String(int) string
-	Len() int
+	fuzzy.Source
 
 	// GetCache uses each implementation's apiGET method to fetch the cache.
 	// Make sure to check which type assertion is required, usually *Type

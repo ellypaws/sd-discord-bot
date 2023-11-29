@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/entities"
 	"strings"
 )
 
@@ -52,7 +53,14 @@ const (
 	//refreshEmbeddingOption    CommandOption = "refresh_embedding"
 	refreshAllOption CommandOption = "refresh_all"
 
-	extraLoras = 6
+	controlnetImage        CommandOption = "controlnet_image"
+	controlnetType         CommandOption = "controlnet_type"
+	controlnetControlMode  CommandOption = "controlnet_control_mode"
+	controlnetResizeMode   CommandOption = "controlnet_resize_mode"
+	controlnetPreprocessor CommandOption = "controlnet_preprocessor"
+	controlnetModel        CommandOption = "controlnet_model"
+
+	extraLoras = 2
 )
 
 var commands = map[Command]*discordgo.ApplicationCommand{
@@ -95,22 +103,37 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[aspectRatio],
 		commandOptions[loraOption],
 		commandOptions[samplerOption],
-		commandOptions[hiresFixOption],
+		//commandOptions[hiresFixOption],
 		commandOptions[hiresFixSize],
 		commandOptions[cfgScaleOption],
-		commandOptions[restoreFacesOption],
+		//commandOptions[restoreFacesOption],
 		commandOptions[adModelOption],
 		commandOptions[vaeOption],
 		commandOptions[hypernetworkOption],
 		commandOptions[embeddingOption],
 		commandOptions[img2imgOption],
 		commandOptions[denoisingOption],
+		commandOptions[controlnetImage],
+		commandOptions[controlnetControlMode],
+		commandOptions[controlnetType],
+		commandOptions[controlnetResizeMode],
+		commandOptions[controlnetPreprocessor],
+		commandOptions[controlnetModel],
 	}
 
-	for i := 0; i < extraLoras; i++ {
+	for i := 0; i < min(extraLoras, 25-len(options)); i++ {
+		if len(options) > 25 {
+			log.Printf("Max options reached, skipping extra lora options")
+			break
+		}
 		loraOption := *commandOptions[loraOption]
 		loraOption.Name += fmt.Sprintf("%d", i+2)
 		options = append(options, &loraOption)
+	}
+
+	if len(options) > 25 {
+		log.Printf("WARNING: Too many options (%d) for discord. Discord only allows 25 options per command. Some options will be skipped.", len(options))
+		options = options[:25]
 	}
 	return
 }
@@ -354,6 +377,136 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Name:        string(denoisingOption),
 		Description: "Denoising level for img2img. Default is 0.7",
 	},
+	controlnetImage: {
+		Type:        discordgo.ApplicationCommandOptionAttachment,
+		Name:        string(controlnetImage),
+		Description: "The image to use for controlnet. Img2img is used if not specified",
+		Required:    false,
+	},
+	controlnetType: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(controlnetType),
+		Description: "The type of controlnet to use. Default is All",
+		Required:    false,
+		Choices:     controlTypes(),
+	},
+	controlnetControlMode: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(controlnetControlMode),
+		Description: "The control mode to use for controlnet. Defaults to Balanced",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  string(entities.ControlModeBalanced),
+				Value: entities.ControlModeBalanced,
+			},
+			{
+				Name:  string(entities.ControlModePrompt),
+				Value: entities.ControlModePrompt,
+			},
+			{
+				Name:  string(entities.ControlModeControl),
+				Value: entities.ControlModeControl,
+			},
+		},
+	},
+	controlnetResizeMode: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(controlnetResizeMode),
+		Description: "The resize mode to use for controlnet. Defaults to Scale to Fit (Inner Fit)",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  string(entities.ResizeModeJustResize),
+				Value: entities.ResizeModeJustResize,
+			},
+			{
+				Name:  string(entities.ResizeModeScaleToFit),
+				Value: entities.ResizeModeScaleToFit,
+			},
+			{
+				Name:  string(entities.ResizeModeEnvelope),
+				Value: entities.ResizeModeEnvelope,
+			},
+		},
+	},
+	controlnetPreprocessor: {
+		Type:         discordgo.ApplicationCommandOptionString,
+		Name:         string(controlnetPreprocessor),
+		Description:  "The preprocessor to use for controlnet. Set the type to see the available modules. Defaults to None",
+		Required:     false,
+		Autocomplete: true,
+	},
+	controlnetModel: {
+		Type:         discordgo.ApplicationCommandOptionString,
+		Name:         string(controlnetModel),
+		Description:  "The model to use for controlnet. Set the type to see the available models. Defaults to None",
+		Required:     false,
+		Autocomplete: true,
+	},
+}
+
+func controlTypes() []*discordgo.ApplicationCommandOptionChoice {
+	// ControlType is an alias for string
+	type ControlType string
+
+	// Constants for different control types
+	const (
+		All          ControlType = "All"
+		Canny        ControlType = "Canny"
+		Depth        ControlType = "Depth"
+		NormalMap    ControlType = "NormalMap"
+		OpenPose     ControlType = "OpenPose"
+		MLSD         ControlType = "MLSD"
+		Lineart      ControlType = "Lineart"
+		SoftEdge     ControlType = "SoftEdge"
+		Scribble     ControlType = "Scribble/Sketch"
+		Segmentation ControlType = "Segmentation"
+		Shuffle      ControlType = "Shuffle"
+		TileBlur     ControlType = "Tile/Blur"
+		Inpaint      ControlType = "Inpaint"
+		InstructP2P  ControlType = "InstructP2P"
+		Reference    ControlType = "Reference"
+		Recolor      ControlType = "Recolor"
+		Revision     ControlType = "Revision"
+		T2IAdapter   ControlType = "T2I-Adapter"
+		IPAdapter    ControlType = "IP-Adapter"
+	)
+
+	var ControlTypes = []ControlType{
+		All,
+		Canny,
+		Depth,
+		NormalMap,
+		OpenPose,
+		MLSD,
+		Lineart,
+		SoftEdge,
+		Scribble,
+		Segmentation,
+		Shuffle,
+		TileBlur,
+		Inpaint,
+		InstructP2P,
+		Reference,
+		Recolor,
+		Revision,
+		T2IAdapter,
+		IPAdapter,
+	}
+
+	var choices []*discordgo.ApplicationCommandOptionChoice
+	for _, controlType := range ControlTypes {
+		choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+			Name:  string(controlType),
+			Value: string(controlType),
+		})
+		if len(choices) >= 25 {
+			break
+		}
+	}
+
+	return choices
 }
 
 const (
