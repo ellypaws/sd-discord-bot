@@ -19,6 +19,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	config, err := q.stableDiffusionAPI.GetConfig()
 	if err != nil {
 		log.Printf("Error getting config: %v", err)
+		return err
 	} else {
 		if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
 			!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
@@ -38,8 +39,13 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			}))
 			if err != nil {
 				log.Printf("Error updating configuration: %v", err)
+				return err
 			}
-			config, _ = q.stableDiffusionAPI.GetConfig()
+			config, err = q.stableDiffusionAPI.GetConfig()
+			if err != nil {
+				log.Printf("Error getting config: %v", err)
+				return err
+			}
 		}
 	}
 
@@ -94,14 +100,12 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	defaultBatchCount, err := q.defaultBatchCount()
 	if err != nil {
 		log.Printf("Error getting default batch count: %v", err)
-
 		return err
 	}
 
 	defaultBatchSize, err := q.defaultBatchSize()
 	if err != nil {
 		log.Printf("Error getting default batch size: %v", err)
-
 		return err
 	}
 	newGeneration.InteractionID = c.DiscordInteraction.ID
@@ -115,6 +119,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	_, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
 	if err != nil {
 		log.Printf("Error creating image generation record: %v\n", err)
+		return err
 	}
 
 	generationDone := make(chan bool)

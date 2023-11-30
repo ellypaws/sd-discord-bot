@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"log"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"strconv"
 )
@@ -247,7 +248,7 @@ func (q *queueImplementation) processCurrentImagine() {
 		err = q.processImagineGrid(newGeneration, c)
 		if err != nil {
 			log.Printf("Error processing imagine grid: %v", err)
-
+			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
 			return
 		}
 	}()
