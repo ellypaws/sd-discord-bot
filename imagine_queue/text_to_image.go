@@ -2,7 +2,9 @@ package imagine_queue
 
 import (
 	"encoding/json"
+	"github.com/SpenserCai/sd-webui-discord/utils"
 	"log"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"strconv"
 )
@@ -17,32 +19,34 @@ func (q *queueImplementation) processCurrentImagine() {
 			return
 		}
 
+		c := q.currentImagine
+
 		newGeneration, err := &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
 				Processed:    false,
-				Checkpoint:   q.currentImagine.Checkpoint,
-				VAE:          q.currentImagine.VAE,
-				Hypernetwork: q.currentImagine.Hypernetwork,
+				Checkpoint:   c.Checkpoint,
+				VAE:          c.VAE,
+				Hypernetwork: c.Hypernetwork,
 			},
 			TextToImageRequest: &entities.TextToImageRequest{
-				Prompt:            q.currentImagine.Prompt,
-				NegativePrompt:    q.currentImagine.NegativePrompt,
+				Prompt:            c.Prompt,
+				NegativePrompt:    c.NegativePrompt,
 				Width:             initializedWidth,
 				Height:            initializedHeight,
-				RestoreFaces:      q.currentImagine.RestoreFaces,
-				EnableHr:          q.currentImagine.UseHiresFix,
-				HrScale:           between(q.currentImagine.HiresUpscaleRate, 1.0, 2.0),
+				RestoreFaces:      c.RestoreFaces,
+				EnableHr:          c.UseHiresFix,
+				HrScale:           between(c.HiresUpscaleRate, 1.0, 2.0),
 				HrUpscaler:        "R-ESRGAN 2x+",
-				HrSecondPassSteps: q.currentImagine.HiresSteps,
+				HrSecondPassSteps: c.HiresSteps,
 				HrResizeX:         initializedWidth,
 				HrResizeY:         initializedHeight,
-				DenoisingStrength: q.currentImagine.DenoisingStrength,
-				Seed:              q.currentImagine.Seed,
+				DenoisingStrength: c.DenoisingStrength,
+				Seed:              c.Seed,
 				Subseed:           -1,
 				SubseedStrength:   0,
-				SamplerName:       q.currentImagine.SamplerName1,
-				CFGScale:          q.currentImagine.CfgScale,
-				Steps:             q.currentImagine.Steps,
+				SamplerName:       c.SamplerName1,
+				CFGScale:          c.CfgScale,
+				Steps:             c.Steps,
 			},
 		}, error(nil)
 
@@ -57,12 +61,12 @@ func (q *queueImplementation) processCurrentImagine() {
 		}
 
 		// add optional parameter: Negative prompt
-		if q.currentImagine.NegativePrompt == "" {
+		if c.NegativePrompt == "" {
 			newGeneration.NegativePrompt = defaultNegative
 		}
 
 		// add optional parameter: sampler
-		if q.currentImagine.SamplerName1 == "" {
+		if c.SamplerName1 == "" {
 			newGeneration.SamplerName = "Euler a"
 		}
 
@@ -72,8 +76,8 @@ func (q *queueImplementation) processCurrentImagine() {
 
 		defaultWidth := newGeneration.Width
 		defaultHeight := newGeneration.Height
-		if q.currentImagine.AspectRatio != "" && q.currentImagine.AspectRatio != "1:1" {
-			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(q.currentImagine.AspectRatio, defaultWidth, defaultHeight)
+		if c.AspectRatio != "" && c.AspectRatio != "1:1" {
+			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(c.AspectRatio, defaultWidth, defaultHeight)
 		} else {
 			if aspectRatio, ok := parameters["ar"]; ok {
 				newGeneration.Width, newGeneration.Height = aspectRatioCalculation(aspectRatio, defaultWidth, defaultHeight)
@@ -131,10 +135,6 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 		}
 
-		// prompt will display as Monospace in Discord
-		//var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
-		//promptRes.SanitizedPrompt = quotedPrompt
-
 		config, err := q.stableDiffusionAPI.GetConfig()
 		if err != nil {
 			log.Printf("Error getting config: %v", err)
@@ -150,18 +150,59 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 		}
 
-		// segModelOptions will never be nil and at least an empty string in the slice [""]
-		// because of strings.Split() in discord_bot.go
-
-		//additionalScript := make(map[string]*entities.ADetailer)
-		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
-
-		if q.currentImagine.ADetailerString != "" {
-			log.Printf("q.currentImagine.ADetailerString: %v", q.currentImagine.ADetailerString)
+		if c.ADetailerString != "" {
+			log.Printf("q.currentImagine.ADetailerString: %v", c.ADetailerString)
 
 			newGeneration.NewADetailer()
 
-			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(q.currentImagine.ADetailerString, newGeneration)
+			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(c.ADetailerString, newGeneration)
+		}
+
+		if c.ControlnetItem.Enabled {
+			log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", c.ControlnetItem.Enabled)
+
+			if newGeneration.AlwaysonScripts == nil {
+				newGeneration.NewScripts()
+			}
+			var controlnetImage *string
+			switch {
+			case c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil:
+				controlnetImage = c.ControlnetItem.Image
+			case c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil:
+				controlnetImage = c.Img2ImgItem.Image
+			default:
+				c.Enabled = false
+			}
+			width, height, err := utils.GetImageSizeFromBase64(safeDereference(controlnetImage))
+			var controlnetResolution int
+			if err != nil {
+				log.Printf("Error getting image size: %v", err)
+			} else {
+				controlnetResolution = between(max(width, height), min(newGeneration.Width, newGeneration.Height), 1024)
+			}
+			newGeneration.AlwaysonScripts.ControlNet = &entities.ControlNet{
+				Args: []*entities.ControlNetParameters{
+					{
+						InputImage:   controlnetImage,
+						Module:       c.ControlnetItem.Preprocessor,
+						Model:        c.ControlnetItem.Model,
+						Weight:       1.0,
+						ResizeMode:   c.ControlnetItem.ResizeMode,
+						ProcessorRes: controlnetResolution,
+						ControlMode:  c.ControlnetItem.ControlMode,
+						PixelPerfect: false,
+					},
+				},
+			}
+			if !c.Enabled {
+				newGeneration.AlwaysonScripts.ControlNet = nil
+			}
+		}
+
+		if newGeneration.AlwaysonScripts != nil {
+			if newGeneration.AlwaysonScripts.ControlNet == nil && newGeneration.AlwaysonScripts.ADetailer == nil {
+				newGeneration.AlwaysonScripts = nil
+			}
 		}
 
 		if newGeneration.AlwaysonScripts != nil {
@@ -173,18 +214,9 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 		}
 
-		// Should not create a new map here, because it will be overwritten by the map in newGeneration
-		// if newGeneration.AlwaysOnScripts == nil {
-		// 	newGeneration.AlwaysOnScripts = make(map[string]*entities.ADetailer)
-		// }
-
-		//if additionalScript["ADetailer"] != nil {
-		//	newGeneration.AlwaysOnScripts["ADetailer"] = additionalScript["ADetailer"]
-		//}
-
-		switch q.currentImagine.Type {
+		switch c.Type {
 		case ItemTypeReroll, ItemTypeVariation:
-			foundGeneration, err := q.getPreviousGeneration(q.currentImagine, q.currentImagine.InteractionIndex)
+			foundGeneration, err := q.getPreviousGeneration(c, c.InteractionIndex)
 			if err != nil {
 				log.Printf("Error getting prompt for reroll: %v", err)
 
@@ -198,15 +230,15 @@ func (q *queueImplementation) processCurrentImagine() {
 			newGeneration.Subseed = -1
 
 			// for variations, the subseed strength determines how much variation we get
-			if q.currentImagine.Type == ItemTypeVariation {
+			if c.Type == ItemTypeVariation {
 				newGeneration.SubseedStrength = 0.15
 			}
 		}
 
-		err = q.processImagineGrid(newGeneration, q.currentImagine)
+		err = q.processImagineGrid(newGeneration, c)
 		if err != nil {
 			log.Printf("Error processing imagine grid: %v", err)
-
+			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
 			return
 		}
 	}()

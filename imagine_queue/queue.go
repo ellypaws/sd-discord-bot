@@ -69,10 +69,7 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing default settings repository")
 	}
 
-	compositeRenderer, err := composite_renderer.New(true)
-	if err != nil {
-		return nil, err
-	}
+	compositeRenderer := composite_renderer.New(false)
 
 	return &queueImplementation{
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
@@ -111,24 +108,46 @@ type QueueItem struct {
 	RestoreFaces       bool
 	ADetailerString    string // use AppendSegModelByString
 	Attachments        map[string]*entities.MessageAttachment
-	DenoisingStrength  float64
-	Checkpoint         *string
-	VAE                *string
-	Hypernetwork       *string
+	Img2ImgItem
+	ControlnetItem
+	Checkpoint   *string
+	VAE          *string
+	Hypernetwork *string
+}
+
+type Img2ImgItem struct {
+	*entities.MessageAttachment
+	DenoisingStrength float64
+}
+
+type ControlnetItem struct {
+	*entities.MessageAttachment
+	ControlMode  entities.ControlMode
+	ResizeMode   entities.ResizeMode
+	Type         string
+	Preprocessor string // also called the module in entities.ControlNetParameters
+	Model        string
+	Enabled      bool
 }
 
 func DefaultQueueItem() *QueueItem {
 	return &QueueItem{
-		NegativePrompt:    defaultNegative,
-		Steps:             20,
-		Seed:              -1,
-		SamplerName1:      "Euler a",
-		Type:              ItemTypeImagine,
-		UseHiresFix:       false,
-		HiresSteps:        20,
-		HiresUpscaleRate:  1.0,
-		CfgScale:          7.0,
-		DenoisingStrength: 0.7,
+		NegativePrompt:   defaultNegative,
+		Steps:            20,
+		Seed:             -1,
+		SamplerName1:     "Euler a",
+		Type:             ItemTypeImagine,
+		UseHiresFix:      false,
+		HiresSteps:       20,
+		HiresUpscaleRate: 1.0,
+		CfgScale:         7.0,
+		Img2ImgItem: Img2ImgItem{
+			DenoisingStrength: 0.7,
+		},
+		ControlnetItem: ControlnetItem{
+			ControlMode: entities.ControlModeBalanced,
+			ResizeMode:  entities.ResizeModeScaleToFit,
+		},
 	}
 }
 

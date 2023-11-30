@@ -7,10 +7,10 @@ type Renderer interface {
 }
 
 // New returns a new Renderer. Set yonsai to true if you have 4 images to render, false if you have n images to render.
-func New(yonsai bool) (Renderer, error) {
+func New(yonsai bool) Renderer {
 	if yonsai {
-		return &rendererImpl{}, nil
+		return &rendererImpl{}
 	} else {
-		return &tilerImpl{}, nil
+		return &tilerImpl{}
 	}
 }
