@@ -217,7 +217,16 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
 			Reader: compositeImage,
 		})
-		embeds[0].Image.URL = fmt.Sprintf("attachment://%v", files[0].Name)
+		if len(embeds) > 0 {
+			embeds[0].Image.URL = fmt.Sprintf("attachment://%v", files[0].Name)
+		} else {
+			embeds = append(embeds, &discordgo.MessageEmbed{
+				Type: discordgo.EmbedTypeImage,
+				Image: &discordgo.MessageEmbedImage{
+					URL: fmt.Sprintf("attachment://%v", files[0].Name),
+				},
+			})
+		}
 
 		if c.Enabled && c.Type != ItemTypeImg2Img {
 			extraImage, err := q.compositeRenderer.TileImages(imageBufs[4:])
