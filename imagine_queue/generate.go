@@ -39,6 +39,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			if err != nil {
 				log.Printf("Error updating configuration: %v", err)
 			}
+			config, _ = q.stableDiffusionAPI.GetConfig()
 		}
 	}
 
