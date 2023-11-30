@@ -63,7 +63,9 @@ func NewRepository(cfg *Config) (Repository, error) {
 }
 
 func (repo *sqliteRepo) Create(ctx context.Context, generation *entities.ImageGenerationRequest) (*entities.ImageGenerationRequest, error) {
-	generation.CreatedAt = repo.clock.Now()
+	if generation.CreatedAt.IsZero() {
+		generation.CreatedAt = repo.clock.Now()
+	}
 
 	marshalAlwaysonScripts, err := json.Marshal(generation.AlwaysonScripts)
 	if err != nil {

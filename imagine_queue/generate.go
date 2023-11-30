@@ -11,7 +11,6 @@ import (
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/stable_diffusion_api"
-	"strings"
 	"time"
 )
 
@@ -53,45 +52,36 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 	newContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 0)
 
-	var files []*discordgo.File
-	var embeds []*discordgo.MessageEmbed
-	for snowflake, attachment := range c.Attachments {
-		imageReader, err := utils.GetImageReaderByBase64(safeDereference(c.Attachments[snowflake].Image))
+	var embed *discordgo.MessageEmbed
+	embed = generationEmbedDetails(embed, newGeneration, c)
+
+	webhook := &discordgo.WebhookEdit{
+		Content:    &newContent,
+		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
+	}
+
+	var attachment *entities.MessageAttachment
+	var thumbnailReader *bytes.Reader
+
+	switch {
+	case c.ControlnetItem.MessageAttachment != nil && c.Img2ImgItem.MessageAttachment != nil:
+		attachment = c.ControlnetItem.MessageAttachment
+		thumbnailReader, err = utils.GetImageReaderByBase64(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
+	case c.Img2ImgItem.MessageAttachment != nil:
+		attachment = c.Img2ImgItem.MessageAttachment
+	case c.ControlnetItem.MessageAttachment != nil:
+		attachment = c.ControlnetItem.MessageAttachment
+	}
+
+	if attachment != nil {
+		err = imageEmbedFromAttachment(webhook, embed, attachment, thumbnailReader)
 		if err != nil {
-			log.Printf("Error getting image reader: %v", err)
-			continue
-		}
-		var title string
-		if c.ControlnetItem.MessageAttachment != nil && snowflake == c.ControlnetItem.MessageAttachment.ID {
-			title = fmt.Sprintf("Controlnet")
-		}
-		if c.Img2ImgItem.MessageAttachment != nil && snowflake == c.Img2ImgItem.MessageAttachment.ID {
-			title = fmt.Sprintf("Img2Img")
-		}
-		if strings.Contains(attachment.ContentType, "image") {
-			files = append(files, &discordgo.File{
-				ContentType: attachment.ContentType,
-				Name:        attachment.Filename,
-				Reader:      imageReader,
-			})
-			embeds = append(embeds, &discordgo.MessageEmbed{
-				Type:  discordgo.EmbedTypeImage,
-				Title: title,
-				Image: &discordgo.MessageEmbedImage{
-					URL: fmt.Sprintf("attachment://%v", attachment.Filename),
-				},
-			})
-		} else {
-			log.Printf("Attachment is not an image: %#v", attachment)
+			log.Printf("Error creating image embed: %v", err)
+			return err
 		}
 	}
 
-	message, err := q.botSession.InteractionResponseEdit(c.DiscordInteraction, &discordgo.WebhookEdit{
-		Content:    &newContent,
-		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
-		Files:      files,
-		Embeds:     &embeds,
-	})
+	message, err := q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 	if err != nil {
 		log.Printf("Error editing interaction: %v", err)
 		return err
@@ -116,7 +106,8 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	newGeneration.BatchSize = defaultBatchSize
 	newGeneration.Processed = true
 
-	_, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
+	// return newGeneration from image_generations.Create as we need newGeneration.CreatedAt later on
+	newGeneration, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)
 	if err != nil {
 		log.Printf("Error creating image generation record: %v\n", err)
 		return err
@@ -157,6 +148,11 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	switch c.Type {
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 		resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
+
+		// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt
+		embed = generationEmbedDetails(embed, newGeneration, c)
+
+		log.Printf("embed: %v", embed)
 
 		if err != nil {
 			log.Printf("Error processing image: %v\n", err)
@@ -205,181 +201,78 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			}
 		}
 
-		compositeImage, err := q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
-		if err != nil {
-			log.Printf("Error tiling images: %v\n", err)
-			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
-			return err
-		}
-		files = append(files, &discordgo.File{
-			ContentType: "image/png",
-			// append timestamp for grid image result
-			Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
-			Reader: compositeImage,
-		})
-		if len(embeds) > 0 {
-			embeds[0].Image.URL = fmt.Sprintf("attachment://%v", files[0].Name)
-		} else {
-			embeds = append(embeds, &discordgo.MessageEmbed{
-				Type: discordgo.EmbedTypeImage,
-				Image: &discordgo.MessageEmbedImage{
-					URL: fmt.Sprintf("attachment://%v", files[0].Name),
-				},
-			})
-		}
+		var primaryImage *bytes.Buffer
+		var thumbnails []*bytes.Buffer
 
-		if c.Enabled && c.Type != ItemTypeImg2Img {
-			extraImage, err := q.compositeRenderer.TileImages(imageBufs[4:])
+		if c.Type == ItemTypeImg2Img {
+			primaryImage = imageBufs[0]
+			if c.Img2ImgItem.MessageAttachment != nil {
+				decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
+				if err != nil {
+					log.Printf("Error decoding image: %v\n", err)
+				}
+				thumbnailReader := bytes.NewBuffer(decodedBytes)
+				thumbnails = append(thumbnails, thumbnailReader)
+			}
+			if c.ControlnetItem.MessageAttachment != nil {
+				decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
+				if err != nil {
+					log.Printf("Error decoding image: %v\n", err)
+				}
+				thumbnailReader := bytes.NewBuffer(decodedBytes)
+				thumbnails = append(thumbnails, thumbnailReader)
+			}
+		} else {
+			primaryImage, err = q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
 			if err != nil {
 				log.Printf("Error tiling images: %v\n", err)
 				handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
 				return err
 			}
-			files = append(files, &discordgo.File{
-				ContentType: "image/png",
-				Name:        "controlnet.png",
-				Reader:      extraImage,
-			})
-			embeds[0].Thumbnail = &discordgo.MessageEmbedThumbnail{
-				URL: "attachment://controlnet.png",
+			if c.ControlnetItem.MessageAttachment != nil {
+				decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
+				if err != nil {
+					log.Printf("Error decoding image: %v\n", err)
+				}
+				thumbnailReader := bytes.NewBuffer(decodedBytes)
+				thumbnails = append(thumbnails, thumbnailReader)
+			}
+			if len(imageBufs) > 4 {
+				for _, imageBuf := range imageBufs[4:] {
+					decodedBytes, err := base64.StdEncoding.DecodeString(imageBuf.String())
+					if err != nil {
+						log.Printf("Error decoding image: %v\n", err)
+					}
+					thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
+				}
 			}
 		}
 
-		finishedContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 1)
+		empty := ""
 
-		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, &discordgo.WebhookEdit{
-			Content: &finishedContent,
-			Files:   files,
-			Embeds:  &embeds,
-			Components: &[]discordgo.MessageComponent{
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "1",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_variation_1",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "♻️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "2",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_variation_2",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "♻️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "3",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_variation_3",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "♻️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "4",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_variation_4",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "♻️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "Re-roll",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.PrimaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_reroll",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "🎲",
-							},
-						},
-					},
-				},
-				discordgo.ActionsRow{
-					Components: []discordgo.MessageComponent{
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "1",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_upscale_1",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "⬆️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "2",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_upscale_2",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "⬆️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "3",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_upscale_3",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "⬆️",
-							},
-						},
-						discordgo.Button{
-							// Label is what the user will see on the button.
-							Label: "4",
-							// Style provides coloring of the button. There are not so many styles tho.
-							Style: discordgo.SecondaryButton,
-							// Disabled allows bot to disable some buttons for users.
-							Disabled: false,
-							// CustomID is a thing telling Discord which data to send when this button will be pressed.
-							CustomID: "imagine_upscale_4",
-							Emoji: discordgo.ComponentEmoji{
-								Name: "⬆️",
-							},
-						},
-						handlers.Components[handlers.DeleteGeneration].(discordgo.ActionsRow).Components[0],
-					},
-				},
-			},
-		})
+		webhook := &discordgo.WebhookEdit{
+			Content:    &empty,
+			Components: rerollVariationComponents(min(len(imageBufs), 4)),
+		}
+
+		thumbnailTile, err := q.compositeRenderer.TileImages(thumbnails)
+
+		var primaryImageReader *bytes.Reader
+		if primaryImage != nil {
+			primaryImageReader = bytes.NewReader(primaryImage.Bytes())
+		}
+
+		var thumbnailTileReader *bytes.Reader
+		if thumbnailTile != nil {
+			thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
+		}
+
+		err = imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+		if err != nil {
+			return err
+		}
+
+		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 		if err != nil {
 			log.Printf("Error editing interaction: %v\n", err)
 

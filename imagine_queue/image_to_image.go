@@ -12,8 +12,6 @@ import (
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"strings"
-	"time"
 )
 
 // TODO: Implement separate processing for Img2Img, possibly use github.com/SpenserCai/sd-webui-go/intersvc
@@ -103,6 +101,10 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	resp, err := q.stableDiffusionAPI.ImageToImageRequest(&img2img)
 
+	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt
+	var embed *discordgo.MessageEmbed
+	embed = generationEmbedDetails(embed, newGeneration, c)
+
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
 
@@ -142,125 +144,52 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	q.compositeRenderer = composite_renderer.New(false)
 
-	compositeImage, err := q.compositeRenderer.TileImages(imageBufs[:1])
-	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
-		return err, true
-	}
+	primaryImage := imageBufs[0]
+	var thumbnails []*bytes.Buffer
 
-	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
-
-	message, err := q.botSession.InteractionResponse(c.DiscordInteraction)
-
-	var files []*discordgo.File
-
-	//if c.Enabled {
-	//	extraImage, err := q.compositeRenderer.TileImages(imageBufs[1:])
-	//	if err != nil {
-	//		log.Printf("Error tiling images: %v\n", err)
-	//		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
-	//		return err, true
-	//	}
-	//	files = []*discordgo.File{
-	//		{
-	//			ContentType: "image/png",
-	//			Name:        "controlnet.png",
-	//			Reader:      extraImage,
-	//		},
-	//	}
-	//	message.Embeds[0].Thumbnail = &discordgo.MessageEmbedThumbnail{
-	//		URL: "attachment://controlnet.png",
-	//	}
-	//}
-
-	for snowflake, attachment := range imagine.Attachments {
-		imageReader, err := utils.GetImageReaderByBase64(safeDereference(imagine.Attachments[snowflake].Image))
+	if c.Img2ImgItem.MessageAttachment != nil {
+		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
 		if err != nil {
-			log.Printf("Error getting image reader: %v", err)
-			continue
+			log.Printf("Error decoding image: %v\n", err)
 		}
-		if strings.Contains(attachment.ContentType, "image") {
-			files = append(files, &discordgo.File{
-				ContentType: attachment.ContentType,
-				Name:        attachment.Filename,
-				Reader:      imageReader,
-			})
-			message.Embeds[0].Thumbnail = &discordgo.MessageEmbedThumbnail{
-				URL: fmt.Sprintf("attachment://%v", attachment.Filename),
-			}
-		} else {
-			log.Printf("Attachment is not an image: %#v", attachment)
+		thumbnailReader := bytes.NewBuffer(decodedBytes)
+		thumbnails = append(thumbnails, thumbnailReader)
+	}
+	if c.ControlnetItem.MessageAttachment != nil {
+		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
+		if err != nil {
+			log.Printf("Error decoding image: %v\n", err)
 		}
+		thumbnailReader := bytes.NewBuffer(decodedBytes)
+		thumbnails = append(thumbnails, thumbnailReader)
 	}
 
-	files = append(files, &discordgo.File{
-		ContentType: "image/png",
-		// append timestamp for grid image result
-		Name:   fmt.Sprintf("imagine_%v.png", time.Now().Format("20060102150405")),
-		Reader: compositeImage,
-	})
-	message.Embeds[0].Image = &discordgo.MessageEmbedImage{
-		URL: fmt.Sprintf("attachment://%v", files[len(files)-1].Name),
+	empty := ""
+
+	webhook := &discordgo.WebhookEdit{
+		Content:    &empty,
+		Components: rerollVariationComponents(min(len(imageBufs), 1)),
 	}
 
-	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-		Content: &finishedContent,
-		Files:   files,
-		Embeds:  &message.Embeds,
-		Components: &[]discordgo.MessageComponent{
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "1",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: true,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_variation_1",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
-					},
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "Re-roll",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.PrimaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: true,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_reroll",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "🎲",
-						},
-					},
-				},
-			},
-			discordgo.ActionsRow{
-				Components: []discordgo.MessageComponent{
-					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "1",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
-						Disabled: true,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
-						CustomID: "imagine_upscale_1",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
-					},
-					handlers.Components[handlers.DeleteGeneration].(discordgo.ActionsRow).Components[0],
-				},
-			},
-		},
-	})
+	//finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
+
+	thumbnailTile, err := q.compositeRenderer.TileImages(thumbnails)
+
+	var primaryImageReader *bytes.Reader
+	if primaryImage != nil {
+		primaryImageReader = bytes.NewReader(primaryImage.Bytes())
+	}
+
+	var thumbnailTileReader *bytes.Reader
+	if thumbnailTile != nil {
+		thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
+	}
+
+	err = imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+
+	_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 	if err != nil {
-		log.Printf("Error editing interaction: %v\n", err)
-
+		log.Printf("Error editing interaction: %v", err)
 		return err, true
 	}
 	return nil, false

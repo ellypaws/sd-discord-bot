@@ -135,10 +135,6 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 		}
 
-		// prompt will display as Monospace in Discord
-		//var quotedPrompt = quotePromptAsMonospace(promptRes4.SanitizedPrompt)
-		//promptRes.SanitizedPrompt = quotedPrompt
-
 		config, err := q.stableDiffusionAPI.GetConfig()
 		if err != nil {
 			log.Printf("Error getting config: %v", err)
@@ -154,12 +150,6 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 		}
 
-		// segModelOptions will never be nil and at least an empty string in the slice [""]
-		// because of strings.Split() in discord_bot.go
-
-		//additionalScript := make(map[string]*entities.ADetailer)
-		//alternatively additionalScript := map[string]*stable_diffusion_api.ADetailer{}
-
 		if c.ADetailerString != "" {
 			log.Printf("q.currentImagine.ADetailerString: %v", c.ADetailerString)
 
@@ -174,35 +164,44 @@ func (q *queueImplementation) processCurrentImagine() {
 			if newGeneration.AlwaysonScripts == nil {
 				newGeneration.NewScripts()
 			}
-			var imageToUse *string
+			var controlnetImage *string
 			switch {
 			case c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil:
-				imageToUse = c.ControlnetItem.Image
+				controlnetImage = c.ControlnetItem.Image
 			case c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil:
-				imageToUse = c.Img2ImgItem.Image
+				controlnetImage = c.Img2ImgItem.Image
 			default:
 				c.Enabled = false
 			}
-			width, height, err := utils.GetImageSizeFromBase64(*imageToUse)
-			var resolutionToUse int
+			width, height, err := utils.GetImageSizeFromBase64(safeDereference(controlnetImage))
+			var controlnetResolution int
 			if err != nil {
 				log.Printf("Error getting image size: %v", err)
 			} else {
-				resolutionToUse = between(max(width, height), min(newGeneration.Width, newGeneration.Height), 1024)
+				controlnetResolution = between(max(width, height), min(newGeneration.Width, newGeneration.Height), 1024)
 			}
 			newGeneration.AlwaysonScripts.ControlNet = &entities.ControlNet{
 				Args: []*entities.ControlNetParameters{
 					{
-						InputImage:   imageToUse,
+						InputImage:   controlnetImage,
 						Module:       c.ControlnetItem.Preprocessor,
 						Model:        c.ControlnetItem.Model,
 						Weight:       1.0,
 						ResizeMode:   c.ControlnetItem.ResizeMode,
-						ProcessorRes: resolutionToUse,
+						ProcessorRes: controlnetResolution,
 						ControlMode:  c.ControlnetItem.ControlMode,
 						PixelPerfect: false,
 					},
 				},
+			}
+			if !c.Enabled {
+				newGeneration.AlwaysonScripts.ControlNet = nil
+			}
+		}
+
+		if newGeneration.AlwaysonScripts != nil {
+			if newGeneration.AlwaysonScripts.ControlNet == nil && newGeneration.AlwaysonScripts.ADetailer == nil {
+				newGeneration.AlwaysonScripts = nil
 			}
 		}
 
@@ -214,15 +213,6 @@ func (q *queueImplementation) processCurrentImagine() {
 				log.Println("Final scripts: ", string(jsonMarshalScripts))
 			}
 		}
-
-		// Should not create a new map here, because it will be overwritten by the map in newGeneration
-		// if newGeneration.AlwaysOnScripts == nil {
-		// 	newGeneration.AlwaysOnScripts = make(map[string]*entities.ADetailer)
-		// }
-
-		//if additionalScript["ADetailer"] != nil {
-		//	newGeneration.AlwaysOnScripts["ADetailer"] = additionalScript["ADetailer"]
-		//}
 
 		switch c.Type {
 		case ItemTypeReroll, ItemTypeVariation:
