@@ -147,33 +147,37 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 	primaryImage := imageBufs[0]
 	var thumbnails []*bytes.Buffer
 
-	if c.Img2ImgItem.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
-		if err != nil {
-			log.Printf("Error decoding image: %v\n", err)
-		}
-		thumbnailReader := bytes.NewBuffer(decodedBytes)
-		thumbnails = append(thumbnails, thumbnailReader)
-	}
-	if c.ControlnetItem.MessageAttachment != nil {
+	log.Printf("c.ControlnetItem.Enabled: %v, c.ControlnetItem.MessageAttachment != nil: %v", c.ControlnetItem.Enabled, c.ControlnetItem.MessageAttachment != nil)
+	if c.ControlnetItem.Enabled && c.ControlnetItem.MessageAttachment != nil {
 		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
 		thumbnailReader := bytes.NewBuffer(decodedBytes)
 		thumbnails = append(thumbnails, thumbnailReader)
+
+		if len(imageBufs) > 1 {
+			thumbnails = append(thumbnails, imageBufs[1:]...)
+		}
+
+		if c.Img2ImgItem.MessageAttachment != nil {
+			decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
+			if err != nil {
+				log.Printf("Error decoding image: %v\n", err)
+			}
+			thumbnailReader := bytes.NewBuffer(decodedBytes)
+			thumbnails = append(thumbnails, thumbnailReader)
+		}
 	}
 
 	empty := ""
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &empty,
-		Components: rerollVariationComponents(min(len(imageBufs), 1)),
+		Components: rerollVariationComponents(min(len(imageBufs), 1), c.Type == ItemTypeImg2Img),
 	}
 
-	//finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
-
-	thumbnailTile, err := q.compositeRenderer.TileImages(thumbnails)
+	thumbnailTile, _ := q.compositeRenderer.TileImages(thumbnails)
 
 	var primaryImageReader *bytes.Reader
 	if primaryImage != nil {
@@ -185,7 +189,16 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
 	}
 
-	err = imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+	if len(thumbnails) > 0 {
+		imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+	} else {
+		// because we don't have the original webhook that contains the image file
+		err := imageAttachmentAsThumbnail(webhook, embed, primaryImageReader, c.Img2ImgItem.MessageAttachment, true)
+		if err != nil {
+			log.Printf("Error attaching image as thumbnail: %v", err)
+			return err, true
+		}
+	}
 
 	_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 	if err != nil {

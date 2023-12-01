@@ -201,58 +201,37 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			}
 		}
 
-		var primaryImage *bytes.Buffer
 		var thumbnails []*bytes.Buffer
 
-		if c.Type == ItemTypeImg2Img {
-			primaryImage = imageBufs[0]
-			if c.Img2ImgItem.MessageAttachment != nil {
-				decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
-				if err != nil {
-					log.Printf("Error decoding image: %v\n", err)
-				}
-				thumbnailReader := bytes.NewBuffer(decodedBytes)
-				thumbnails = append(thumbnails, thumbnailReader)
-			}
-			if c.ControlnetItem.MessageAttachment != nil {
-				decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
-				if err != nil {
-					log.Printf("Error decoding image: %v\n", err)
-				}
-				thumbnailReader := bytes.NewBuffer(decodedBytes)
-				thumbnails = append(thumbnails, thumbnailReader)
-			}
-		} else {
-			primaryImage, err = q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
+		primaryImage, err := q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
+		if err != nil {
+			log.Printf("Error tiling images: %v\n", err)
+			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+			return err
+		}
+		if c.ControlnetItem.MessageAttachment != nil {
+			decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
 			if err != nil {
-				log.Printf("Error tiling images: %v\n", err)
-				handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
-				return err
+				log.Printf("Error decoding image: %v\n", err)
 			}
-			if c.ControlnetItem.MessageAttachment != nil {
-				decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
+			thumbnailReader := bytes.NewBuffer(decodedBytes)
+			thumbnails = append(thumbnails, thumbnailReader)
+		}
+		if len(imageBufs) > 4 {
+			for _, imageBuf := range imageBufs[4:] {
+				decodedBytes, err := base64.StdEncoding.DecodeString(imageBuf.String())
 				if err != nil {
 					log.Printf("Error decoding image: %v\n", err)
 				}
-				thumbnailReader := bytes.NewBuffer(decodedBytes)
-				thumbnails = append(thumbnails, thumbnailReader)
-			}
-			if len(imageBufs) > 4 {
-				for _, imageBuf := range imageBufs[4:] {
-					decodedBytes, err := base64.StdEncoding.DecodeString(imageBuf.String())
-					if err != nil {
-						log.Printf("Error decoding image: %v\n", err)
-					}
-					thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
-				}
+				thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
 			}
 		}
 
 		empty := ""
 
-		webhook := &discordgo.WebhookEdit{
+		webhook = &discordgo.WebhookEdit{
 			Content:    &empty,
-			Components: rerollVariationComponents(min(len(imageBufs), 4)),
+			Components: rerollVariationComponents(min(len(imageBufs), 4), c.Type == ItemTypeImg2Img),
 		}
 
 		thumbnailTile, err := q.compositeRenderer.TileImages(thumbnails)
@@ -267,10 +246,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
 		}
 
-		err = imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
-		if err != nil {
-			return err
-		}
+		imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
 
 		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 		if err != nil {
