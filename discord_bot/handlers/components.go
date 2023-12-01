@@ -40,6 +40,8 @@ const (
 	CancelButton Component = "cancel"
 	Interrupt    Component = "interrupt"
 
+	CancelButtonDisabled Component = "cancel_disabled"
+
 	roleSelect = "role_select"
 )
 
@@ -173,6 +175,16 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Cancel",
 				Style:    discordgo.DangerButton,
 				CustomID: string(CancelButton),
+			},
+		},
+	},
+	CancelButtonDisabled: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Cancel",
+				Style:    discordgo.DangerButton,
+				CustomID: string(CancelButton),
+				Disabled: true,
 			},
 		},
 	},

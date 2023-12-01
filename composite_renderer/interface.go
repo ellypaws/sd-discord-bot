@@ -14,3 +14,7 @@ func New(yonsai bool) Renderer {
 		return &tilerImpl{}
 	}
 }
+
+func Compositor() Renderer {
+	return &compositor{}
+}
