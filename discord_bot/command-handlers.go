@@ -623,7 +623,7 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 			content.WriteString(fmt.Sprintf("`%T` cache refresh failed.\n", cache))
 			continue
 		}
-		content.WriteString(fmt.Sprintf("`%T` cache refreshed. %v items loaded.\n", cache, cache.Len()))
+		content.WriteString(fmt.Sprintf("`%T` cache refreshed. %v items loaded.\n", newCache, newCache.Len()))
 		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, content.String())
 	}
 
