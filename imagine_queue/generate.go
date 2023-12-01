@@ -5,9 +5,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/stable_diffusion_api"
@@ -28,7 +28,8 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 					safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
 					safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
 					safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
-				))
+				),
+				handlers.Components[handlers.CancelButtonDisabled])
 
 			// Insert code to update the configuration here
 			err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
@@ -58,27 +59,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
 		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
-	}
-
-	var attachment *entities.MessageAttachment
-	var thumbnailReader *bytes.Reader
-
-	switch {
-	case c.ControlnetItem.MessageAttachment != nil && c.Img2ImgItem.MessageAttachment != nil:
-		attachment = c.ControlnetItem.MessageAttachment
-		thumbnailReader, err = utils.GetImageReaderByBase64(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
-	case c.Img2ImgItem.MessageAttachment != nil:
-		attachment = c.Img2ImgItem.MessageAttachment
-	case c.ControlnetItem.MessageAttachment != nil:
-		attachment = c.ControlnetItem.MessageAttachment
-	}
-
-	if attachment != nil {
-		err = imageEmbedFromAttachment(webhook, embed, attachment, thumbnailReader)
-		if err != nil {
-			log.Printf("Error creating image embed: %v", err)
-			return err
-		}
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
 	}
 
 	message, err := q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
@@ -201,30 +182,26 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			}
 		}
 
-		var thumbnails []*bytes.Buffer
+		var thumbnailBuffers []*bytes.Buffer
 
 		primaryImage, err := q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
 		if err != nil {
-			log.Printf("Error tiling images: %v\n", err)
-			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+			log.Printf("Error tiling primary image: %v\n", err)
 			return err
 		}
+
 		if c.ControlnetItem.MessageAttachment != nil {
 			decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
 			if err != nil {
 				log.Printf("Error decoding image: %v\n", err)
 			}
 			thumbnailReader := bytes.NewBuffer(decodedBytes)
-			thumbnails = append(thumbnails, thumbnailReader)
+			thumbnailBuffers = append(thumbnailBuffers, thumbnailReader)
 		}
+
 		if len(imageBufs) > 4 {
-			for _, imageBuf := range imageBufs[4:] {
-				decodedBytes, err := base64.StdEncoding.DecodeString(imageBuf.String())
-				if err != nil {
-					log.Printf("Error decoding image: %v\n", err)
-				}
-				thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
-			}
+			log.Printf("received extra images: len(imageBufs): %v, controlnet: %v", len(imageBufs), c.ControlnetItem.Enabled)
+			thumbnailBuffers = append(thumbnailBuffers, imageBufs[4:]...)
 		}
 
 		empty := ""
@@ -234,7 +211,20 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			Components: rerollVariationComponents(min(len(imageBufs), 4), c.Type == ItemTypeImg2Img),
 		}
 
-		thumbnailTile, err := q.compositeRenderer.TileImages(thumbnails)
+		// remove empty thumbnailBuffers
+		for i := len(thumbnailBuffers) - 1; i >= 0; i-- {
+			if thumbnailBuffers[i] == nil {
+				log.Printf("WARNING: removing nil thumbnailBuffer at index %v", i)
+				thumbnailBuffers = append(thumbnailBuffers[:i], thumbnailBuffers[i+1:]...)
+			}
+		}
+
+		thumbnailTile, err := composite_renderer.Compositor().TileImages(thumbnailBuffers)
+		if err != nil {
+			log.Printf("Error tiling thumbnails: %v\n", err)
+			//byteArray, _ := json.Marshal(thumbnailBuffers)
+			//log.Printf("thumbnailBuffers: %v", string(byteArray))
+		}
 
 		var primaryImageReader *bytes.Reader
 		if primaryImage != nil {
@@ -251,7 +241,6 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 		if err != nil {
 			log.Printf("Error editing interaction: %v\n", err)
-
 			return err
 		}
 	case ItemTypeImg2Img:

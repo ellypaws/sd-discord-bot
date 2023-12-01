@@ -169,6 +169,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			case c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil:
 				controlnetImage = c.ControlnetItem.Image
 			case c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil:
+				// not needed for Img2Img as it automatically uses it if InputImage is null, only used for width/height
 				controlnetImage = c.Img2ImgItem.Image
 			default:
 				c.Enabled = false
@@ -180,6 +181,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			} else {
 				controlnetResolution = between(max(width, height), min(newGeneration.Width, newGeneration.Height), 1024)
 			}
+
 			newGeneration.AlwaysonScripts.ControlNet = &entities.ControlNet{
 				Args: []*entities.ControlNetParameters{
 					{
@@ -194,23 +196,29 @@ func (q *queueImplementation) processCurrentImagine() {
 					},
 				},
 			}
+			if c.Type == ItemTypeImg2Img && c.ControlnetItem.MessageAttachment == nil {
+				// controlnet will automatically use img2img if it is null
+				newGeneration.AlwaysonScripts.ControlNet.Args[0].InputImage = nil
+			}
+
 			if !c.Enabled {
 				newGeneration.AlwaysonScripts.ControlNet = nil
 			}
 		}
 
 		if newGeneration.AlwaysonScripts != nil {
+			// check if both inner scripts are nil, if so, set AlwaysonScripts to nil
 			if newGeneration.AlwaysonScripts.ControlNet == nil && newGeneration.AlwaysonScripts.ADetailer == nil {
 				newGeneration.AlwaysonScripts = nil
 			}
 		}
 
-		if newGeneration.AlwaysonScripts != nil {
-			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysonScripts, "", "  ")
+		if newGeneration.AlwaysonScripts != nil && newGeneration.AlwaysonScripts.ADetailer != nil {
+			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysonScripts.ADetailer, "", "  ")
 			if err != nil {
 				log.Printf("Error marshalling scripts: %v", err)
 			} else {
-				log.Println("Final scripts: ", string(jsonMarshalScripts))
+				log.Println("Final scripts (Adetailer): ", string(jsonMarshalScripts))
 			}
 		}
 

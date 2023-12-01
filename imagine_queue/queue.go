@@ -69,13 +69,11 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing default settings repository")
 	}
 
-	compositeRenderer := composite_renderer.New(false)
-
 	return &queueImplementation{
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
 		imageGenerationRepo: cfg.ImageGenerationRepo,
 		queue:               make(chan *QueueItem, 100),
-		compositeRenderer:   compositeRenderer,
+		compositeRenderer:   composite_renderer.Compositor(),
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 		cancelledItems:      make(map[string]bool),
 	}, nil

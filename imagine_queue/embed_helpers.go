@@ -35,25 +35,24 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 			*image.Image, err = utils.GetImageBase64(image.URL)
 			if err != nil {
 				log.Printf("Error getting image base64: %v", err)
-				return
+				return err
 			}
 		}
 		embed.Type = discordgo.EmbedTypeImage
 		embed.Image = &discordgo.MessageEmbedImage{
 			URL: fmt.Sprintf("attachment://%v", image.Filename),
 		}
-	}
+		imageReader, err := utils.GetImageReaderByBase64(safeDereference(image.Image))
+		if err != nil {
+			log.Printf("Error getting image reader by base64: %v", err)
+			return err
+		}
 
-	imageReader, err := utils.GetImageReaderByBase64(safeDereference(image.Image))
-	if err != nil {
-		log.Printf("Error getting image reader by base64: %v", err)
-		return
+		files = append(files, &discordgo.File{
+			Name:   image.Filename,
+			Reader: imageReader,
+		})
 	}
-
-	files = append(files, &discordgo.File{
-		Name:   image.Filename,
-		Reader: imageReader,
-	})
 
 	embeds := []*discordgo.MessageEmbed{embed}
 
@@ -113,10 +112,12 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 	}
 	var title string
 	switch {
+	case c.Enabled && c.Type == ItemTypeImg2Img:
+		title = "Image to Image (Controlnet)"
+	case c.Enabled || (c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil):
+		title = "Text to Image (Controlnet)"
 	case c.Type == ItemTypeImg2Img || (c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil):
 		title = "Image to Image"
-	case c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil:
-		title = "Controlnet"
 	case c.Type == ItemTypeVariation:
 		title = "Variation"
 	case c.Type == ItemTypeReroll:
@@ -124,7 +125,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 	case c.Type == ItemTypeUpscale:
 		title = "Upscale"
 	default:
-		title = "Finished generation"
+		title = "Text to Image"
 	}
 	if embed == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T", embed)
@@ -138,8 +139,16 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		IconURL:      c.DiscordInteraction.Member.User.AvatarURL(""),
 		ProxyIconURL: "https://i.keiau.space/data/00144.png",
 	}
-	embed.Description = fmt.Sprintf("<@%s> asked me to process %v steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
-		c.DiscordInteraction.Member.User.ID, newGeneration.Steps, time.Since(newGeneration.CreatedAt),
+
+	var timeSince string
+	if newGeneration.CreatedAt.IsZero() {
+		timeSince = "unknown"
+	} else {
+		timeSince = time.Since(newGeneration.CreatedAt).Round(time.Second).String()
+	}
+
+	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
+		c.DiscordInteraction.Member.User.ID, newGeneration.Steps, timeSince,
 		newGeneration.CFGScale, newGeneration.Seed, newGeneration.SamplerName)
 	// store as "2015-12-31T12:00:00.000Z"
 	embed.Timestamp = time.Now().Format(time.RFC3339)

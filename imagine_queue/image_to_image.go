@@ -9,7 +9,6 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"os"
-	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 )
@@ -142,32 +141,31 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		imageBufs[idx] = imageBuf
 	}
 
-	q.compositeRenderer = composite_renderer.New(false)
-
 	primaryImage := imageBufs[0]
-	var thumbnails []*bytes.Buffer
+	var thumbnailBuffers []*bytes.Buffer
 
 	log.Printf("c.ControlnetItem.Enabled: %v, c.ControlnetItem.MessageAttachment != nil: %v", c.ControlnetItem.Enabled, c.ControlnetItem.MessageAttachment != nil)
-	if c.ControlnetItem.Enabled && c.ControlnetItem.MessageAttachment != nil {
+
+	if c.ControlnetItem.MessageAttachment != nil {
 		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
 		thumbnailReader := bytes.NewBuffer(decodedBytes)
-		thumbnails = append(thumbnails, thumbnailReader)
+		thumbnailBuffers = append(thumbnailBuffers, thumbnailReader)
+	}
 
-		if len(imageBufs) > 1 {
-			thumbnails = append(thumbnails, imageBufs[1:]...)
+	if c.Img2ImgItem.MessageAttachment != nil {
+		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
+		if err != nil {
+			log.Printf("Error decoding image: %v\n", err)
 		}
+		thumbnailReader := bytes.NewBuffer(decodedBytes)
+		thumbnailBuffers = append(thumbnailBuffers, thumbnailReader)
+	}
 
-		if c.Img2ImgItem.MessageAttachment != nil {
-			decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
-			if err != nil {
-				log.Printf("Error decoding image: %v\n", err)
-			}
-			thumbnailReader := bytes.NewBuffer(decodedBytes)
-			thumbnails = append(thumbnails, thumbnailReader)
-		}
+	if len(imageBufs) > 1 {
+		thumbnailBuffers = append(thumbnailBuffers, imageBufs[1:]...)
 	}
 
 	empty := ""
@@ -177,7 +175,12 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		Components: rerollVariationComponents(min(len(imageBufs), 1), c.Type == ItemTypeImg2Img),
 	}
 
-	thumbnailTile, _ := q.compositeRenderer.TileImages(thumbnails)
+	thumbnailTile, err := q.compositeRenderer.TileImages(thumbnailBuffers)
+	if err != nil {
+		log.Printf("Error tiling thumbnails: %v\n", err)
+		//byteArray, _ := json.Marshal(thumbnailBuffers)
+		//log.Printf("thumbnailBuffers: %v", string(byteArray))
+	}
 
 	var primaryImageReader *bytes.Reader
 	if primaryImage != nil {
@@ -189,7 +192,7 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
 	}
 
-	if len(thumbnails) > 0 {
+	if len(thumbnailBuffers) > 0 {
 		imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
 	} else {
 		// because we don't have the original webhook that contains the image file
