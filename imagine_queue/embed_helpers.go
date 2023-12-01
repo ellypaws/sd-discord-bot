@@ -29,7 +29,6 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 		})
 	}
 
-	var reader *bytes.Reader
 	if image != nil {
 		if image.Image == nil && image.URL != "" {
 			image.Image = new(string)
@@ -45,7 +44,7 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 		}
 	}
 
-	reader, err = utils.GetImageReaderByBase64(safeDereference(image.Image))
+	imageReader, err := utils.GetImageReaderByBase64(safeDereference(image.Image))
 	if err != nil {
 		log.Printf("Error getting image reader by base64: %v", err)
 		return
@@ -53,7 +52,7 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 
 	files = append(files, &discordgo.File{
 		Name:   image.Filename,
-		Reader: reader,
+		Reader: imageReader,
 	})
 
 	embeds := []*discordgo.MessageEmbed{embed}
@@ -63,7 +62,7 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 	return
 }
 
-func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, reader *bytes.Reader, thumbnail *bytes.Reader) (err error) {
+func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image *bytes.Reader, thumbnail *bytes.Reader) {
 	if embed == nil {
 		embed = &discordgo.MessageEmbed{
 			Timestamp: time.Now().Format(time.RFC3339),
@@ -71,6 +70,13 @@ func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.Messa
 	}
 
 	var files []*discordgo.File
+
+	// move webhook embed image to thumbnail
+	//if thumbnail == nil && len(webhook.Files) > 0 {
+	//	embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
+	//		URL: fmt.Sprintf("attachment://%v", webhook.Files[0].Name),
+	//	}
+	//}
 
 	if thumbnail != nil {
 		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
@@ -82,21 +88,22 @@ func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.Messa
 		})
 	}
 
-	embed.Type = discordgo.EmbedTypeImage
-	embed.Image = &discordgo.MessageEmbedImage{
-		URL: fmt.Sprintf("attachment://%v", "image.png"),
-	}
+	if image != nil {
+		embed.Type = discordgo.EmbedTypeImage
+		embed.Image = &discordgo.MessageEmbedImage{
+			URL: fmt.Sprintf("attachment://%v", "image.png"),
+		}
 
-	files = append(files, &discordgo.File{
-		Name:   "image.png",
-		Reader: reader,
-	})
+		files = append(files, &discordgo.File{
+			Name:   "image.png",
+			Reader: image,
+		})
+	}
 
 	embeds := []*discordgo.MessageEmbed{embed}
 
 	webhook.Embeds = &embeds
 	webhook.Files = files
-	return
 }
 
 func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *QueueItem) *discordgo.MessageEmbed {
@@ -164,7 +171,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 	return embed
 }
 
-func rerollVariationComponents(amount int) *[]discordgo.MessageComponent {
+func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageComponent {
 	var actionsRow []discordgo.ActionsRow
 
 	var firstRow []discordgo.MessageComponent
@@ -174,7 +181,7 @@ func rerollVariationComponents(amount int) *[]discordgo.MessageComponent {
 		firstRow = append(firstRow, discordgo.Button{
 			Label:    fmt.Sprintf("%d", i),
 			Style:    discordgo.SecondaryButton,
-			Disabled: false,
+			Disabled: disable,
 			CustomID: fmt.Sprintf("imagine_variation_%d", i),
 			Emoji: discordgo.ComponentEmoji{
 				Name: "♻️",
@@ -185,7 +192,7 @@ func rerollVariationComponents(amount int) *[]discordgo.MessageComponent {
 	firstRow = append(firstRow, discordgo.Button{
 		Label:    "Re-roll",
 		Style:    discordgo.PrimaryButton,
-		Disabled: false,
+		Disabled: disable,
 		CustomID: "imagine_reroll",
 		Emoji: discordgo.ComponentEmoji{
 			Name: "🎲",
@@ -203,7 +210,7 @@ func rerollVariationComponents(amount int) *[]discordgo.MessageComponent {
 		secondRow = append(secondRow, discordgo.Button{
 			Label:    fmt.Sprintf("%d", i),
 			Style:    discordgo.SecondaryButton,
-			Disabled: false,
+			Disabled: disable,
 			CustomID: fmt.Sprintf("imagine_upscale_%d", i),
 			Emoji: discordgo.ComponentEmoji{
 				Name: "⬆️",
@@ -233,4 +240,57 @@ func rerollVariationComponents(amount int) *[]discordgo.MessageComponent {
 	}
 
 	return &rows
+}
+
+func imageAttachmentAsThumbnail(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image *bytes.Reader, thumbnail *entities.MessageAttachment, alreadyAFile bool) (err error) {
+	if embed == nil {
+		embed = &discordgo.MessageEmbed{
+			Timestamp: time.Now().Format(time.RFC3339),
+		}
+	}
+
+	var files []*discordgo.File
+
+	if thumbnail != nil {
+		if thumbnail.Image == nil && thumbnail.URL != "" {
+			thumbnail.Image = new(string)
+			*thumbnail.Image, err = utils.GetImageBase64(thumbnail.URL)
+			if err != nil {
+				log.Printf("Error getting image base64: %v", err)
+				return
+			}
+		}
+		embed.Type = discordgo.EmbedTypeImage
+		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
+			URL: fmt.Sprintf("attachment://%v", thumbnail.Filename),
+		}
+
+		if !alreadyAFile {
+			thumbnailReader, err := utils.GetImageReaderByBase64(safeDereference(thumbnail.Image))
+			if err != nil {
+				log.Printf("Error getting image reader by base64: %v", err)
+				return err
+			}
+			files = append(files, &discordgo.File{
+				Name:   thumbnail.Filename,
+				Reader: thumbnailReader,
+			})
+		}
+	}
+
+	if image != nil {
+		files = append(files, &discordgo.File{
+			Name:   "primary.png",
+			Reader: image,
+		})
+		embed.Image = &discordgo.MessageEmbedImage{
+			URL: fmt.Sprintf("attachment://%v", "primary.png"),
+		}
+	}
+
+	embeds := []*discordgo.MessageEmbed{embed}
+
+	webhook.Embeds = &embeds
+	webhook.Files = files
+	return
 }
