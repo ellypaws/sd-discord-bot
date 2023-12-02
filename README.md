@@ -4,6 +4,39 @@
 
 An opinionated fork of https://github.com/pitapan5376/stable-diffusion-discord-bot
 
+### Controlnet
+
+Added an option to upload an attachment and have it process through controlnet.
+Can also use img2img as the input.
+
+添付ファイルをアップロードして、controlnetを介して処理するオプションを追加しました。
+入力としてimg2imgも使用できます。
+
+![controlnet](/document/020_controlnet.png?raw=true)
+
+### Checkpoint
+
+Added an option to select the checkpoint for each generation. This also has fuzzy search.
+The checkpoint gets updated for upscaling and variation as well.
+
+各世代のチェックポイントを選択するオプションを追加しました。これもファジー検索ができます。
+チェックポイントは、アップスケーリングとバリエーションでも更新されます。
+
+![checkpoint](/document/016_checkpoint.png?raw=true)
+
+Also added it to the imagine settings command
+
+imagine settingsコマンドにも追加しました
+
+![imagine settings](/document/018_checkpoint_settings.png?raw=true)
+
+### Img2Img
+
+Added an option to upload an attachment and have it process through img2img.
+
+添付ファイルをアップロードして、img2imgを介して処理するオプションを追加しました。
+
+![img2img](/document/019_img2img.png?raw=true)
 
 ### Delete button for generation
 
@@ -33,31 +66,6 @@ Loraモデルのためのファジー検索を追加しました。名前でモ�
 
 ![lora fuzzy search](/document/015_lora.png?raw=true)
 
-
-### Checkpoint
-
-Added an option to select the checkpoint for each generation. This also has fuzzy search.
-The checkpoint gets updated for upscaling and variation as well.
-
-各世代のチェックポイントを選択するオプションを追加しました。これもファジー検索ができます。
-チェックポイントは、アップスケーリングとバリエーションでも更新されます。
-
-![checkpoint](/document/016_checkpoint.png?raw=true)
-
-Also added it to the imagine settings command
-
-imagine settingsコマンドにも追加しました
-
-![imagine settings](/document/018_checkpoint_settings.png?raw=true)
-
-### Img2Img
-
-Added an option to upload an attachment and have it process through img2img.
-
-添付ファイルをアップロードして、img2imgを介して処理するオプションを追加しました。
-
-![img2img](/document/019_img2img.png?raw=true)
-
 ### ADetailer
 
 Added an option to run the adetailer scripts on generation. We have a selection for Face, Body, or both.
@@ -71,32 +79,38 @@ This has been written as an interface to allow for more scripts to be added in t
 
 #### Under the hood
 
-1. [x] Moved handlers to a map to easily add and find them with constants
-2. [x] Also did this for the components
-3. [x] Added a progress bar while generating
-4. [x] Methods for getting the current config and checkpoint
-5. [x] Methods to get the available checkpoints and loras and store them in a cache slice
-6. [x] Automatically use the face ADetailer even if the user doesn't specify it
-7. [x] Allow changing vae and searching for hypernetwork models
-8. [x] Command to reload lora, checkpoints, and vae
-9. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
-10. [ ] With bubbletea, add options to restart API, interrupt generations
-11. [ ] Allow single image generations
-12. [ ] Embed png info into the image
+1. [x] Img2Img
+2. [x] Controlnet
+3. [x] Interrupt generation
+3. [x] Moved handlers to a map to easily add and find them with constants
+4. [x] Also did this for the components
+5. [x] Added a progress bar while generating
+6. [x] Methods for getting the current config and checkpoint
+7. [x] Methods to get the available checkpoints and loras and store them in a cache slice
+8. [x] Automatically use the face ADetailer even if the user doesn't specify it
+9. [x] Allow changing vae and searching for hypernetwork models
+10. [x] Command to reload lora, checkpoints, and vae
+11. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
+12. [ ] With bubbletea, add options to restart API, interrupt generations
+13. [ ] Allow single image generations
+14. [ ] Embed png info into the image
 
 ---
-1. [x] ハンドラーをマップに移動して、定数で簡単に追加したり見つけたりできるようにしました。
-2. [x] コンポーネントにも同じことをしました。
-3. [x] 生成中に進捗バーを追加しました。
-4. [x] 現在の設定とチェックポイントを取得するためのメソッド
-5. [x] 利用可能なチェックポイントとロラを取得し、キャッシュスライスに格納するためのメソッド
-6. [x] ユーザーが指定しなくても、顔のADetailerを自動的に使用するようにしました。
-7. [x] VAEを変更したり、ハイパーネットワークモデルを検索したりすることを許可する
-8. [x] lora、チェックポイント、vaeを再読み込みするコマンド
-9. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
-10. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
-11. [ ] 単一の画像生成を許可する
-12. [ ] png情報を画像に埋め込む
+1. [x] Img2Img
+2. [x] Controlnet
+3. [x] 生成を中断する
+4. [x] ハンドラーをマップに移動して、定数で簡単に追加したり見つけたりできるようにしました。
+5. [x] コンポーネントにも同じことをしました。
+6. [x] 生成中に進捗バーを追加しました。
+7. [x] 現在の設定とチェックポイントを取得するためのメソッド
+8. [x] 利用可能なチェックポイントとロラを取得し、キャッシュスライスに格納するためのメソッド
+9. [x] ユーザーが指定しなくても、顔のADetailerを自動的に使用するようにしました。
+10. [x] VAEを変更したり、ハイパーネットワークモデルを検索したりすることを許可する
+11. [x] lora、チェックポイント、vaeを再読み込みするコマンド
+12. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
+13. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
+14. [ ] 単一の画像生成を許可する
+15. [ ] png情報を画像に埋め込む
 
 ---
 
