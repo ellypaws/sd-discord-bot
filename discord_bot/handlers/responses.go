@@ -97,11 +97,12 @@ var Responses = map[ResponseType]any{
 	}),
 
 	followupEdit: editResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message {
-		webhookEdit := discordgo.WebhookEdit{}
-		contentEdit(&webhookEdit, message)
-		contentEdit(&webhookEdit, content...)
+		// check if any content is a webhook edit
+		webhookEdit := webhookFromContents(content...)
+		contentEdit(webhookEdit, message)
+		contentEdit(webhookEdit, content...)
 
-		msg, err := bot.FollowupMessageEdit(i, message.Reference().MessageID, &webhookEdit)
+		msg, err := bot.FollowupMessageEdit(i, message.Reference().MessageID, webhookEdit)
 		if err != nil {
 			Errors[ErrorFollowup](bot, i, err)
 		}
@@ -128,11 +129,21 @@ var Responses = map[ResponseType]any{
 	}),
 
 	editMessage: editResponseType(func(bot *discordgo.Session, i *discordgo.Interaction, message *discordgo.Message, content ...any) *discordgo.Message {
-		webhookEdit := discordgo.WebhookEdit{}
-		contentEdit(&webhookEdit, message)
-		contentEdit(&webhookEdit, content...)
+		// check if any content is a webhook edit
+		var webhookEdit *discordgo.WebhookEdit
+		for _, m := range content {
+			switch c := m.(type) {
+			case *discordgo.WebhookEdit:
+				webhookEdit = c
+			}
+		}
+		if webhookEdit == nil {
+			webhookEdit = &discordgo.WebhookEdit{}
+		}
+		contentEdit(webhookEdit, message)
+		contentEdit(webhookEdit, content...)
 
-		msg, err := bot.FollowupMessageEdit(i, message.Reference().MessageID, &webhookEdit)
+		msg, err := bot.FollowupMessageEdit(i, message.Reference().MessageID, webhookEdit)
 		if err != nil {
 			Errors[ErrorFollowup](bot, i, err)
 		}
@@ -154,10 +165,21 @@ var Responses = map[ResponseType]any{
 	}),
 
 	EditInteractionResponse: MsgReturnType(func(bot *discordgo.Session, i *discordgo.Interaction, content ...any) *discordgo.Message {
-		webhookEdit := discordgo.WebhookEdit{}
-		contentEdit(&webhookEdit, content...)
+		// check if any content is a webhook edit
+		var webhookEdit *discordgo.WebhookEdit
+		for _, m := range content {
+			switch c := m.(type) {
+			case *discordgo.WebhookEdit:
+				webhookEdit = c
+			}
+		}
+		if webhookEdit == nil {
+			webhookEdit = &discordgo.WebhookEdit{}
+		}
 
-		msg, err := bot.InteractionResponseEdit(i, &webhookEdit)
+		contentEdit(webhookEdit, content...)
+
+		msg, err := bot.InteractionResponseEdit(i, webhookEdit)
 		if err != nil {
 			Errors[ErrorEphemeral](bot, i, err)
 		}
@@ -205,6 +227,20 @@ var Responses = map[ResponseType]any{
 			Errors[ErrorResponse](bot, i.Interaction, err)
 		}
 	}),
+}
+
+func webhookFromContents(content ...any) *discordgo.WebhookEdit {
+	var webhookEdit *discordgo.WebhookEdit
+	for _, m := range content {
+		switch c := m.(type) {
+		case *discordgo.WebhookEdit:
+			webhookEdit = c
+		}
+	}
+	if webhookEdit == nil {
+		webhookEdit = &discordgo.WebhookEdit{}
+	}
+	return webhookEdit
 }
 
 func contentEdit(webhookEdit *discordgo.WebhookEdit, messages ...any) {

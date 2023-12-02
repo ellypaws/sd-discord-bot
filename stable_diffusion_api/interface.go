@@ -18,6 +18,7 @@ type StableDiffusionAPI interface {
 	ImageToImageRequest(req *entities.ImageToImageRequest) (*entities.ImageToImageResponse, error)
 	UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error)
 	GetCurrentProgress() (*ProgressResponse, error)
+	GetProgress() (*Progress, error)
 
 	UpdateConfiguration(config APIConfig) error
 

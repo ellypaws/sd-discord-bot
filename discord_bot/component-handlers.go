@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"slices"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
@@ -28,9 +29,11 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		var originalInteractionUser string
 
 		switch {
-		case i.Message.Interaction != nil:
+		case i.Message.Interaction != nil && i.Message.Interaction.User != nil:
 			originalInteractionUser = i.Message.Interaction.User.ID
-		case i.Message.Mentions != nil:
+		case i.Message.Interaction != nil && i.Message.Interaction.Member != nil:
+			originalInteractionUser = i.Message.Interaction.Member.User.ID
+		case len(i.Message.Mentions) > 0:
 			log.Printf("WARN: Using mentions to determine original interaction user")
 			originalInteractionUser = i.Message.Mentions[0].ID
 		default:
@@ -202,8 +205,8 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		bot.processImagineVariation(s, i, interactionIndexInt)
 	},
 
-	handlers.CancelButton: (*botImpl).removeImagineFromQueue, // Cancel button is used when still in queue
-	handlers.Interrupt:    (*botImpl).interrupt,              // Interrupt button is used when currently generating, using the api.Interrupt() method
+	handlers.Cancel:    (*botImpl).removeImagineFromQueue, // Cancel button is used when still in queue
+	handlers.Interrupt: (*botImpl).interrupt,              // Interrupt button is used when currently generating, using the api.Interrupt() method
 }
 
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -573,17 +576,35 @@ func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.Inte
 
 // check if the user using the interrupt button is the same user that started the generation
 func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	if i.Member == nil || i.Message.Interaction == nil || i.Member.User.ID != i.Message.Interaction.User.ID {
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "You can only interrupt your own generations")
+	if i.Member == nil {
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Member not found")
 		return
 	}
 
-	err := b.StableDiffusionApi.Interrupt()
+	var mentionedIDs []string
+
+	for _, mention := range i.Message.Mentions {
+		mentionedIDs = append(mentionedIDs, mention.ID)
+	}
+
+	if len(mentionedIDs) == 0 {
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Could not determine who started the generation as there are no detected mentions")
+		return
+	}
+
+	if !slices.Contains(mentionedIDs, i.Member.User.ID) {
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction,
+			// strings.Join with <@ID> and newlines.
+			fmt.Sprintf("You can only interrupt your own generations.\nValid users: <@%v>", strings.Join(mentionedIDs, ">\n<@")))
+		return
+	}
+
+	err := b.imagineQueue.Interrupt(i)
 	if err != nil {
 		log.Printf("Error interrupting generation: %v", err)
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error interrupting generation")
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, err)
 		return
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, "Generation interrupted", nil)
+	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction, "Generation interrupted", handlers.Components[handlers.InterruptDisabled])
 }

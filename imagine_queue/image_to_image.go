@@ -102,7 +102,7 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt
 	var embed *discordgo.MessageEmbed
-	embed = generationEmbedDetails(embed, newGeneration, c)
+	embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
 
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)

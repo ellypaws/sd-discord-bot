@@ -37,10 +37,11 @@ const (
 	paginationButtons Component = "pagination_button"
 	okCancelButtons   Component = "ok_cancel_buttons"
 
-	CancelButton Component = "cancel"
-	Interrupt    Component = "interrupt"
+	Cancel    Component = "cancel"
+	Interrupt Component = "interrupt"
 
-	CancelButtonDisabled Component = "cancel_disabled"
+	CancelDisabled    Component = "cancel_disabled"
+	InterruptDisabled Component = "interrupt_disabled"
 
 	roleSelect = "role_select"
 )
@@ -169,26 +170,39 @@ var Components = map[Component]discordgo.MessageComponent{
 			},
 		},
 	},
-	CancelButton: discordgo.ActionsRow{
+	Cancel: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Cancel",
 				Style:    discordgo.DangerButton,
-				CustomID: string(CancelButton),
+				CustomID: string(Cancel),
 			},
 		},
 	},
-	CancelButtonDisabled: discordgo.ActionsRow{
+	CancelDisabled: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Cancel",
 				Style:    discordgo.DangerButton,
-				CustomID: string(CancelButton),
+				CustomID: string(Cancel),
 				Disabled: true,
 			},
 		},
 	},
 	Interrupt: discordgo.ActionsRow{
+		Components: []discordgo.MessageComponent{
+			discordgo.Button{
+				Label:    "Interrupt",
+				Style:    discordgo.DangerButton,
+				CustomID: string(Interrupt),
+				Emoji: discordgo.ComponentEmoji{
+					Name: "⚠️",
+				},
+				Disabled: false,
+			},
+		},
+	},
+	InterruptDisabled: discordgo.ActionsRow{
 		Components: []discordgo.MessageComponent{
 			discordgo.Button{
 				Label:    "Interrupt",

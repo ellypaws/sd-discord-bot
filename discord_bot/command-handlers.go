@@ -288,7 +288,11 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		queue.Prompt,
 	)
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, queueString, handlers.Components[handlers.CancelButton])
+	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, queueString, handlers.Components[handlers.Cancel])
+	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
+		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
+		queue.DiscordInteraction.Message = message
+	}
 }
 
 var weightRegex = regexp.MustCompile(`.+\\|\.(?:safetensors|ckpt|pth?)|(:[\d.]+$)`)

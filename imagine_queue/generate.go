@@ -29,7 +29,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 					safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
 					safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
 				),
-				handlers.Components[handlers.CancelButtonDisabled])
+				handlers.Components[handlers.CancelDisabled])
 
 			// Insert code to update the configuration here
 			err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
@@ -54,7 +54,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	newContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 0)
 
 	var embed *discordgo.MessageEmbed
-	embed = generationEmbedDetails(embed, newGeneration, c)
+	embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
@@ -66,6 +66,12 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	if err != nil {
 		log.Printf("Error editing interaction: %v", err)
 		return err
+	}
+
+	// store message ID in c.DiscordInteraction.Message
+	if c.DiscordInteraction != nil && c.DiscordInteraction.Message == nil && message != nil {
+		log.Printf("Setting c.DiscordInteraction.Message to message: %v", message)
+		c.DiscordInteraction.Message = message
 	}
 
 	defaultBatchCount, err := q.defaultBatchCount()
@@ -99,6 +105,17 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	go func() {
 		for {
 			select {
+			case c.DiscordInteraction = <-c.Interrupt:
+				err := q.stableDiffusionAPI.Interrupt()
+				if err != nil {
+					handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+					return
+				}
+				message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
+				if c.DiscordInteraction.Message == nil && message != nil {
+					log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
+					c.DiscordInteraction.Message = message
+				}
 			case <-generationDone:
 				return
 			case <-time.After(1 * time.Second):
@@ -130,8 +147,8 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 		resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
 
-		// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt
-		embed = generationEmbedDetails(embed, newGeneration, c)
+		// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
+		embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
 
 		log.Printf("embed: %v", embed)
 

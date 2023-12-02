@@ -111,6 +111,7 @@ type QueueItem struct {
 	Checkpoint   *string
 	VAE          *string
 	Hypernetwork *string
+	Interrupt    chan *discordgo.Interaction
 }
 
 type Img2ImgItem struct {
@@ -250,12 +251,28 @@ func (q *queueImplementation) done() {
 	q.currentImagine = nil
 }
 
-func (q *queueImplementation) RemoveFromQueue(interaction *discordgo.MessageInteraction) error {
+func (q *queueImplementation) RemoveFromQueue(messageInteraction *discordgo.MessageInteraction) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	// Mark the item as cancelled
-	q.cancelledItems[interaction.ID] = true
+	q.cancelledItems[messageInteraction.ID] = true
+
+	return nil
+}
+
+func (q *queueImplementation) Interrupt(i *discordgo.InteractionCreate) error {
+
+	if q.currentImagine == nil {
+		return errors.New("there is no generation currently in progress")
+	}
+
+	// Mark the item as cancelled
+	log.Printf("Interrupting generation #%s\n", q.currentImagine.DiscordInteraction.ID)
+	if q.currentImagine.Interrupt == nil {
+		q.currentImagine.Interrupt = make(chan *discordgo.Interaction)
+	}
+	q.currentImagine.Interrupt <- i.Interaction
 
 	return nil
 }

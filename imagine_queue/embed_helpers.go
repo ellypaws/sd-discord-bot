@@ -6,6 +6,7 @@ import (
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"time"
 )
@@ -105,34 +106,35 @@ func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.Messa
 	webhook.Files = files
 }
 
-func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *QueueItem) *discordgo.MessageEmbed {
+func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *QueueItem, interrupted bool) *discordgo.MessageEmbed {
 	if newGeneration == nil || c == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", newGeneration, c)
 		return nil
-	}
-	var title string
-	switch {
-	case c.Enabled && c.Type == ItemTypeImg2Img:
-		title = "Image to Image (Controlnet)"
-	case c.Enabled || (c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil):
-		title = "Text to Image (Controlnet)"
-	case c.Type == ItemTypeImg2Img || (c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil):
-		title = "Image to Image"
-	case c.Type == ItemTypeVariation:
-		title = "Variation"
-	case c.Type == ItemTypeReroll:
-		title = "Reroll"
-	case c.Type == ItemTypeUpscale:
-		title = "Upscale"
-	default:
-		title = "Text to Image"
 	}
 	if embed == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T", embed)
 		embed = &discordgo.MessageEmbed{}
 	}
+	switch {
+	case c.Enabled && c.Type == ItemTypeImg2Img:
+		embed.Title = "Image to Image (Controlnet)"
+	case c.Enabled || (c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil):
+		embed.Title = "Text to Image (Controlnet)"
+	case c.Type == ItemTypeImg2Img || (c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil):
+		embed.Title = "Image to Image"
+	case c.Type == ItemTypeVariation:
+		embed.Title = "Variation"
+	case c.Type == ItemTypeReroll:
+		embed.Title = "Reroll"
+	case c.Type == ItemTypeUpscale:
+		embed.Title = "Upscale"
+	default:
+		embed.Title = "Text to Image"
+	}
+	if interrupted {
+		embed.Title += " (Interrupted)"
+	}
 	embed.Type = discordgo.EmbedTypeImage
-	embed.Title = title
 	embed.URL = "https://github.com/ellypaws/sd-discord-bot/"
 	embed.Author = &discordgo.MessageEmbedAuthor{
 		Name:         c.DiscordInteraction.Member.User.Username,
@@ -191,7 +193,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 			Label:    fmt.Sprintf("%d", i),
 			Style:    discordgo.SecondaryButton,
 			Disabled: disable,
-			CustomID: fmt.Sprintf("imagine_variation_%d", i),
+			CustomID: fmt.Sprintf("%v_%d", handlers.VariantButton, i),
 			Emoji: discordgo.ComponentEmoji{
 				Name: "♻️",
 			},
@@ -202,7 +204,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 		Label:    "Re-roll",
 		Style:    discordgo.PrimaryButton,
 		Disabled: disable,
-		CustomID: "imagine_reroll",
+		CustomID: string(handlers.RerollButton),
 		Emoji: discordgo.ComponentEmoji{
 			Name: "🎲",
 		},
@@ -220,7 +222,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 			Label:    fmt.Sprintf("%d", i),
 			Style:    discordgo.SecondaryButton,
 			Disabled: disable,
-			CustomID: fmt.Sprintf("imagine_upscale_%d", i),
+			CustomID: fmt.Sprintf("%v_%d", handlers.UpscaleButton, i),
 			Emoji: discordgo.ComponentEmoji{
 				Name: "⬆️",
 			},
@@ -232,7 +234,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 		Label:    "Delete",
 		Style:    discordgo.DangerButton,
 		Disabled: false,
-		CustomID: "imagine_delete",
+		CustomID: string(handlers.DeleteGeneration),
 		Emoji: discordgo.ComponentEmoji{
 			Name: "🗑️",
 		},
