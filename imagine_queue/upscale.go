@@ -197,8 +197,8 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 		var scriptsString string
 
-		if generation.AlwaysonScripts != nil {
-			scripts, err := json.Marshal(generation.AlwaysonScripts)
+		if generation.AlwaysonScripts != nil && generation.AlwaysonScripts.ADetailer != nil {
+			scripts, err := json.Marshal(generation.AlwaysonScripts.ADetailer)
 			if err != nil {
 				log.Printf("Error marshalling scripts: %v", err)
 			} else {
@@ -211,6 +211,10 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			generation.Seed,
 			scriptsString,
 		)
+
+		if len(finishedContent) > 2000 {
+			finishedContent = finishedContent[:2000]
+		}
 
 		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &finishedContent,
@@ -225,7 +229,6 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		})
 		if err != nil {
 			log.Printf("Error editing interaction: %v\n", err)
-
 			return
 		}
 	}()
