@@ -15,7 +15,6 @@ func (q *queueImplementation) processCurrentImagine() {
 
 		if q.currentImagine.Type == ItemTypeUpscale {
 			q.processUpscaleImagine(q.currentImagine)
-
 			return
 		}
 
@@ -227,7 +226,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			foundGeneration, err := q.getPreviousGeneration(c, c.InteractionIndex)
 			if err != nil {
 				log.Printf("Error getting prompt for reroll: %v", err)
-
+				handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
 				return
 			}
 
