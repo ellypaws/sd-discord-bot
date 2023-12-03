@@ -36,36 +36,13 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		log.Printf("Found generation: %v", generation)
 
 		config, err := q.stableDiffusionAPI.GetConfig()
+		originalConfig := config
 		if err != nil {
 			log.Printf("Error getting config: %v", err)
-			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error getting config: %v", err))
 			return
-		}
-
-		log.Printf("Current checkpoint: %v", safeDereference(config.SDModelCheckpoint))
-		log.Printf("Generation checkpoint: %v", safeDereference(generation.Checkpoint))
-
-		if generation.Checkpoint != nil && !ptrStringCompare(config.SDModelCheckpoint, generation.Checkpoint) {
-			log.Printf("Changing checkpoint to: %v", *generation.Checkpoint)
-
-			updateModelMessage := fmt.Sprintf("Changing checkpoint to %v -> %v", safeDereference(config.SDModelCheckpoint), safeDereference(generation.Checkpoint))
-
-			_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-				Content: &updateModelMessage,
-			})
+		} else {
+			config, err = q.updateModels(generation, imagine, config)
 			if err != nil {
-				log.Printf("Error editing interaction: %v", err)
-			}
-
-			err = q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(generation, config, []stable_diffusion_api.Cacheable{
-				stable_diffusion_api.CheckpointCache,
-				stable_diffusion_api.VAECache,
-				stable_diffusion_api.HypernetworkCache,
-			}))
-			if err != nil {
-				log.Printf("Error updating models: %v", err)
-				handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error updating models: %v", err))
-
 				return
 			}
 		}
@@ -89,7 +66,22 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 
 			for {
 				select {
+				case imagine.DiscordInteraction = <-imagine.Interrupt:
+					err := q.stableDiffusionAPI.Interrupt()
+					if err != nil {
+						handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+						return
+					}
+					message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, imagine.DiscordInteraction, "Generation Interrupted", handlers.Components[handlers.DeleteGeneration])
+					if imagine.DiscordInteraction.Message == nil && message != nil {
+						log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
+						imagine.DiscordInteraction.Message = message
+					}
 				case <-generationDone:
+					err := q.revertModels(config, originalConfig)
+					if err != nil {
+						handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+					}
 					return
 				case <-time.After(1 * time.Second):
 					progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()

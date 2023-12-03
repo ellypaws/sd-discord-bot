@@ -15,36 +15,14 @@ import (
 
 func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGenerationRequest, c *QueueItem) error {
 	config, err := q.stableDiffusionAPI.GetConfig()
+	originalConfig := config
 	if err != nil {
 		log.Printf("Error getting config: %v", err)
 		return err
 	} else {
-		if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
-			!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
-			!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
-			handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction,
-				fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
-					safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
-					safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
-					safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
-				),
-				handlers.Components[handlers.CancelDisabled])
-
-			// Insert code to update the configuration here
-			err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
-				stable_diffusion_api.CheckpointCache,
-				stable_diffusion_api.VAECache,
-				stable_diffusion_api.HypernetworkCache,
-			}))
-			if err != nil {
-				log.Printf("Error updating configuration: %v", err)
-				return err
-			}
-			config, err = q.stableDiffusionAPI.GetConfig()
-			if err != nil {
-				log.Printf("Error getting config: %v", err)
-				return err
-			}
+		config, err = q.updateModels(newGeneration, c, config)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -115,6 +93,10 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 					c.DiscordInteraction.Message = message
 				}
 			case <-generationDone:
+				err := q.revertModels(config, originalConfig)
+				if err != nil {
+					handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				}
 				return
 			case <-time.After(1 * time.Second):
 				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
@@ -233,4 +215,49 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	//handlers.EphemeralFollowup(q.botSession, imagine.DiscordInteraction, "Delete generation", handlers.Components[handlers.DeleteAboveButton])
 
 	return nil
+}
+
+func (q *queueImplementation) revertModels(config *stable_diffusion_api.APIConfig, originalConfig *stable_diffusion_api.APIConfig) error {
+	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
+		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
+		!ptrStringCompare(config.SDHypernetwork, originalConfig.SDHypernetwork) {
+		log.Printf("Switching back to original models: %v, %v, %v", originalConfig.SDModelCheckpoint, originalConfig.SDVae, originalConfig.SDHypernetwork)
+		return q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.APIConfig{
+			SDModelCheckpoint: originalConfig.SDModelCheckpoint,
+			SDVae:             originalConfig.SDVae,
+			SDHypernetwork:    originalConfig.SDHypernetwork,
+		})
+	}
+	return nil
+}
+
+func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerationRequest, c *QueueItem, config *stable_diffusion_api.APIConfig) (*stable_diffusion_api.APIConfig, error) {
+	if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
+		!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
+		!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
+		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction,
+			fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
+				safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
+				safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
+				safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
+			),
+			handlers.Components[handlers.CancelDisabled])
+
+		// Insert code to update the configuration here
+		err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
+			stable_diffusion_api.CheckpointCache,
+			stable_diffusion_api.VAECache,
+			stable_diffusion_api.HypernetworkCache,
+		}))
+		if err != nil {
+			log.Printf("Error updating configuration: %v", err)
+			return nil, err
+		}
+		config, err = q.stableDiffusionAPI.GetConfig()
+		if err != nil {
+			log.Printf("Error getting config: %v", err)
+			return nil, err
+		}
+	}
+	return config, nil
 }
