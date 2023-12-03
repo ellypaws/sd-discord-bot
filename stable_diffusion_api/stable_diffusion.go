@@ -243,6 +243,10 @@ func (api *apiImplementation) TextToImageRequest(req *entities.TextToImageReques
 	}
 	defer response.Body.Close()
 
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
+	}
+
 	body, _ := io.ReadAll(response.Body)
 
 	respStruct := &jsonTextToImageResponse{}
@@ -314,6 +318,9 @@ type UpscaleResponse struct {
 }
 
 func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*UpscaleResponse, error) {
+	if !handlers.CheckAPIAlive(api.host) {
+		return nil, fmt.Errorf(handlers.DeadAPI)
+	}
 	if upscaleReq == nil {
 		return nil, errors.New("missing request")
 	}
@@ -329,6 +336,10 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 	regeneratedImage, err := api.TextToImageRequest(textToImageReq)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(regeneratedImage.Images) == 0 {
+		return nil, errors.New("no images returned from text to image request to upscale")
 	}
 
 	jsonReq := &upscaleJSONRequest{
@@ -353,10 +364,6 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		return nil, err
 	}
 
-	if !handlers.CheckAPIAlive(api.host) {
-		return nil, fmt.Errorf(handlers.DeadAPI)
-	}
-
 	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, err
@@ -375,6 +382,10 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 	}
 
 	defer response.Body.Close()
+
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
+	}
 
 	body, _ := io.ReadAll(response.Body)
 
@@ -400,6 +411,9 @@ func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 	getURL := "/sdapi/v1/progress"
 
 	body, err := api.GET(getURL)
+	if err != nil {
+		return nil, err
+	}
 
 	respStruct := &ProgressResponse{}
 
@@ -449,6 +463,9 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	}
 
 	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
+	}
 
 	body, _ := io.ReadAll(response.Body)
 	return body, nil
@@ -473,6 +490,9 @@ func (api *apiImplementation) POST(postURL string, jsonData []byte) (*http.Respo
 		log.Printf("API URL: %s", api.host+postURL)
 		log.Printf("Error with API Request: %s", string(jsonData))
 		return nil, err
+	}
+	if response.StatusCode != http.StatusOK {
+		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
 	}
 	return response, nil
 }

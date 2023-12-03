@@ -135,18 +135,11 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			}
 		}()
 
-		//// Check if ADetailer is in the scripts and add it to the object generation with method by using AppendToArgs
-		//_, exist := generation.AlwaysOnScripts["ADetailer"]
-		//if !exist {
-		//	model := entities.ADetailerParameters{AdModel: "face_yolov8n.pt"}
-		//	generation.AlwaysOnScripts["ADetailer"] = &entities.ADetailer{}
-		//	generation.AlwaysOnScripts["ADetailer"].AppendSegModel(model)
-		//}
-
 		// Use face segm model if we're upscaling but there's no ADetailer models
 		if generation.AlwaysonScripts == nil {
 			generation.NewScripts()
 		}
+
 		if generation.AlwaysonScripts.ADetailer == nil {
 			generation.AlwaysonScripts.NewADetailerWithArgs()
 			generation.AlwaysonScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
@@ -162,35 +155,27 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			Upscaler1:          "R-ESRGAN 2x+",
 			TextToImageRequest: t2iRequest,
 		})
+
+		generationDone <- true
+
 		if err != nil {
 			log.Printf("Error processing image upscale: %v\n", err)
 
-			errorContent := fmt.Sprint("I'm sorry, but I had a problem upscaling your image. ", err)
-
-			//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-			//	Content: &errorContent,
-			//})
-
-			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, errorContent)
-			//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
-
-			generationDone <- true
+			handlers.ErrorHandler(q.botSession, imagine.DiscordInteraction, fmt.Sprint("I'm sorry, but I had a problem upscaling your image. ", err))
 			return
 		}
-
-		generationDone <- true
 
 		decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
 		if decodeErr != nil {
 			log.Printf("Error decoding image: %v\n", decodeErr)
-
+			handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, decodeErr)
 			return
 		}
-
-		imageBuf := bytes.NewBuffer(decodedImage)
-
-		// save imageBuf to disk
-		//err = ioutil.WriteFile("upscaled.png", imageBuf.Bytes(), 0644)
+		if len(decodedImage) == 0 {
+			log.Printf("Error decoding image: %v\n", "empty image")
+			handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, fmt.Errorf("empty image"))
+			return
+		}
 
 		log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 			interactionID, messageID, imagine.InteractionIndex)
@@ -223,7 +208,7 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 					ContentType: "image/png",
 					// add timestamp to output file
 					Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
-					Reader: imageBuf,
+					Reader: bytes.NewBuffer(decodedImage),
 				},
 			},
 		})
