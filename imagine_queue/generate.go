@@ -145,10 +145,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
 		resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
 
-		// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
-		embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
-
-		log.Printf("embed: %v", embed)
+		generationDone <- true
 
 		if err != nil {
 			log.Printf("Error processing image: %v\n", err)
@@ -165,7 +162,10 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			return err
 		}
 
-		generationDone <- true
+		// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
+		embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
+
+		log.Printf("embed: %v", embed)
 
 		log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
 

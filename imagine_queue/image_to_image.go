@@ -100,6 +100,8 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	resp, err := q.stableDiffusionAPI.ImageToImageRequest(&img2img)
 
+	generationDone <- true
+
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt
 	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, newGeneration, c, c.Interrupt != nil)
 
@@ -112,8 +114,6 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 		return err, true
 	}
-
-	generationDone <- true
 
 	if len(resp.Images) == 0 {
 		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errors.New("no images returned"))
