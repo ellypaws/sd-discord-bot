@@ -101,8 +101,7 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 	resp, err := q.stableDiffusionAPI.ImageToImageRequest(&img2img)
 
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt
-	var embed *discordgo.MessageEmbed
-	embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
+	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, newGeneration, c, c.Interrupt != nil)
 
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
@@ -116,87 +115,56 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	generationDone <- true
 
-	//type ImageToImageResponse struct {
-	//	Images     []string          `json:"images,omitempty"`
-	//	Info       string            `json:"info"`
-	//	Parameters map[string]string `json:"parameters"`
-	//}
-
 	if len(resp.Images) == 0 {
 		handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errors.New("no images returned"))
 		return errors.New("no images returned"), true
 	}
 
 	imageBufs := make([]*bytes.Buffer, len(resp.Images))
-
 	for idx, image := range resp.Images {
 		image, err := base64.StdEncoding.DecodeString(image)
 		if err != nil {
 			handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, err)
 			return err, true
 		}
-
-		imageBuf := bytes.NewBuffer(image)
-
-		imageBufs[idx] = imageBuf
+		imageBufs[idx] = bytes.NewBuffer(image)
 	}
 
-	primaryImage := imageBufs[0]
 	var thumbnailBuffers []*bytes.Buffer
-
-	log.Printf("c.ControlnetItem.Enabled: %v, c.ControlnetItem.MessageAttachment != nil: %v", c.ControlnetItem.Enabled, c.ControlnetItem.MessageAttachment != nil)
-
 	if c.ControlnetItem.MessageAttachment != nil {
 		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
-		thumbnailReader := bytes.NewBuffer(decodedBytes)
-		thumbnailBuffers = append(thumbnailBuffers, thumbnailReader)
+		thumbnailBuffers = append(thumbnailBuffers, bytes.NewBuffer(decodedBytes))
 	}
-
 	if c.Img2ImgItem.MessageAttachment != nil {
 		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.Img2ImgItem.MessageAttachment.Image))
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
-		thumbnailReader := bytes.NewBuffer(decodedBytes)
-		thumbnailBuffers = append(thumbnailBuffers, thumbnailReader)
+		thumbnailBuffers = append(thumbnailBuffers, bytes.NewBuffer(decodedBytes))
 	}
-
 	if len(imageBufs) > 1 {
 		thumbnailBuffers = append(thumbnailBuffers, imageBufs[1:]...)
 	}
 
 	empty := ""
-
 	webhook := &discordgo.WebhookEdit{
 		Content:    &empty,
 		Components: rerollVariationComponents(min(len(imageBufs), 1), c.Type == ItemTypeImg2Img),
 	}
 
-	thumbnailTile, err := q.compositeRenderer.TileImages(thumbnailBuffers)
-	if err != nil {
-		log.Printf("Error tiling thumbnails: %v\n", err)
-		//byteArray, _ := json.Marshal(thumbnailBuffers)
-		//log.Printf("thumbnailBuffers: %v", string(byteArray))
-	}
-
-	var primaryImageReader *bytes.Reader
-	if primaryImage != nil {
-		primaryImageReader = bytes.NewReader(primaryImage.Bytes())
-	}
-
-	var thumbnailTileReader *bytes.Reader
-	if thumbnailTile != nil {
-		thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
-	}
-
 	if len(thumbnailBuffers) > 0 {
-		imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+		//imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+		imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 1)], thumbnailBuffers)
 	} else {
 		// because we don't have the original webhook that contains the image file
-		err := imageAttachmentAsThumbnail(webhook, embed, primaryImageReader, c.Img2ImgItem.MessageAttachment, true)
+		var primaryImage *bytes.Reader
+		if len(imageBufs) > 0 {
+			primaryImage = bytes.NewReader(imageBufs[0].Bytes())
+		}
+		err := imageAttachmentAsThumbnail(webhook, embed, primaryImage, c.Img2ImgItem.MessageAttachment, true)
 		if err != nil {
 			log.Printf("Error attaching image as thumbnail: %v", err)
 			return err, true

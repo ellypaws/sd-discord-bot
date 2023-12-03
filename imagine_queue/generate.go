@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
-	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/stable_diffusion_api"
@@ -53,8 +52,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 	newContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 0)
 
-	var embed *discordgo.MessageEmbed
-	embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
+	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, newGeneration, c, c.Interrupt != nil)
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
@@ -179,9 +177,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 				log.Printf("Error decoding image: %v\n", decodeErr)
 			}
 
-			imageBuf := bytes.NewBuffer(decodedImage)
-
-			imageBufs[idx] = imageBuf
+			imageBufs[idx] = bytes.NewBuffer(decodedImage)
 		}
 
 		for idx := range resp.Seeds {
@@ -201,19 +197,12 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 		var thumbnailBuffers []*bytes.Buffer
 
-		primaryImage, err := q.compositeRenderer.TileImages(imageBufs[:min(len(imageBufs), 4)])
-		if err != nil {
-			log.Printf("Error tiling primary image: %v\n", err)
-			return err
-		}
-
 		if c.ControlnetItem.MessageAttachment != nil {
 			decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(c.ControlnetItem.MessageAttachment.Image))
 			if err != nil {
 				log.Printf("Error decoding image: %v\n", err)
 			}
-			thumbnailReader := bytes.NewBuffer(decodedBytes)
-			thumbnailBuffers = append(thumbnailBuffers, thumbnailReader)
+			thumbnailBuffers = append(thumbnailBuffers, bytes.NewBuffer(decodedBytes))
 		}
 
 		if len(imageBufs) > 4 {
@@ -228,32 +217,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			Components: rerollVariationComponents(min(len(imageBufs), 4), c.Type == ItemTypeImg2Img),
 		}
 
-		// remove empty thumbnailBuffers
-		for i := len(thumbnailBuffers) - 1; i >= 0; i-- {
-			if thumbnailBuffers[i] == nil {
-				log.Printf("WARNING: removing nil thumbnailBuffer at index %v", i)
-				thumbnailBuffers = append(thumbnailBuffers[:i], thumbnailBuffers[i+1:]...)
-			}
-		}
-
-		thumbnailTile, err := composite_renderer.Compositor().TileImages(thumbnailBuffers)
-		if err != nil {
-			log.Printf("Error tiling thumbnails: %v\n", err)
-			//byteArray, _ := json.Marshal(thumbnailBuffers)
-			//log.Printf("thumbnailBuffers: %v", string(byteArray))
-		}
-
-		var primaryImageReader *bytes.Reader
-		if primaryImage != nil {
-			primaryImageReader = bytes.NewReader(primaryImage.Bytes())
-		}
-
-		var thumbnailTileReader *bytes.Reader
-		if thumbnailTile != nil {
-			thumbnailTileReader = bytes.NewReader(thumbnailTile.Bytes())
-		}
-
-		imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
+		imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 4)], thumbnailBuffers)
 
 		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"time"
@@ -62,6 +63,7 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 	return
 }
 
+// Deprecated: Use imageEmbedFromBuffers instead
 func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image *bytes.Reader, thumbnail *bytes.Reader) {
 	if embed == nil {
 		embed = &discordgo.MessageEmbed{
@@ -106,13 +108,75 @@ func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.Messa
 	webhook.Files = files
 }
 
+func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image []*bytes.Buffer, thumbnails []*bytes.Buffer) {
+	if webhook == nil {
+		log.Printf("WARNING: imageEmbedFromBuffers called with nil webhook")
+		return
+	}
+	if embed == nil {
+		embed = &discordgo.MessageEmbed{
+			Timestamp: time.Now().Format(time.RFC3339),
+		}
+	}
+
+	var files []*discordgo.File
+
+	for i := len(thumbnails) - 1; i >= 0; i-- {
+		if thumbnails[i] == nil {
+			thumbnails = append(thumbnails[:i], thumbnails[i+1:]...)
+		}
+	}
+
+	if len(thumbnails) > 0 {
+		thumbnailTile, err := composite_renderer.Compositor().TileImages(thumbnails)
+		if err != nil {
+			log.Printf("Error tiling thumbnails: %v\n", err)
+		}
+		if thumbnailTile != nil {
+			embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
+				URL: "attachment://thumbnail.png",
+			}
+			files = append(files, &discordgo.File{
+				Name:   "thumbnail.png",
+				Reader: bytes.NewReader(thumbnailTile.Bytes()),
+			})
+		}
+	}
+
+	for i := len(image) - 1; i >= 0; i-- {
+		if image[i] == nil {
+			image = append(image[:i], image[i+1:]...)
+		}
+	}
+
+	if len(image) > 0 {
+		primaryImage, err := composite_renderer.Compositor().TileImages(image)
+		if err != nil {
+			log.Printf("Error tiling primary image: %v\n", err)
+		}
+		if primaryImage != nil {
+			embed.Type = discordgo.EmbedTypeImage
+			embed.Image = &discordgo.MessageEmbedImage{
+				URL: fmt.Sprintf("attachment://%v", "image.png"),
+			}
+			files = append(files, &discordgo.File{
+				Name:   "image.png",
+				Reader: bytes.NewReader(primaryImage.Bytes()),
+			})
+		}
+	}
+
+	webhook.Embeds = &[]*discordgo.MessageEmbed{embed}
+	webhook.Files = files
+}
+
 func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *QueueItem, interrupted bool) *discordgo.MessageEmbed {
 	if newGeneration == nil || c == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", newGeneration, c)
-		return nil
+		return embed
 	}
 	if embed == nil {
-		log.Printf("WARNING: generationEmbedDetails called with nil %T", embed)
+		log.Printf("WARNING: generationEmbedDetails called with nil %T, creating...", embed)
 		embed = &discordgo.MessageEmbed{}
 	}
 	switch {
