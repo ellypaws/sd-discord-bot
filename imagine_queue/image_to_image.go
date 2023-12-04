@@ -157,7 +157,10 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 
 	if len(thumbnailBuffers) > 0 {
 		//imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
-		imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 1)], thumbnailBuffers)
+		if err := imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 1)], thumbnailBuffers); err != nil {
+			log.Printf("Error embedding image: %v", err)
+			return err, true
+		}
 	} else {
 		// because we don't have the original webhook that contains the image file
 		var primaryImage *bytes.Reader

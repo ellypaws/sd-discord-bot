@@ -2,6 +2,7 @@ package imagine_queue
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
@@ -108,19 +109,22 @@ func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.Messa
 	webhook.Files = files
 }
 
-func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image []*bytes.Buffer, thumbnails []*bytes.Buffer) {
+func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images []*bytes.Buffer, thumbnails []*bytes.Buffer) error {
 	if webhook == nil {
-		log.Printf("WARNING: imageEmbedFromBuffers called with nil webhook")
-		return
+		return errors.New("imageEmbedFromBuffers called with nil webhook")
 	}
 	if embed == nil {
 		embed = &discordgo.MessageEmbed{
+			Type:      discordgo.EmbedTypeImage,
+			URL:       "https://github.com/ellypaws/sd-discord-bot/",
 			Timestamp: time.Now().Format(time.RFC3339),
 		}
 	}
 
 	var files []*discordgo.File
+	var embeds []*discordgo.MessageEmbed
 
+	// Process thumbnails
 	for i := len(thumbnails) - 1; i >= 0; i-- {
 		if thumbnails[i] == nil {
 			thumbnails = append(thumbnails[:i], thumbnails[i+1:]...)
@@ -130,7 +134,7 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 	if len(thumbnails) > 0 {
 		thumbnailTile, err := composite_renderer.Compositor().TileImages(thumbnails)
 		if err != nil {
-			log.Printf("Error tiling thumbnails: %v\n", err)
+			return fmt.Errorf("error tiling thumbnails: %w", err)
 		}
 		if thumbnailTile != nil {
 			embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
@@ -143,31 +147,60 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 		}
 	}
 
-	for i := len(image) - 1; i >= 0; i-- {
-		if image[i] == nil {
-			image = append(image[:i], image[i+1:]...)
+	for i := len(images) - 1; i >= 0; i-- {
+		if images[i] == nil {
+			images = append(images[:i], images[i+1:]...)
 		}
 	}
 
-	if len(image) > 0 {
-		primaryImage, err := composite_renderer.Compositor().TileImages(image)
+	// Process primary images
+	if len(images) > 4 {
+		// Tile images if more than four
+		primaryTile, err := composite_renderer.Compositor().TileImages(images)
 		if err != nil {
-			log.Printf("Error tiling primary image: %v\n", err)
+			return fmt.Errorf("error tiling primary images: %w", err)
 		}
-		if primaryImage != nil {
-			embed.Type = discordgo.EmbedTypeImage
-			embed.Image = &discordgo.MessageEmbedImage{
-				URL: fmt.Sprintf("attachment://%v", "image.png"),
+		files = append(files, &discordgo.File{
+			Name:   "image.png",
+			Reader: bytes.NewReader(primaryTile.Bytes()),
+		})
+		embed.Image = &discordgo.MessageEmbedImage{
+			URL: "attachment://image.png",
+		}
+		embeds = append(embeds, embed)
+	} else {
+		// Create separate embeds for four or fewer images
+		for i, imgBuf := range images {
+			if imgBuf == nil {
+				continue
 			}
+
+			imgName := fmt.Sprintf("image%d.png", i)
 			files = append(files, &discordgo.File{
-				Name:   "image.png",
-				Reader: bytes.NewReader(primaryImage.Bytes()),
+				Name:   imgName,
+				Reader: bytes.NewReader(imgBuf.Bytes()),
 			})
+
+			newEmbed := &discordgo.MessageEmbed{
+				Type: discordgo.EmbedTypeImage,
+				URL:  embed.URL, // Using the same URL as the original embed
+				Image: &discordgo.MessageEmbedImage{
+					URL: fmt.Sprintf("attachment://%s", imgName),
+				},
+			}
+			if i == 0 {
+				// Use the original embed details for the first image
+				embed.Image = newEmbed.Image
+				embeds = append(embeds, embed)
+			} else {
+				embeds = append(embeds, newEmbed)
+			}
 		}
 	}
 
-	webhook.Embeds = &[]*discordgo.MessageEmbed{embed}
+	webhook.Embeds = &embeds
 	webhook.Files = files
+	return nil
 }
 
 func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *QueueItem, interrupted bool) *discordgo.MessageEmbed {

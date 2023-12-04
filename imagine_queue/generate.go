@@ -199,7 +199,10 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			Components: rerollVariationComponents(min(len(imageBufs), 4), c.Type == ItemTypeImg2Img),
 		}
 
-		imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 4)], thumbnailBuffers)
+		if err := imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 4)], thumbnailBuffers); err != nil {
+			log.Printf("Error creating image embed: %v\n", err)
+			return err
+		}
 
 		_, err = q.botSession.InteractionResponseEdit(c.DiscordInteraction, webhook)
 		if err != nil {
