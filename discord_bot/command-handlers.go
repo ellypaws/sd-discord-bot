@@ -37,6 +37,52 @@ func getOpts(data discordgo.ApplicationCommandInteractionData) map[CommandOption
 	return optionMap
 }
 
+// keyValue matches --key value, --key=value, or --key "value with spaces"
+var keyValue = regexp.MustCompile(`\B(?:--|—)+(\w+)(?:[ =]([\w./\\:]+|"[^"]+"))?`)
+
+func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption]string, sanitized string) {
+	parameters = make(map[CommandOption]string)
+	sanitized = keyValue.ReplaceAllString(prompt, "")
+	sanitized = strings.TrimSpace(sanitized)
+	for _, match := range keyValue.FindAllStringSubmatch(prompt, -1) {
+		parameters[CommandOption(match[1])] = match[2]
+	}
+	return
+}
+
+// If FieldType and ValueType are the same, then we attempt to assert FieldType to value.Value
+// Otherwise, we return the interface conversion to the caller to do manual type conversion
+//
+// Example:
+//
+//	if int64Val, ok := interfaceConvertAuto[int, int64](&queue.Steps, stepOption, optionMap, parameters); ok {
+//		queue.Steps = int(*int64Val)
+//	}
+func interfaceConvertAuto[F any, V any](field *F, option CommandOption, optionMap map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, parameters map[CommandOption]string) (*V, bool) {
+	if field == nil {
+		log.Printf("WARNING: field %T is nil", field)
+		return nil, false
+	}
+	if value, ok := optionMap[option]; ok {
+		vToField, ok := value.Value.(F)
+		if ok {
+			*field = vToField
+		}
+		valueType, ok := value.Value.(V)
+		return &valueType, ok
+	}
+	if value, ok := parameters[option]; ok {
+		_, err := fmt.Sscanf(value, "%v", field)
+		if err != nil {
+			return nil, false
+		}
+		out := any(*field)
+		valueType, ok := out.(V)
+		return &valueType, ok
+	}
+	return nil, false
+}
+
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
 
@@ -50,60 +96,44 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
 		return
 	} else {
-		queue = imagine_queue.NewQueueItem(imagine_queue.WithPrompt(option.StringValue()))
+		parameters, sanitized := extractKeyValuePairsFromPrompt(option.StringValue())
+		queue = imagine_queue.NewQueueItem(imagine_queue.WithPrompt(sanitized))
 
 		queue.Type = imagine_queue.ItemTypeImagine
 		queue.DiscordInteraction = i.Interaction
 
-		if option, ok := optionMap[negativeOption]; ok {
-			queue.NegativePrompt = option.StringValue()
+		interfaceConvertAuto[string, string](&queue.NegativePrompt, negativeOption, optionMap, parameters)
+
+		interfaceConvertAuto[string, string](&queue.SamplerName1, samplerOption, optionMap, parameters)
+
+		if int64Val, ok := interfaceConvertAuto[int, int64](&queue.Steps, stepOption, optionMap, parameters); ok {
+			queue.Steps = int(*int64Val)
 		}
 
-		if option, ok := optionMap[samplerOption]; ok {
-			queue.SamplerName1 = option.StringValue()
-		}
+		interfaceConvertAuto[int64, int64](&queue.Seed, seedOption, optionMap, parameters)
 
-		if option, ok := optionMap[stepOption]; ok {
-			queue.Steps = int(option.IntValue())
-		}
-
-		if option, ok := optionMap[seedOption]; ok {
-			queue.Seed = option.IntValue()
-		}
-
-		if option, ok := optionMap[restoreFacesOption]; ok {
-			restoreFaces, err := strconv.ParseBool(option.StringValue())
+		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.RestoreFaces, restoreFacesOption, optionMap, parameters); ok {
+			boolean, err := strconv.ParseBool(*boolVal)
 			if err != nil {
 				log.Printf("Error parsing restoreFaces value: %v.", err)
 			} else {
-				queue.RestoreFaces = restoreFaces
+				queue.RestoreFaces = boolean
 			}
-
 		}
 
-		if option, ok := optionMap[adModelOption]; ok {
-			queue.ADetailerString = option.StringValue()
-			// adModel = strings.Split(stringValue, ",")
-			// use AppendSegModelByString instead
+		interfaceConvertAuto[string, string](&queue.ADetailerString, adModelOption, optionMap, parameters)
+
+		if config, err := b.StableDiffusionApi.GetConfig(); err != nil {
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error retrieving config.", err)
+		} else {
+			queue.Checkpoint = config.SDModelCheckpoint
+			queue.VAE = config.SDVae
+			queue.Hypernetwork = config.SDHypernetwork
 		}
 
-		if option, ok := optionMap[checkpointOption]; ok {
-			value := option.StringValue()
-			queue.Checkpoint = &value
-			log.Printf("user wants to change checkpoint to %v", value)
-		}
-
-		if option, ok := optionMap[vaeOption]; ok {
-			value := option.StringValue()
-			queue.VAE = &value
-			log.Printf("user wants to use vae %v", value)
-		}
-
-		if option, ok := optionMap[hypernetworkOption]; ok {
-			value := option.StringValue()
-			queue.Hypernetwork = &value
-			log.Printf("user wants to use hypernetwork %v", value)
-		}
+		interfaceConvertAuto[string, string](queue.Checkpoint, checkpointOption, optionMap, parameters)
+		interfaceConvertAuto[string, string](queue.VAE, vaeOption, optionMap, parameters)
+		interfaceConvertAuto[string, string](queue.Hypernetwork, hypernetworkOption, optionMap, parameters)
 
 		if option, ok := optionMap[embeddingOption]; ok {
 			queue.Prompt += " " + option.StringValue()
@@ -136,42 +166,35 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
-		if option, ok := optionMap[aspectRatio]; ok {
-			//queue.Prompt += " --ar " + queue.AspectRatio
-			queue.AspectRatio = option.StringValue()
-		}
+		interfaceConvertAuto[string, string](&queue.AspectRatio, aspectRatio, optionMap, parameters)
 
-		if option, ok := optionMap[hiresFixSize]; ok {
-			//queue.Prompt += " --zoom " + option.StringValue()
-			hiresUpscaleRate, err := strconv.ParseFloat(option.StringValue(), 64)
+		if floatVal, ok := interfaceConvertAuto[float64, string](&queue.HiresUpscaleRate, hiresFixSize, optionMap, parameters); ok {
+			float, err := strconv.ParseFloat(*floatVal, 64)
 			if err != nil {
 				log.Printf("Error parsing hiresUpscaleRate: %v", err)
 			} else {
-				queue.HiresUpscaleRate = hiresUpscaleRate
+				queue.HiresUpscaleRate = float
 				queue.UseHiresFix = true
 			}
 		}
 
-		if option, ok := optionMap[hiresFixOption]; ok {
-			hiresFix, err := strconv.ParseBool(option.StringValue())
+		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.UseHiresFix, hiresFixOption, optionMap, parameters); ok {
+			boolean, err := strconv.ParseBool(*boolVal)
 			if err != nil {
 				log.Printf("Error parsing hiresFix value: %v.", err)
 			} else {
-				queue.UseHiresFix = hiresFix
+				queue.UseHiresFix = boolean
 			}
 		}
 
-		if option, ok := optionMap[cfgScaleOption]; ok {
-			//prompt += " --cfgscale " + fmt.Sprintf("%v", option.IntValue())
-			queue.CfgScale = option.FloatValue()
-		}
+		interfaceConvertAuto[float64, float64](&queue.CfgScale, cfgScaleOption, optionMap, parameters)
 
-		if option, ok := optionMap[restoreFacesOption]; ok {
-			restoreFacesValue, err := strconv.ParseBool(option.StringValue())
+		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.RestoreFaces, restoreFacesOption, optionMap, parameters); ok {
+			boolean, err := strconv.ParseBool(*boolVal)
 			if err != nil {
 				log.Printf("Error parsing restoreFaces value: %v.", err)
 			} else {
-				queue.RestoreFaces = restoreFacesValue
+				queue.RestoreFaces = boolean
 			}
 		}
 
@@ -226,18 +249,18 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			queue.ControlnetItem.Enabled = true
 		}
 
-		if option, ok := optionMap[controlnetControlMode]; ok {
-			queue.ControlnetItem.ControlMode = entities.ControlMode(option.StringValue())
+		if controlVal, ok := interfaceConvertAuto[entities.ControlMode, string](&queue.ControlnetItem.ControlMode, controlnetControlMode, optionMap, parameters); ok {
+			queue.ControlnetItem.ControlMode = entities.ControlMode(*controlVal)
 			queue.ControlnetItem.Enabled = true
 		}
 
-		if option, ok := optionMap[controlnetResizeMode]; ok {
-			queue.ControlnetItem.ResizeMode = entities.ResizeMode(option.StringValue())
+		if resizeVal, ok := interfaceConvertAuto[entities.ResizeMode, string](&queue.ControlnetItem.ResizeMode, controlnetResizeMode, optionMap, parameters); ok {
+			queue.ControlnetItem.ResizeMode = entities.ResizeMode(*resizeVal)
 			queue.ControlnetItem.Enabled = true
 		}
 
-		if option, ok := optionMap[controlnetType]; ok {
-			queue.ControlnetItem.Type = option.StringValue()
+		if _, ok := interfaceConvertAuto[string, string](&queue.ControlnetItem.Type, controlnetType, optionMap, parameters); ok {
+			log.Printf("Controlnet type: %v", queue.ControlnetItem.Type)
 			cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
 			if err != nil {
 				log.Printf("Error retrieving controlnet types cache: %v", err)
@@ -251,13 +274,13 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			queue.ControlnetItem.Enabled = true
 		}
 
-		if option, ok := optionMap[controlnetPreprocessor]; ok {
-			queue.ControlnetItem.Preprocessor = option.StringValue()
+		if _, ok := interfaceConvertAuto[string, string](&queue.ControlnetItem.Preprocessor, controlnetPreprocessor, optionMap, parameters); ok {
+			//queue.ControlnetItem.Preprocessor = *preprocessor
 			queue.ControlnetItem.Enabled = true
 		}
 
-		if option, ok := optionMap[controlnetModel]; ok {
-			queue.ControlnetItem.Model = option.StringValue()
+		if _, ok := interfaceConvertAuto[string, string](&queue.ControlnetItem.Model, controlnetModel, optionMap, parameters); ok {
+			//queue.ControlnetItem.Model = *model
 			queue.ControlnetItem.Enabled = true
 		}
 

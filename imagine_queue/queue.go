@@ -696,6 +696,7 @@ func extractZoomScaleFromPrompt(prompt string, defaultZoomScale float64) (*zoomS
 
 var keyValue = regexp.MustCompile(`\B(?:--|—)+(\w+)(?: ([\w.\/\\]+))?`)
 
+// Deprecated: Use discord_bot.extractKeyValuePairsFromPrompt instead, as we parse the key value pairs earlier
 func extractKeyValuePairsFromPrompt(prompt string) (parameters map[string]string, sanitized string) {
 	parameters = make(map[string]string)
 	sanitized = keyValue.ReplaceAllString(prompt, "")
@@ -810,7 +811,8 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 	return out.String()
 }
 
-func (q *queueImplementation) switchModel(generation *entities.ImageGenerationRequest, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
+// lookupModel searches through []stable_diffusion_api.Cacheable models to find the model to load
+func (q *queueImplementation) lookupModel(generation *entities.ImageGenerationRequest, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
 	for _, c := range c {
 		var toLoad *string
 		var loadedModel *string

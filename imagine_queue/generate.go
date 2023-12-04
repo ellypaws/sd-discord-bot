@@ -244,11 +244,13 @@ func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerati
 			handlers.Components[handlers.CancelDisabled])
 
 		// Insert code to update the configuration here
-		err := q.stableDiffusionAPI.UpdateConfiguration(q.switchModel(newGeneration, config, []stable_diffusion_api.Cacheable{
-			stable_diffusion_api.CheckpointCache,
-			stable_diffusion_api.VAECache,
-			stable_diffusion_api.HypernetworkCache,
-		}))
+		err := q.stableDiffusionAPI.UpdateConfiguration(
+			q.lookupModel(newGeneration, config,
+				[]stable_diffusion_api.Cacheable{
+					stable_diffusion_api.CheckpointCache,
+					stable_diffusion_api.VAECache,
+					stable_diffusion_api.HypernetworkCache,
+				}))
 		if err != nil {
 			log.Printf("Error updating configuration: %v", err)
 			return nil, err
@@ -258,6 +260,9 @@ func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerati
 			log.Printf("Error getting config: %v", err)
 			return nil, err
 		}
+		newGeneration.Checkpoint = config.SDModelCheckpoint
+		newGeneration.VAE = config.SDVae
+		newGeneration.Hypernetwork = config.SDHypernetwork
 	}
 	return config, nil
 }

@@ -6,7 +6,6 @@ import (
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"strconv"
 )
 
 func (q *queueImplementation) processCurrentImagine() {
@@ -69,18 +68,10 @@ func (q *queueImplementation) processCurrentImagine() {
 			newGeneration.SamplerName = "Euler a"
 		}
 
-		// extract key value pairs from prompt
-		var parameters map[string]string
-		parameters, newGeneration.Prompt = extractKeyValuePairsFromPrompt(newGeneration.Prompt)
-
 		defaultWidth := newGeneration.Width
 		defaultHeight := newGeneration.Height
 		if c.AspectRatio != "" && c.AspectRatio != "1:1" {
 			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(c.AspectRatio, defaultWidth, defaultHeight)
-		} else {
-			if aspectRatio, ok := parameters["ar"]; ok {
-				newGeneration.Width, newGeneration.Height = aspectRatioCalculation(aspectRatio, defaultWidth, defaultHeight)
-			}
 		}
 
 		// extract --zoom parameter
@@ -93,45 +84,6 @@ func (q *queueImplementation) processCurrentImagine() {
 			newGeneration.EnableHr = false
 			newGeneration.HrResizeX = adjustedWidth
 			newGeneration.HrResizeY = adjustedHeight
-		}
-
-		if zoom, ok := parameters["zoom"]; ok {
-			zoomScale, err := strconv.ParseFloat(zoom, 64)
-			if err != nil {
-				log.Printf("Error extracting zoom scale from prompt: %v", err)
-			} else {
-				newGeneration.EnableHr = true
-				newGeneration.HrScale = between(zoomScale, 1.0, 2.0)
-				newGeneration.HrResizeX = int(float64(adjustedWidth) * newGeneration.HrScale)
-				newGeneration.HrResizeY = int(float64(adjustedHeight) * newGeneration.HrScale)
-			}
-		}
-
-		if step, ok := parameters["step"]; ok {
-			stepInt, err := strconv.Atoi(step)
-			if err != nil {
-				log.Printf("Error extracting step from prompt: %v", err)
-			} else {
-				newGeneration.Steps = stepInt
-			}
-		}
-
-		if cfgscale, ok := parameters["cfgscale"]; ok {
-			cfgScaleFloat, err := strconv.ParseFloat(cfgscale, 64)
-			if err != nil {
-				log.Printf("Error extracting cfg scale from prompt: %v", err)
-			} else {
-				newGeneration.CFGScale = cfgScaleFloat
-			}
-		}
-
-		if seed, ok := parameters["seed"]; ok {
-			seedInt, err := strconv.ParseInt(seed, 10, 64)
-			if err != nil {
-				log.Printf("Error extracting seed from prompt: %v", err)
-			} else {
-				newGeneration.Seed = seedInt
-			}
 		}
 
 		config, err := q.stableDiffusionAPI.GetConfig()
