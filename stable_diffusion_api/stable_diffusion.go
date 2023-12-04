@@ -93,7 +93,6 @@ type TextToImageRequest struct {
 	AlwaysOnScripts   *entities.Scripts `json:"alwayson_scripts,omitempty"`
 }
 
-// TODO: Use reflect or generics to actually run c.GetCache(api) even if c is nil
 func (api *apiImplementation) CachePreview(c Cacheable) (Cacheable, error) {
 	if c == nil {
 		return nil, errors.New("cache is nil")

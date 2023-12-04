@@ -121,20 +121,13 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 			errorContent := fmt.Sprint("I'm sorry, but I had a problem imagining your image. ", err)
 
-			//_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
-			//	Content: &errorContent,
-			//})
-
-			handlers.ErrorHandler(q.botSession, c.DiscordInteraction, errorContent)
-			//handlers.Errors[handlers.ErrorResponse](q.botSession, imagine.DiscordInteraction, errorContent)
+			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, errorContent)
 
 			return err
 		}
 
 		// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
 		embed = generationEmbedDetails(embed, newGeneration, c, c.Interrupt != nil)
-
-		log.Printf("embed: %v", embed)
 
 		log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
 
@@ -204,7 +197,6 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			return err
 		}
 	}
-	//handlers.EphemeralFollowup(q.botSession, imagine.DiscordInteraction, "Delete generation", handlers.Components[handlers.DeleteAboveButton])
 
 	return nil
 }

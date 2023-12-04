@@ -6,6 +6,7 @@ import (
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"time"
 )
 
 func (q *queueImplementation) processCurrentImagine() {
@@ -194,6 +195,9 @@ func (q *queueImplementation) processCurrentImagine() {
 			if c.Type == ItemTypeVariation {
 				newGeneration.SubseedStrength = 0.15
 			}
+
+			// set the time to now since time from database is from the past
+			newGeneration.CreatedAt = time.Now()
 		}
 
 		err = q.processImagineGrid(newGeneration, c)
