@@ -20,18 +20,16 @@ func (q *queueImplementation) processImg2ImgImagine() {
 }
 
 func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerationRequest, imagine *QueueItem, generationDone chan bool) (error, bool) {
-	newGeneration.NIter = 1
-	newGeneration.BatchSize = 1
 	img2img := entities.ImageToImageRequest{
 		AlwaysonScripts:                   newGeneration.AlwaysonScripts,
-		BatchSize:                         &newGeneration.BatchSize,
+		BatchSize:                         newGeneration.BatchSize,
 		CFGScale:                          &newGeneration.CFGScale,
 		DenoisingStrength:                 &newGeneration.DenoisingStrength,
 		Height:                            &newGeneration.Height,
 		ImageCFGScale:                     &newGeneration.CFGScale,
 		IncludeInitImages:                 nil,
 		InitImages:                        nil,
-		NIter:                             &newGeneration.NIter,
+		NIter:                             newGeneration.NIter,
 		NegativePrompt:                    &newGeneration.NegativePrompt,
 		OverrideSettings:                  newGeneration.OverrideSettings,
 		OverrideSettingsRestoreAfterwards: newGeneration.OverrideSettingsRestoreAfterwards,
@@ -145,19 +143,22 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		}
 		thumbnailBuffers = append(thumbnailBuffers, bytes.NewBuffer(decodedBytes))
 	}
-	if len(imageBufs) > 1 {
-		thumbnailBuffers = append(thumbnailBuffers, imageBufs[1:]...)
+
+	totalImages := img2img.NIter * img2img.BatchSize
+
+	if len(imageBufs) > totalImages {
+		thumbnailBuffers = append(thumbnailBuffers, imageBufs[totalImages:]...)
 	}
 
 	empty := ""
 	webhook := &discordgo.WebhookEdit{
 		Content:    &empty,
-		Components: rerollVariationComponents(min(len(imageBufs), 1), c.Type == ItemTypeImg2Img),
+		Components: rerollVariationComponents(min(len(imageBufs), totalImages), c.Type == ItemTypeImg2Img),
 	}
 
 	if len(thumbnailBuffers) > 0 {
 		//imageEmbedFromReader(webhook, embed, primaryImageReader, thumbnailTileReader)
-		if err := imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 1)], thumbnailBuffers); err != nil {
+		if err := imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), totalImages)], thumbnailBuffers); err != nil {
 			log.Printf("Error embedding image: %v", err)
 			return err, true
 		}

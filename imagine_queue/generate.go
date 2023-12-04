@@ -174,19 +174,21 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 			thumbnailBuffers = append(thumbnailBuffers, bytes.NewBuffer(decodedBytes))
 		}
 
-		if len(imageBufs) > 4 {
+		totalImages := newGeneration.NIter * newGeneration.BatchSize
+
+		if len(imageBufs) > totalImages {
 			log.Printf("received extra images: len(imageBufs): %v, controlnet: %v", len(imageBufs), c.ControlnetItem.Enabled)
-			thumbnailBuffers = append(thumbnailBuffers, imageBufs[4:]...)
+			thumbnailBuffers = append(thumbnailBuffers, imageBufs[totalImages:]...)
 		}
 
 		empty := ""
 
 		webhook = &discordgo.WebhookEdit{
 			Content:    &empty,
-			Components: rerollVariationComponents(min(len(imageBufs), 4), c.Type == ItemTypeImg2Img),
+			Components: rerollVariationComponents(min(len(imageBufs), totalImages), c.Type == ItemTypeImg2Img),
 		}
 
-		if err := imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), 4)], thumbnailBuffers); err != nil {
+		if err := imageEmbedFromBuffers(webhook, embed, imageBufs[:min(len(imageBufs), totalImages)], thumbnailBuffers); err != nil {
 			log.Printf("Error creating image embed: %v\n", err)
 			return err
 		}
