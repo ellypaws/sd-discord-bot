@@ -50,23 +50,10 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		c.DiscordInteraction.Message = message
 	}
 
-	defaultBatchCount, err := q.defaultBatchCount()
-	if err != nil {
-		log.Printf("Error getting default batch count: %v", err)
-		return err
-	}
-
-	defaultBatchSize, err := q.defaultBatchSize()
-	if err != nil {
-		log.Printf("Error getting default batch size: %v", err)
-		return err
-	}
 	newGeneration.InteractionID = c.DiscordInteraction.ID
 	newGeneration.MessageID = message.ID
 	newGeneration.MemberID = c.DiscordInteraction.Member.User.ID
 	newGeneration.SortOrder = 0
-	newGeneration.BatchCount = defaultBatchCount
-	newGeneration.BatchSize = defaultBatchSize
 	newGeneration.Processed = true
 
 	// return newGeneration from image_generations.Create as we need newGeneration.CreatedAt later on

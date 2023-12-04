@@ -106,6 +106,8 @@ type QueueItem struct {
 	RestoreFaces       bool
 	ADetailerString    string // use AppendSegModelByString
 	Attachments        map[string]*entities.MessageAttachment
+	BatchCount         int
+	BatchSize          int
 	Img2ImgItem
 	ControlnetItem
 	Checkpoint   *string
@@ -129,7 +131,18 @@ type ControlnetItem struct {
 	Enabled      bool
 }
 
-func DefaultQueueItem() *QueueItem {
+func (q *queueImplementation) DefaultQueueItem() *QueueItem {
+	defaultBatchCount, err := q.defaultBatchCount()
+	if err != nil {
+		log.Printf("Error getting default batch count: %v", err)
+		defaultBatchCount = 1
+	}
+
+	defaultBatchSize, err := q.defaultBatchSize()
+	if err != nil {
+		log.Printf("Error getting default batch size: %v", err)
+		defaultBatchSize = 4
+	}
 	return &QueueItem{
 		NegativePrompt:   defaultNegative,
 		Steps:            20,
@@ -140,6 +153,8 @@ func DefaultQueueItem() *QueueItem {
 		HiresSteps:       20,
 		HiresUpscaleRate: 1.0,
 		CfgScale:         7.0,
+		BatchCount:       defaultBatchCount,
+		BatchSize:        defaultBatchSize,
 		Img2ImgItem: Img2ImgItem{
 			DenoisingStrength: 0.7,
 		},
@@ -150,14 +165,14 @@ func DefaultQueueItem() *QueueItem {
 	}
 }
 
-func NewQueueItem(options ...func(*QueueItem)) *QueueItem {
-	q := DefaultQueueItem()
+func (q *queueImplementation) NewQueueItem(options ...func(*QueueItem)) *QueueItem {
+	queue := q.DefaultQueueItem()
 
 	for _, option := range options {
-		option(q)
+		option(queue)
 	}
 
-	return q
+	return queue
 }
 
 func WithPrompt(prompt string) func(*QueueItem) {

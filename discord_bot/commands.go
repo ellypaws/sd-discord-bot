@@ -42,6 +42,8 @@ const (
 	cfgScaleOption     CommandOption = "cfg_scale"
 	stepOption         CommandOption = "step"
 	seedOption         CommandOption = "seed"
+	batchCountOption   CommandOption = "batch_count"
+	batchSizeOption    CommandOption = "batch_size"
 
 	img2imgOption   CommandOption = "img2img"
 	denoisingOption CommandOption = "denoising"
@@ -103,6 +105,8 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[aspectRatio],
 		commandOptions[loraOption],
 		commandOptions[samplerOption],
+		commandOptions[batchCountOption],
+		commandOptions[batchSizeOption],
 		//commandOptions[hiresFixOption],
 		commandOptions[hiresFixSize],
 		commandOptions[cfgScaleOption],
@@ -270,6 +274,54 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 			{
 				Name:  "DPM++ 3M SDE Karras",
 				Value: "DPM++ 3M SDE Karras",
+			},
+		},
+	},
+	batchCountOption: {
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        string(batchCountOption),
+		Description: "Number of batches to generate. Default is 1 and max is 4",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "1",
+				Value: "1",
+			},
+			{
+				Name:  "2",
+				Value: "2",
+			},
+			{
+				Name:  "3",
+				Value: "3",
+			},
+			{
+				Name:  "4",
+				Value: "4",
+			},
+		},
+	},
+	batchSizeOption: {
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        string(batchSizeOption),
+		Description: "Number of batches to generate. Default and max is 4",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "1",
+				Value: "1",
+			},
+			{
+				Name:  "2",
+				Value: "2",
+			},
+			{
+				Name:  "3",
+				Value: "3",
+			},
+			{
+				Name:  "4",
+				Value: "4",
 			},
 		},
 	},

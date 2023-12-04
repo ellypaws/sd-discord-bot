@@ -45,6 +45,8 @@ func (q *queueImplementation) processCurrentImagine() {
 				SamplerName:       c.SamplerName1,
 				CFGScale:          c.CfgScale,
 				Steps:             c.Steps,
+				NIter:             c.BatchCount,
+				BatchSize:         c.BatchSize,
 			},
 		}, error(nil)
 

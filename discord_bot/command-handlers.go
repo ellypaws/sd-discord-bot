@@ -1,6 +1,7 @@
 package discord_bot
 
 import (
+	"cmp"
 	"fmt"
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
@@ -97,7 +98,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		return
 	} else {
 		parameters, sanitized := extractKeyValuePairsFromPrompt(option.StringValue())
-		queue = imagine_queue.NewQueueItem(imagine_queue.WithPrompt(sanitized))
+		queue = b.imagineQueue.NewQueueItem(imagine_queue.WithPrompt(sanitized))
 
 		queue.Type = imagine_queue.ItemTypeImagine
 		queue.DiscordInteraction = i.Interaction
@@ -188,6 +189,22 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		interfaceConvertAuto[float64, float64](&queue.CfgScale, cfgScaleOption, optionMap, parameters)
+
+		// calculate batch count and batch size. prefer batch size to be the bigger number, both numbers should add up to 4.
+		// if batch size is 4, then batch count should be 1. if both are 4, set batch size to 4 and batch count to 1.
+		// if batch size is 1, then batch count *can* be 4, but it can also be 1.
+
+		if intVal, ok := interfaceConvertAuto[int, int64](&queue.BatchCount, batchCountOption, optionMap, parameters); ok {
+			queue.BatchCount = int(*intVal)
+		}
+
+		if intVal, ok := interfaceConvertAuto[int, int64](&queue.BatchSize, batchSizeOption, optionMap, parameters); ok {
+			queue.BatchSize = int(*intVal)
+		}
+
+		const maxImages = 4
+		queue.BatchSize = between(queue.BatchSize, 1, maxImages)
+		queue.BatchCount = min(maxImages/queue.BatchSize, queue.BatchCount)
 
 		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.RestoreFaces, restoreFacesOption, optionMap, parameters); ok {
 			boolean, err := strconv.ParseBool(*boolVal)
@@ -316,6 +333,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
 		queue.DiscordInteraction.Message = message
 	}
+}
+
+func between[T cmp.Ordered](value, minimum, maximum T) T {
+	return min(max(minimum, value), maximum)
 }
 
 var weightRegex = regexp.MustCompile(`.+\\|\.(?:safetensors|ckpt|pth?)|(:[\d.]+$)`)

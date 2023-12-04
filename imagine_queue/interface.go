@@ -14,4 +14,5 @@ type Queue interface {
 	UpdateModelName(modelName string) (*entities.DefaultSettings, error) // Deprecated: No longer store the SDModelName to DefaultSettings struct, use stable_diffusion_api.GetConfig instead
 	RemoveFromQueue(messageInteraction *discordgo.MessageInteraction) error
 	Interrupt(messageInteraction *discordgo.InteractionCreate) error
+	NewQueueItem(options ...func(*QueueItem)) *QueueItem
 }
