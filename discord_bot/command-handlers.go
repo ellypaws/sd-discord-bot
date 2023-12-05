@@ -59,6 +59,9 @@ func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption
 //	if int64Val, ok := interfaceConvertAuto[int, int64](&queue.Steps, stepOption, optionMap, parameters); ok {
 //		queue.Steps = int(*int64Val)
 //	}
+//
+// (*discordgo.ApplicationCommandInteractionDataOption).IntValue() actually uses float64 for the interface conversion, so use float64 for integers, numbers, etc.
+// and then convert to the desired type.
 func interfaceConvertAuto[F any, V any](field *F, option CommandOption, optionMap map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, parameters map[CommandOption]string) (*V, bool) {
 	if field == nil {
 		log.Printf("WARNING: field %T is nil", field)
@@ -107,11 +110,13 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		interfaceConvertAuto[string, string](&queue.SamplerName1, samplerOption, optionMap, parameters)
 
-		if int64Val, ok := interfaceConvertAuto[int, int64](&queue.Steps, stepOption, optionMap, parameters); ok {
-			queue.Steps = int(*int64Val)
+		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.Steps, stepOption, optionMap, parameters); ok {
+			queue.Steps = int(*floatVal)
 		}
 
-		interfaceConvertAuto[int64, int64](&queue.Seed, seedOption, optionMap, parameters)
+		if floatVal, ok := interfaceConvertAuto[int64, float64](&queue.Seed, seedOption, optionMap, parameters); ok {
+			queue.Seed = int64(*floatVal)
+		}
 
 		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.RestoreFaces, restoreFacesOption, optionMap, parameters); ok {
 			boolean, err := strconv.ParseBool(*boolVal)
@@ -194,11 +199,11 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		// if batch size is 4, then batch count should be 1. if both are 4, set batch size to 4 and batch count to 1.
 		// if batch size is 1, then batch count *can* be 4, but it can also be 1.
 
-		if intVal, ok := interfaceConvertAuto[int, int64](&queue.BatchCount, batchCountOption, optionMap, parameters); ok {
-			queue.BatchCount = int(*intVal)
+		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.BatchCount, batchCountOption, optionMap, parameters); ok {
+			queue.BatchCount = int(*floatVal)
 		}
 
-		if intVal, ok := interfaceConvertAuto[int, int64](&queue.BatchSize, batchSizeOption, optionMap, parameters); ok {
+		if intVal, ok := interfaceConvertAuto[int, float64](&queue.BatchSize, batchSizeOption, optionMap, parameters); ok {
 			queue.BatchSize = int(*intVal)
 		}
 
