@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
@@ -172,21 +171,21 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 			interactionID, messageID, imagine.InteractionIndex)
 
-		var scriptsString string
-
-		if generation.AlwaysonScripts != nil && generation.AlwaysonScripts.ADetailer != nil {
-			scripts, err := json.Marshal(generation.AlwaysonScripts.ADetailer)
-			if err != nil {
-				log.Printf("Error marshalling scripts: %v", err)
-			} else {
-				scriptsString = string(scripts)
-			}
-		}
+		//var scriptsString string
+		//
+		//if generation.AlwaysonScripts != nil && generation.AlwaysonScripts.ADetailer != nil {
+		//	scripts, err := json.Marshal(generation.AlwaysonScripts.ADetailer)
+		//	if err != nil {
+		//		log.Printf("Error marshalling scripts: %v", err)
+		//	} else {
+		//		scriptsString = string(scripts)
+		//	}
+		//}
 
 		finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",
 			imagine.DiscordInteraction.Member.User.ID,
 			generation.Seed,
-			scriptsString,
+			//scriptsString,
 		)
 
 		if len(finishedContent) > 2000 {
@@ -202,6 +201,9 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 					Name:   "imagine_" + time.Now().Format("20060102150405") + ".png",
 					Reader: bytes.NewBuffer(decodedImage),
 				},
+			},
+			Components: &[]discordgo.MessageComponent{
+				handlers.Components[handlers.DeleteGeneration],
 			},
 		})
 		if err != nil {
