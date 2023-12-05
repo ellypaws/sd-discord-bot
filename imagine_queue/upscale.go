@@ -9,6 +9,7 @@ import (
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/stable_diffusion_api"
+	"strings"
 	"time"
 )
 
@@ -171,21 +172,30 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
 			interactionID, messageID, imagine.InteractionIndex)
 
-		//var scriptsString string
-		//
-		//if generation.AlwaysonScripts != nil && generation.AlwaysonScripts.ADetailer != nil {
-		//	scripts, err := json.Marshal(generation.AlwaysonScripts.ADetailer)
-		//	if err != nil {
-		//		log.Printf("Error marshalling scripts: %v", err)
-		//	} else {
-		//		scriptsString = string(scripts)
-		//	}
-		//}
+		var scriptsString string
+		if generation.AlwaysonScripts != nil {
+			if generation.AlwaysonScripts.ADetailer != nil && len(generation.AlwaysonScripts.ADetailer.Args) > 0 {
+				var models []string
+				for _, v := range generation.AlwaysonScripts.ADetailer.Args {
+					models = append(models, v.AdModel)
+				}
+				scriptsString = fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", "))
+			}
+			if generation.AlwaysonScripts.ControlNet != nil && len(generation.AlwaysonScripts.ControlNet.Args) > 0 {
+				var preprocessor []string
+				var model []string
+				for _, v := range generation.AlwaysonScripts.ControlNet.Args {
+					preprocessor = append(preprocessor, v.Module)
+					model = append(model, v.Model)
+				}
+				scriptsString = fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(model, ", "), strings.Join(preprocessor, ", "))
+			}
+		}
 
 		finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",
 			imagine.DiscordInteraction.Member.User.ID,
 			generation.Seed,
-			//scriptsString,
+			scriptsString,
 		)
 
 		if len(finishedContent) > 2000 {

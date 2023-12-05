@@ -812,7 +812,7 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 			for _, v := range generation.AlwaysonScripts.ADetailer.Args {
 				models = append(models, v.AdModel)
 			}
-			out.WriteString(fmt.Sprintf("\n**ADetailer**: %v", strings.Join(models, "\n")))
+			out.WriteString(fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", ")))
 		}
 		if generation.AlwaysonScripts.ControlNet != nil && len(generation.AlwaysonScripts.ControlNet.Args) > 0 {
 			var preprocessor []string
@@ -821,7 +821,7 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 				preprocessor = append(preprocessor, v.Module)
 				model = append(model, v.Model)
 			}
-			out.WriteString(fmt.Sprintf("\n**ControlNet**: %v %v", strings.Join(preprocessor, "\n"), strings.Join(model, "\n")))
+			out.WriteString(fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(preprocessor, ", "), strings.Join(model, ", ")))
 		}
 	}
 
