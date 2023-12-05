@@ -3,7 +3,6 @@ package imagine_queue
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/sahilm/fuzzy"
@@ -760,18 +759,6 @@ func (q *queueImplementation) getPreviousGeneration(imagine *QueueItem, sortOrde
 func imagineMessageContent(generation *entities.ImageGenerationRequest, user *discordgo.User, progress float64) string {
 	var out = strings.Builder{}
 
-	var scriptsString string
-
-	if generation.AlwaysonScripts != nil && generation.AlwaysonScripts.ADetailer != nil {
-		scripts, err := json.Marshal(generation.AlwaysonScripts)
-		if err != nil {
-			log.Printf("Error marshalling scripts: %v", err)
-			return fmt.Sprintf("Error marshalling scripts: %v", err)
-		} else {
-			scriptsString = string(scripts)
-		}
-	}
-
 	seedString := fmt.Sprintf("%d", generation.Seed)
 	if seedString == "-1" {
 		seedString = "at random(-1)"
@@ -819,10 +806,28 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 
 	out.WriteString(fmt.Sprintf("\n```\n%s\n```", generation.Prompt))
 
-	if scriptsString != "" {
-		out.WriteString(fmt.Sprintf("**Scripts**: ```json\n%v\n```", scriptsString))
+	if generation.AlwaysonScripts != nil {
+		if generation.AlwaysonScripts.ADetailer != nil && len(generation.AlwaysonScripts.ADetailer.Args) > 0 {
+			var models []string
+			for _, v := range generation.AlwaysonScripts.ADetailer.Args {
+				models = append(models, v.AdModel)
+			}
+			out.WriteString(fmt.Sprintf("\n**ADetailer**: %v", strings.Join(models, "\n")))
+		}
+		if generation.AlwaysonScripts.ControlNet != nil && len(generation.AlwaysonScripts.ControlNet.Args) > 0 {
+			var preprocessor []string
+			var model []string
+			for _, v := range generation.AlwaysonScripts.ControlNet.Args {
+				preprocessor = append(preprocessor, v.Module)
+				model = append(model, v.Model)
+			}
+			out.WriteString(fmt.Sprintf("\n**ControlNet**: %v %v", strings.Join(preprocessor, "\n"), strings.Join(model, "\n")))
+		}
 	}
 
+	if out.Len() > 2000 {
+		return out.String()[:2000]
+	}
 	return out.String()
 }
 
