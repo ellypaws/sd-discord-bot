@@ -52,7 +52,6 @@ type GenerationInfo struct {
 	MessageID     string    `json:"message_id"`
 	MemberID      string    `json:"member_id"`
 	SortOrder     int       `json:"sort_order"`
-	BatchCount    int       `json:"batch_count"`
 	Processed     bool      `json:"processed"`
 	Checkpoint    *string   `json:"checkpoint,omitempty"`
 	VAE           *string   `json:"vae,omitempty"`

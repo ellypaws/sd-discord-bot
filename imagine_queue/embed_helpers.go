@@ -124,6 +124,8 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 	var files []*discordgo.File
 	var embeds []*discordgo.MessageEmbed
 
+	embeds = append(embeds, embed)
+
 	// Process thumbnails
 	for i := len(thumbnails) - 1; i >= 0; i-- {
 		if thumbnails[i] == nil {
@@ -189,9 +191,7 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 				},
 			}
 			if i == 0 {
-				// Use the original embed details for the first image
 				embed.Image = newEmbed.Image
-				embeds = append(embeds, embed)
 			} else {
 				embeds = append(embeds, newEmbed)
 			}

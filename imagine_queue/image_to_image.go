@@ -144,15 +144,23 @@ func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerati
 		thumbnailBuffers = append(thumbnailBuffers, bytes.NewBuffer(decodedBytes))
 	}
 
+	const maxImages = 4
+	if newGeneration.NIter == 0 {
+		log.Printf("Warning: newGeneration.NIter == 0")
+		newGeneration.NIter = between(newGeneration.NIter, 1, maxImages/newGeneration.BatchSize)
+	}
+
 	totalImages := img2img.NIter * img2img.BatchSize
 
 	if len(imageBufs) > totalImages {
 		thumbnailBuffers = append(thumbnailBuffers, imageBufs[totalImages:]...)
 	}
 
-	empty := ""
+	mention := fmt.Sprintf("<@%v>", c.DiscordInteraction.Member.User.ID)
+
 	webhook := &discordgo.WebhookEdit{
-		Content:    &empty,
+		Content:    &mention,
+		Embeds:     &[]*discordgo.MessageEmbed{embed},
 		Components: rerollVariationComponents(min(len(imageBufs), totalImages), c.Type == ItemTypeImg2Img),
 	}
 
