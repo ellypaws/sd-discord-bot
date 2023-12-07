@@ -128,13 +128,9 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 		}()
 
 		// Use face segm model if we're upscaling but there's no ADetailer models
-		if generation.AlwaysonScripts == nil {
-			generation.NewScripts()
-		}
-
-		if generation.AlwaysonScripts.ADetailer == nil {
-			generation.AlwaysonScripts.NewADetailerWithArgs()
-			generation.AlwaysonScripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
+		if generation.Scripts.ADetailer == nil {
+			generation.Scripts.NewADetailerWithArgs()
+			generation.Scripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", generation)
 		}
 
 		t2iRequest := generation.TextToImageRequest
@@ -173,23 +169,22 @@ func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
 			interactionID, messageID, imagine.InteractionIndex)
 
 		var scriptsString string
-		if generation.AlwaysonScripts != nil {
-			if generation.AlwaysonScripts.ADetailer != nil && len(generation.AlwaysonScripts.ADetailer.Args) > 0 {
-				var models []string
-				for _, v := range generation.AlwaysonScripts.ADetailer.Args {
-					models = append(models, v.AdModel)
-				}
-				scriptsString = fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", "))
+
+		if generation.Scripts.ADetailer != nil && len(generation.Scripts.ADetailer.Args) > 0 {
+			var models []string
+			for _, v := range generation.Scripts.ADetailer.Args {
+				models = append(models, v.AdModel)
 			}
-			if generation.AlwaysonScripts.ControlNet != nil && len(generation.AlwaysonScripts.ControlNet.Args) > 0 {
-				var preprocessor []string
-				var model []string
-				for _, v := range generation.AlwaysonScripts.ControlNet.Args {
-					preprocessor = append(preprocessor, v.Module)
-					model = append(model, v.Model)
-				}
-				scriptsString = fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(model, ", "), strings.Join(preprocessor, ", "))
+			scriptsString = fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", "))
+		}
+		if generation.Scripts.ControlNet != nil && len(generation.Scripts.ControlNet.Args) > 0 {
+			var preprocessor []string
+			var model []string
+			for _, v := range generation.Scripts.ControlNet.Args {
+				preprocessor = append(preprocessor, v.Module)
+				model = append(model, v.Model)
 			}
+			scriptsString = fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(model, ", "), strings.Join(preprocessor, ", "))
 		}
 
 		finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",

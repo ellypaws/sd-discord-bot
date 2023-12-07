@@ -89,32 +89,23 @@ const (
 )
 
 type QueueItem struct {
-	Prompt             string
-	NegativePrompt     string
-	Steps              int
-	Seed               int64
-	SamplerName1       string
-	Type               ItemType
-	UseHiresFix        bool
-	HiresSteps         int64
-	HiresUpscaleRate   float64
-	CfgScale           float64
+	Type ItemType
+
+	entities.TextToImageRequest
+
 	AspectRatio        string
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
-	RestoreFaces       bool
-	ADetailerString    string // use AppendSegModelByString
-	Attachments        map[string]*entities.MessageAttachment
-	BatchCount         int
-	BatchSize          int
-	ClipSkip           int
+
+	ADetailerString string // use AppendSegModelByString
+	Attachments     map[string]*entities.MessageAttachment
+
 	Img2ImgItem
 	ControlnetItem
 	Checkpoint   *string
 	VAE          *string
 	Hypernetwork *string
 	Interrupt    chan *discordgo.Interaction
-	entities.Scripts
 }
 
 type Img2ImgItem struct {
@@ -145,18 +136,23 @@ func (q *queueImplementation) DefaultQueueItem() *QueueItem {
 		defaultBatchSize = 4
 	}
 	return &QueueItem{
-		NegativePrompt:   defaultNegative,
-		Steps:            20,
-		Seed:             -1,
-		SamplerName1:     "Euler a",
-		Type:             ItemTypeImagine,
-		UseHiresFix:      false,
-		HiresSteps:       20,
-		HiresUpscaleRate: 1.0,
-		CfgScale:         7.0,
-		BatchCount:       defaultBatchCount,
-		BatchSize:        defaultBatchSize,
-		ClipSkip:         1,
+		Type: ItemTypeImagine,
+
+		TextToImageRequest: entities.TextToImageRequest{
+			NegativePrompt:    DefaultNegative,
+			Steps:             20,
+			Seed:              -1,
+			SamplerName:       "Euler a",
+			EnableHr:          false,
+			HrUpscaler:        "R-ESRGAN 2x+",
+			HrSecondPassSteps: 20,
+			HrScale:           1.0,
+			DenoisingStrength: 0.7,
+			CFGScale:          7.0,
+			NIter:             defaultBatchCount,
+			BatchSize:         defaultBatchSize,
+		},
+
 		Img2ImgItem: Img2ImgItem{
 			DenoisingStrength: 0.7,
 		},
@@ -724,7 +720,7 @@ func extractKeyValuePairsFromPrompt(prompt string) (parameters map[string]string
 	return
 }
 
-const defaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+const DefaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 	"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 	"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
 
@@ -809,23 +805,22 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 
 	out.WriteString(fmt.Sprintf("\n```\n%s\n```", generation.Prompt))
 
-	if generation.AlwaysonScripts != nil {
-		if generation.AlwaysonScripts.ADetailer != nil && len(generation.AlwaysonScripts.ADetailer.Args) > 0 {
-			var models []string
-			for _, v := range generation.AlwaysonScripts.ADetailer.Args {
-				models = append(models, v.AdModel)
-			}
-			out.WriteString(fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", ")))
+	if generation.Scripts.ADetailer != nil && len(generation.Scripts.ADetailer.Args) > 0 {
+		var models []string
+		for _, v := range generation.Scripts.ADetailer.Args {
+			models = append(models, v.AdModel)
 		}
-		if generation.AlwaysonScripts.ControlNet != nil && len(generation.AlwaysonScripts.ControlNet.Args) > 0 {
-			var preprocessor []string
-			var model []string
-			for _, v := range generation.AlwaysonScripts.ControlNet.Args {
-				preprocessor = append(preprocessor, v.Module)
-				model = append(model, v.Model)
-			}
-			out.WriteString(fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(preprocessor, ", "), strings.Join(model, ", ")))
+		out.WriteString(fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", ")))
+	}
+
+	if generation.Scripts.ControlNet != nil && len(generation.Scripts.ControlNet.Args) > 0 {
+		var preprocessor []string
+		var model []string
+		for _, v := range generation.Scripts.ControlNet.Args {
+			preprocessor = append(preprocessor, v.Module)
+			model = append(model, v.Model)
 		}
+		out.WriteString(fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(preprocessor, ", "), strings.Join(model, ", ")))
 	}
 
 	if out.Len() > 2000 {

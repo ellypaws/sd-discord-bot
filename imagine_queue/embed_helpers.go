@@ -252,17 +252,17 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		newGeneration.CFGScale, newGeneration.Seed, newGeneration.SamplerName)
 
 	var scripts []string
-	if newGeneration.AlwaysonScripts != nil {
-		if newGeneration.AlwaysonScripts.ADetailer != nil {
-			scripts = append(scripts, "ADetailer")
-		}
-		if newGeneration.AlwaysonScripts.ControlNet != nil {
-			scripts = append(scripts, "ControlNet")
-		}
-		if newGeneration.AlwaysonScripts.CFGRescale != nil {
-			scripts = append(scripts, "CFGRescale")
-		}
+
+	if newGeneration.Scripts.ADetailer != nil {
+		scripts = append(scripts, "ADetailer")
 	}
+	if newGeneration.Scripts.ControlNet != nil {
+		scripts = append(scripts, "ControlNet")
+	}
+	if newGeneration.Scripts.CFGRescale != nil {
+		scripts = append(scripts, "CFGRescale")
+	}
+
 	if len(scripts) > 0 {
 		embed.Description += fmt.Sprintf("\nScripts: [`%v`]", strings.Join(scripts, ", "))
 	}

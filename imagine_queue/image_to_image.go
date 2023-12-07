@@ -21,7 +21,7 @@ func (q *queueImplementation) processImg2ImgImagine() {
 
 func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerationRequest, imagine *QueueItem, generationDone chan bool) (error, bool) {
 	img2img := entities.ImageToImageRequest{
-		AlwaysonScripts:                   newGeneration.AlwaysonScripts,
+		Scripts:                           newGeneration.Scripts,
 		BatchSize:                         newGeneration.BatchSize,
 		CFGScale:                          &newGeneration.CFGScale,
 		DenoisingStrength:                 &newGeneration.DenoisingStrength,

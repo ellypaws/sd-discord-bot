@@ -62,7 +62,7 @@ func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption
 //
 // (*discordgo.ApplicationCommandInteractionDataOption).IntValue() actually uses float64 for the interface conversion, so use float64 for integers, numbers, etc.
 // and then convert to the desired type.
-func interfaceConvertAuto[F any, V any](field *F, option CommandOption, optionMap map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, parameters map[CommandOption]string) (*V, bool) {
+func interfaceConvertAuto[F any, V string | float64](field *F, option CommandOption, optionMap map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, parameters map[CommandOption]string) (*V, bool) {
 	if field == nil {
 		log.Printf("WARNING: field %T is nil", field)
 	}
@@ -110,9 +110,11 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		queue.Type = imagine_queue.ItemTypeImagine
 		queue.DiscordInteraction = i.Interaction
 
-		interfaceConvertAuto[string, string](&queue.NegativePrompt, negativeOption, optionMap, parameters)
+		if _, ok := interfaceConvertAuto[string, string](&queue.NegativePrompt, negativeOption, optionMap, parameters); ok {
+			queue.NegativePrompt = strings.ReplaceAll(queue.NegativePrompt, "{DEFAULT}", imagine_queue.DefaultNegative)
+		}
 
-		interfaceConvertAuto[string, string](&queue.SamplerName1, samplerOption, optionMap, parameters)
+		interfaceConvertAuto[string, string](&queue.SamplerName, samplerOption, optionMap, parameters)
 
 		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.Steps, stepOption, optionMap, parameters); ok {
 			queue.Steps = int(*floatVal)
@@ -178,33 +180,33 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		interfaceConvertAuto[string, string](&queue.AspectRatio, aspectRatio, optionMap, parameters)
 
-		if floatVal, ok := interfaceConvertAuto[float64, string](&queue.HiresUpscaleRate, hiresFixSize, optionMap, parameters); ok {
+		if floatVal, ok := interfaceConvertAuto[float64, string](&queue.HrScale, hiresFixSize, optionMap, parameters); ok {
 			float, err := strconv.ParseFloat(*floatVal, 64)
 			if err != nil {
 				log.Printf("Error parsing hiresUpscaleRate: %v", err)
 			} else {
-				queue.HiresUpscaleRate = float
-				queue.UseHiresFix = true
+				queue.HrScale = between(float, 1.0, 4.0)
+				queue.EnableHr = true
 			}
 		}
 
-		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.UseHiresFix, hiresFixOption, optionMap, parameters); ok {
+		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.EnableHr, hiresFixOption, optionMap, parameters); ok {
 			boolean, err := strconv.ParseBool(*boolVal)
 			if err != nil {
 				log.Printf("Error parsing hiresFix value: %v.", err)
 			} else {
-				queue.UseHiresFix = boolean
+				queue.EnableHr = boolean
 			}
 		}
 
-		interfaceConvertAuto[float64, float64](&queue.CfgScale, cfgScaleOption, optionMap, parameters)
+		interfaceConvertAuto[float64, float64](&queue.CFGScale, cfgScaleOption, optionMap, parameters)
 
 		// calculate batch count and batch size. prefer batch size to be the bigger number, both numbers should add up to 4.
 		// if batch size is 4, then batch count should be 1. if both are 4, set batch size to 4 and batch count to 1.
 		// if batch size is 1, then batch count *can* be 4, but it can also be 1.
 
-		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.BatchCount, batchCountOption, optionMap, parameters); ok {
-			queue.BatchCount = int(*floatVal)
+		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.NIter, batchCountOption, optionMap, parameters); ok {
+			queue.NIter = int(*floatVal)
 		}
 
 		if intVal, ok := interfaceConvertAuto[int, float64](&queue.BatchSize, batchSizeOption, optionMap, parameters); ok {
@@ -213,7 +215,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		const maxImages = 4
 		queue.BatchSize = between(queue.BatchSize, 1, maxImages)
-		queue.BatchCount = min(maxImages/queue.BatchSize, queue.BatchCount)
+		queue.NIter = min(maxImages/queue.BatchSize, queue.NIter)
 
 		if boolVal, ok := interfaceConvertAuto[bool, string](&queue.RestoreFaces, restoreFacesOption, optionMap, parameters); ok {
 			boolean, err := strconv.ParseBool(*boolVal)
@@ -260,7 +262,8 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				queue.Img2ImgItem.MessageAttachment = attachment
 
 				if option, ok := optionMap[denoisingOption]; ok {
-					queue.DenoisingStrength = option.FloatValue()
+					queue.TextToImageRequest.DenoisingStrength = option.FloatValue()
+					queue.Img2ImgItem.DenoisingStrength = option.FloatValue()
 				}
 			}
 		}
@@ -310,9 +313,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			queue.ControlnetItem.Enabled = true
 		}
 
-		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.ClipSkip, clipSkipOption, optionMap, parameters); ok {
-			queue.ClipSkip = int(*floatVal)
-		}
+		interfaceConvertAuto[float64, float64](&queue.OverrideSettings.CLIPStopAtLastLayers, clipSkipOption, optionMap, parameters)
 
 		if floatVal, ok := interfaceConvertAuto[float64, float64](nil, cfgRescaleOption, optionMap, parameters); ok {
 			queue.CFGRescale = &entities.CFGRescale{

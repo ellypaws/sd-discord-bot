@@ -27,34 +27,7 @@ func (q *queueImplementation) processCurrentImagine() {
 				VAE:          c.VAE,
 				Hypernetwork: c.Hypernetwork,
 			},
-			TextToImageRequest: &entities.TextToImageRequest{
-				Prompt:            c.Prompt,
-				NegativePrompt:    c.NegativePrompt,
-				Width:             initializedWidth,
-				Height:            initializedHeight,
-				RestoreFaces:      c.RestoreFaces,
-				EnableHr:          c.UseHiresFix,
-				HrScale:           between(c.HiresUpscaleRate, 1.0, 2.0),
-				HrUpscaler:        "R-ESRGAN 2x+",
-				HrSecondPassSteps: c.HiresSteps,
-				HrResizeX:         initializedWidth,
-				HrResizeY:         initializedHeight,
-				DenoisingStrength: c.DenoisingStrength,
-				Seed:              c.Seed,
-				Subseed:           -1,
-				SubseedStrength:   0,
-				SamplerName:       c.SamplerName1,
-				CFGScale:          c.CfgScale,
-				Steps:             c.Steps,
-				NIter:             c.BatchCount,
-				BatchSize:         c.BatchSize,
-				OverrideSettings: entities.Config{
-					CLIPStopAtLastLayers: float64(c.ClipSkip),
-				},
-				AlwaysonScripts: &entities.Scripts{
-					CFGRescale: c.CFGRescale,
-				},
-			},
+			TextToImageRequest: &c.TextToImageRequest,
 		}, error(nil)
 
 		newGeneration.Width, err = q.defaultWidth()
@@ -68,12 +41,12 @@ func (q *queueImplementation) processCurrentImagine() {
 		}
 
 		// add optional parameter: Negative prompt
-		if c.NegativePrompt == "" {
-			newGeneration.NegativePrompt = defaultNegative
+		if newGeneration.NegativePrompt == "" {
+			newGeneration.NegativePrompt = DefaultNegative
 		}
 
 		// add optional parameter: sampler
-		if c.SamplerName1 == "" {
+		if newGeneration.SamplerName == "" {
 			newGeneration.SamplerName = "Euler a"
 		}
 
@@ -115,15 +88,12 @@ func (q *queueImplementation) processCurrentImagine() {
 
 			newGeneration.NewADetailer()
 
-			newGeneration.AlwaysonScripts.ADetailer.AppendSegModelByString(c.ADetailerString, newGeneration)
+			newGeneration.Scripts.ADetailer.AppendSegModelByString(c.ADetailerString, newGeneration)
 		}
 
 		if c.ControlnetItem.Enabled {
 			log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", c.ControlnetItem.Enabled)
 
-			if newGeneration.AlwaysonScripts == nil {
-				newGeneration.NewScripts()
-			}
 			var controlnetImage *string
 			switch {
 			case c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil:
@@ -142,7 +112,7 @@ func (q *queueImplementation) processCurrentImagine() {
 				controlnetResolution = between(max(width, height), min(newGeneration.Width, newGeneration.Height), 1024)
 			}
 
-			newGeneration.AlwaysonScripts.ControlNet = &entities.ControlNet{
+			newGeneration.Scripts.ControlNet = &entities.ControlNet{
 				Args: []*entities.ControlNetParameters{
 					{
 						InputImage:   controlnetImage,
@@ -158,16 +128,16 @@ func (q *queueImplementation) processCurrentImagine() {
 			}
 			if c.Type == ItemTypeImg2Img && c.ControlnetItem.MessageAttachment == nil {
 				// controlnet will automatically use img2img if it is null
-				newGeneration.AlwaysonScripts.ControlNet.Args[0].InputImage = nil
+				newGeneration.Scripts.ControlNet.Args[0].InputImage = nil
 			}
 
 			if !c.Enabled {
-				newGeneration.AlwaysonScripts.ControlNet = nil
+				newGeneration.Scripts.ControlNet = nil
 			}
 		}
 
-		if newGeneration.AlwaysonScripts != nil && newGeneration.AlwaysonScripts.ADetailer != nil {
-			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.AlwaysonScripts.ADetailer, "", "  ")
+		if newGeneration.Scripts.ADetailer != nil {
+			jsonMarshalScripts, err := json.MarshalIndent(&newGeneration.Scripts.ADetailer, "", "  ")
 			if err != nil {
 				log.Printf("Error marshalling scripts: %v", err)
 			} else {

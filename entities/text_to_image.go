@@ -19,7 +19,7 @@ func (r *TextToImageRequest) Marshal() ([]byte, error) {
 }
 
 type TextToImageRequest struct {
-	AlwaysonScripts                   *Scripts          `json:"alwayson_scripts,omitempty"`
+	Scripts                           `json:"alwayson_scripts,omitempty"`
 	BatchSize                         int               `json:"batch_size,omitempty"`
 	CFGScale                          float64           `json:"cfg_scale,omitempty"`
 	Comments                          map[string]string `json:"comments,omitempty"`
