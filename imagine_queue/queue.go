@@ -107,6 +107,7 @@ type QueueItem struct {
 	Attachments        map[string]*entities.MessageAttachment
 	BatchCount         int
 	BatchSize          int
+	ClipSkip           int
 	Img2ImgItem
 	ControlnetItem
 	Checkpoint   *string
@@ -155,6 +156,7 @@ func (q *queueImplementation) DefaultQueueItem() *QueueItem {
 		CfgScale:         7.0,
 		BatchCount:       defaultBatchCount,
 		BatchSize:        defaultBatchSize,
+		ClipSkip:         1,
 		Img2ImgItem: Img2ImgItem{
 			DenoisingStrength: 0.7,
 		},

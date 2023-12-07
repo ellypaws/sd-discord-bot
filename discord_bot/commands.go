@@ -44,6 +44,7 @@ const (
 	seedOption         CommandOption = "seed"
 	batchCountOption   CommandOption = "batch_count"
 	batchSizeOption    CommandOption = "batch_size"
+	clipSkipOption     CommandOption = "clip_skip"
 	cfgRescaleOption   CommandOption = "cfg_rescale"
 
 	img2imgOption   CommandOption = "img2img"

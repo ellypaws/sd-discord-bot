@@ -48,6 +48,9 @@ func (q *queueImplementation) processCurrentImagine() {
 				Steps:             c.Steps,
 				NIter:             c.BatchCount,
 				BatchSize:         c.BatchSize,
+				OverrideSettings: entities.Config{
+					CLIPStopAtLastLayers: float64(c.ClipSkip),
+				},
 				AlwaysonScripts: &entities.Scripts{
 					CFGRescale: c.CFGRescale,
 				},

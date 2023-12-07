@@ -43,7 +43,7 @@ type TextToImageRequest struct {
 	HrUpscaler                        string            `json:"hr_upscaler,omitempty"`
 	NIter                             int               `json:"n_iter,omitempty"` // Batch count
 	NegativePrompt                    string            `json:"negative_prompt,omitempty"`
-	OverrideSettings                  map[string]string `json:"override_settings,omitempty"`
+	OverrideSettings                  Config            `json:"override_settings,omitempty"`
 	OverrideSettingsRestoreAfterwards *bool             `json:"override_settings_restore_afterwards,omitempty"`
 	Prompt                            string            `json:"prompt,omitempty"`
 	RefinerCheckpoint                 *string           `json:"refiner_checkpoint,omitempty"`

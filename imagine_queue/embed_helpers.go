@@ -267,6 +267,10 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		embed.Description += fmt.Sprintf("\nScripts: [`%v`]", strings.Join(scripts, ", "))
 	}
 
+	if newGeneration.OverrideSettings.CLIPStopAtLastLayers > 1 {
+		embed.Description += fmt.Sprintf("\nCLIPSkip: `%v`", newGeneration.OverrideSettings.CLIPStopAtLastLayers)
+	}
+
 	// store as "2015-12-31T12:00:00.000Z"
 	embed.Timestamp = time.Now().Format(time.RFC3339)
 	embed.Footer = &discordgo.MessageEmbedFooter{

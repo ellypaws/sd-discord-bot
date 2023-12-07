@@ -310,6 +310,10 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			queue.ControlnetItem.Enabled = true
 		}
 
+		if floatVal, ok := interfaceConvertAuto[int, float64](&queue.ClipSkip, clipSkipOption, optionMap, parameters); ok {
+			queue.ClipSkip = int(*floatVal)
+		}
+
 		if floatVal, ok := interfaceConvertAuto[float64, float64](nil, cfgRescaleOption, optionMap, parameters); ok {
 			queue.CFGRescale = &entities.CFGRescale{
 				Args: entities.CFGRescaleParameters{

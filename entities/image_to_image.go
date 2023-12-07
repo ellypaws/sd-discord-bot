@@ -52,7 +52,7 @@ type ImageToImageRequest struct {
 	MaskBlurY                         *int64                 `json:"mask_blur_y,omitempty"`
 	NIter                             int                    `json:"n_iter,omitempty"`
 	NegativePrompt                    *string                `json:"negative_prompt,omitempty"`
-	OverrideSettings                  map[string]string      `json:"override_settings,omitempty"`
+	OverrideSettings                  Config                 `json:"override_settings,omitempty"`
 	OverrideSettingsRestoreAfterwards *bool                  `json:"override_settings_restore_afterwards,omitempty"`
 	Prompt                            string                 `json:"prompt"`
 	RefinerCheckpoint                 *string                `json:"refiner_checkpoint,omitempty"`
