@@ -215,12 +215,12 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	return nil
 }
 
-func (q *queueImplementation) revertModels(config *stable_diffusion_api.APIConfig, originalConfig *stable_diffusion_api.APIConfig) error {
+func (q *queueImplementation) revertModels(config *entities.Config, originalConfig *entities.Config) error {
 	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
 		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
 		!ptrStringCompare(config.SDHypernetwork, originalConfig.SDHypernetwork) {
 		log.Printf("Switching back to original models: %v, %v, %v", originalConfig.SDModelCheckpoint, originalConfig.SDVae, originalConfig.SDHypernetwork)
-		return q.stableDiffusionAPI.UpdateConfiguration(stable_diffusion_api.APIConfig{
+		return q.stableDiffusionAPI.UpdateConfiguration(entities.Config{
 			SDModelCheckpoint: originalConfig.SDModelCheckpoint,
 			SDVae:             originalConfig.SDVae,
 			SDHypernetwork:    originalConfig.SDHypernetwork,
@@ -229,7 +229,7 @@ func (q *queueImplementation) revertModels(config *stable_diffusion_api.APIConfi
 	return nil
 }
 
-func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerationRequest, c *QueueItem, config *stable_diffusion_api.APIConfig) (*stable_diffusion_api.APIConfig, error) {
+func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerationRequest, c *QueueItem, config *entities.Config) (*entities.Config, error) {
 	if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
 		!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
 		!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {

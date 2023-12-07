@@ -20,9 +20,9 @@ type StableDiffusionAPI interface {
 	GetCurrentProgress() (*ProgressResponse, error)
 	GetProgress() (*Progress, error)
 
-	UpdateConfiguration(config APIConfig) error
+	UpdateConfiguration(config entities.Config) error
 
-	GetConfig() (*APIConfig, error)
+	GetConfig() (*entities.Config, error)
 	GetCheckpoint() (*string, error)
 	GetVAE() (*string, error)
 	GetHypernetwork() (*string, error)

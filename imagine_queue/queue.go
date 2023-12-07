@@ -835,7 +835,7 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 }
 
 // lookupModel searches through []stable_diffusion_api.Cacheable models to find the model to load
-func (q *queueImplementation) lookupModel(generation *entities.ImageGenerationRequest, config *stable_diffusion_api.APIConfig, c []stable_diffusion_api.Cacheable) (POST stable_diffusion_api.APIConfig) {
+func (q *queueImplementation) lookupModel(generation *entities.ImageGenerationRequest, config *entities.Config, c []stable_diffusion_api.Cacheable) (POST entities.Config) {
 	for _, c := range c {
 		var toLoad *string
 		var loadedModel *string

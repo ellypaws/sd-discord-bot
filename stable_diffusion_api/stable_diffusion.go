@@ -427,7 +427,7 @@ func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
 	return respStruct, nil
 }
 
-// Deprecated: Use APIConfig instead
+// Deprecated: Use entities.Config instead
 type POSTConfig struct {
 	SdModelCheckpoint string `json:"sd_model_checkpoint,omitempty"`
 }
@@ -496,7 +496,7 @@ func (api *apiImplementation) POST(postURL string, jsonData []byte) (*http.Respo
 	return response, nil
 }
 
-func (api *apiImplementation) UpdateConfiguration(config APIConfig) error {
+func (api *apiImplementation) UpdateConfiguration(config entities.Config) error {
 	if !handlers.CheckAPIAlive(api.host) {
 		return fmt.Errorf(handlers.DeadAPI)
 	}

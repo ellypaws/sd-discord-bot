@@ -324,7 +324,7 @@ func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) 
 }
 
 // populateOption will fill in the options for a given dropdown component that implements stable_diffusion_api.Cacheable
-func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusion_api.Cacheable, config *stable_diffusion_api.APIConfig) {
+func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusion_api.Cacheable, config *entities.Config) {
 	checkpointDropdown := handlers.Components[handler].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
 
@@ -505,17 +505,17 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 	}
 	newModelName := i.MessageComponentData().Values[0]
 
-	var config stable_diffusion_api.APIConfig
+	var config entities.Config
 	var modelType string
 	switch i.MessageComponentData().CustomID {
 	case string(handlers.CheckpointSelect):
-		config = stable_diffusion_api.APIConfig{SDModelCheckpoint: &newModelName}
+		config = entities.Config{SDModelCheckpoint: &newModelName}
 		modelType = "checkpoint"
 	case string(handlers.VAESelect):
-		config = stable_diffusion_api.APIConfig{SDVae: &newModelName}
+		config = entities.Config{SDVae: &newModelName}
 		modelType = "vae"
 	case string(handlers.HypernetworkSelect):
-		config = stable_diffusion_api.APIConfig{SDHypernetwork: &newModelName}
+		config = entities.Config{SDHypernetwork: &newModelName}
 		modelType = "hypernetwork"
 	}
 

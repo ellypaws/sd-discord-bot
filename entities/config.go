@@ -1,14 +1,14 @@
 // This file was generated from JSON Schema using quicktype, do not modify it directly.
 // To parse and unparse this JSON data, add this code to your project and do:
 //
-//    aPIConfig, err := UnmarshalAPIConfig(bytes)
-//    bytes, err = aPIConfig.Marshal()
+//    apiConfig, err := UnmarshalConfig(bytes)
+//    bytes, err = apiConfig.Marshal()
 
 package entities
 
 import "encoding/json"
 
-func UnmarshalAPIConfig(data []byte) (Config, error) {
+func UnmarshalConfig(data []byte) (Config, error) {
 	var r Config
 	err := json.Unmarshal(data, &r)
 	return r, err
