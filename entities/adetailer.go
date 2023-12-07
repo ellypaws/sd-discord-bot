@@ -101,3 +101,27 @@ func SegModelParameters(segModel string, genProperties *ImageGenerationRequest) 
 
 	return parameters
 }
+
+type ADetailer struct {
+	Args []*ADetailerParameters `json:"args,omitempty"`
+}
+
+// Deprecated: use ImageGenerationRequest.NewADetailer() instead
+func (g *ImageGeneration) NewADetailer() {
+	if g.AlwaysOnScripts == nil {
+		g.NewScripts()
+	}
+	g.AlwaysOnScripts.NewADetailerWithArgs()
+}
+
+func (g *ImageGenerationRequest) NewADetailer() {
+	if g.TextToImageRequest.AlwaysonScripts == nil {
+		g.NewScripts()
+	}
+	g.TextToImageRequest.AlwaysonScripts.NewADetailerWithArgs()
+}
+
+func (s *Scripts) NewADetailerWithArgs() {
+	s.ADetailer = &ADetailer{}
+	s.ADetailer.CreateArgs()
+}

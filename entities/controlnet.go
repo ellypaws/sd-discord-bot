@@ -34,3 +34,11 @@ const (
 	ResizeModeScaleToFit ResizeMode = "Scale to Fit (Inner Fit)"
 	ResizeModeEnvelope   ResizeMode = "Envelope (Outer Fit)"
 )
+
+type ControlNet struct {
+	Args []*ControlNetParameters `json:"args,omitempty"`
+}
+
+func (s *Scripts) NewControlNet() {
+	s.ControlNet = &ControlNet{}
+}

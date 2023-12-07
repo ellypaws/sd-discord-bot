@@ -10,6 +10,7 @@ import (
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"strings"
 	"time"
 )
 
@@ -246,9 +247,26 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		timeSince = time.Since(newGeneration.CreatedAt).Round(time.Second).String()
 	}
 
-	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
-		c.DiscordInteraction.Member.User.ID, newGeneration.Steps, timeSince,
+	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` images, `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
+		c.DiscordInteraction.Member.User.ID, newGeneration.NIter*newGeneration.BatchSize, newGeneration.Steps, timeSince,
 		newGeneration.CFGScale, newGeneration.Seed, newGeneration.SamplerName)
+
+	var scripts []string
+	if newGeneration.AlwaysonScripts != nil {
+		if newGeneration.AlwaysonScripts.ADetailer != nil {
+			scripts = append(scripts, "ADetailer")
+		}
+		if newGeneration.AlwaysonScripts.ControlNet != nil {
+			scripts = append(scripts, "ControlNet")
+		}
+		if newGeneration.AlwaysonScripts.CFGRescale != nil {
+			scripts = append(scripts, "CFGRescale")
+		}
+	}
+	if len(scripts) > 0 {
+		embed.Description += fmt.Sprintf("\nScripts: [`%v`]", strings.Join(scripts, ", "))
+	}
+
 	// store as "2015-12-31T12:00:00.000Z"
 	embed.Timestamp = time.Now().Format(time.RFC3339)
 	embed.Footer = &discordgo.MessageEmbedFooter{

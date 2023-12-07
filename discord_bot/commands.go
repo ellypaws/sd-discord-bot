@@ -44,6 +44,7 @@ const (
 	seedOption         CommandOption = "seed"
 	batchCountOption   CommandOption = "batch_count"
 	batchSizeOption    CommandOption = "batch_size"
+	cfgRescaleOption   CommandOption = "cfg_rescale"
 
 	img2imgOption   CommandOption = "img2img"
 	denoisingOption CommandOption = "denoising"

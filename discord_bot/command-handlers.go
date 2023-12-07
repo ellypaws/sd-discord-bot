@@ -65,24 +65,28 @@ func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption
 func interfaceConvertAuto[F any, V any](field *F, option CommandOption, optionMap map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, parameters map[CommandOption]string) (*V, bool) {
 	if field == nil {
 		log.Printf("WARNING: field %T is nil", field)
-		return nil, false
 	}
 	if value, ok := optionMap[option]; ok {
 		vToField, ok := value.Value.(F)
-		if ok {
+		if ok && field != nil {
 			*field = vToField
 		}
 		valueType, ok := value.Value.(V)
 		return &valueType, ok
 	}
 	if value, ok := parameters[option]; ok {
-		_, err := fmt.Sscanf(value, "%v", field)
+		if field != nil {
+			_, err := fmt.Sscanf(value, "%v", field)
+			if err != nil {
+				return nil, false
+			}
+		}
+		var out V
+		_, err := fmt.Sscanf(value, "%v", &out)
 		if err != nil {
 			return nil, false
 		}
-		out := any(*field)
-		valueType, ok := out.(V)
-		return &valueType, ok
+		return &out, true
 	}
 	return nil, false
 }
@@ -304,6 +308,17 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		if _, ok := interfaceConvertAuto[string, string](&queue.ControlnetItem.Model, controlnetModel, optionMap, parameters); ok {
 			//queue.ControlnetItem.Model = *model
 			queue.ControlnetItem.Enabled = true
+		}
+
+		if floatVal, ok := interfaceConvertAuto[float64, float64](nil, cfgRescaleOption, optionMap, parameters); ok {
+			queue.CFGRescale = &entities.CFGRescale{
+				Args: entities.CFGRescaleParameters{
+					CfgRescale:   *floatVal,
+					AutoColorFix: false,
+					FixStrength:  0,
+					KeepOriginal: false,
+				},
+			}
 		}
 
 		var err error

@@ -10,6 +10,7 @@ import (
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/stable_diffusion_api"
+	"strings"
 	"time"
 )
 
@@ -55,6 +56,12 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	newGeneration.MemberID = c.DiscordInteraction.Member.User.ID
 	newGeneration.SortOrder = 0
 	newGeneration.Processed = true
+
+	var ok bool
+	if newGeneration.Prompt, ok = strings.CutSuffix(newGeneration.Prompt, "{DEBUG}"); ok {
+		byteArr, _ := newGeneration.TextToImageRequest.Marshal()
+		log.Printf("{DEBUG} TextToImageRequest: %v", string(byteArr))
+	}
 
 	// return newGeneration from image_generations.Create as we need newGeneration.CreatedAt later on
 	newGeneration, err = q.imageGenerationRepo.Create(context.Background(), newGeneration)

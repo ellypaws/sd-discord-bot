@@ -113,6 +113,7 @@ type QueueItem struct {
 	VAE          *string
 	Hypernetwork *string
 	Interrupt    chan *discordgo.Interaction
+	entities.Scripts
 }
 
 type Img2ImgItem struct {

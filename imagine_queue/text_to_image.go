@@ -48,6 +48,9 @@ func (q *queueImplementation) processCurrentImagine() {
 				Steps:             c.Steps,
 				NIter:             c.BatchCount,
 				BatchSize:         c.BatchSize,
+				AlwaysonScripts: &entities.Scripts{
+					CFGRescale: c.CFGRescale,
+				},
 			},
 		}, error(nil)
 
@@ -157,13 +160,6 @@ func (q *queueImplementation) processCurrentImagine() {
 
 			if !c.Enabled {
 				newGeneration.AlwaysonScripts.ControlNet = nil
-			}
-		}
-
-		if newGeneration.AlwaysonScripts != nil {
-			// check if both inner scripts are nil, if so, set AlwaysonScripts to nil
-			if newGeneration.AlwaysonScripts.ControlNet == nil && newGeneration.AlwaysonScripts.ADetailer == nil {
-				newGeneration.AlwaysonScripts = nil
 			}
 		}
 
