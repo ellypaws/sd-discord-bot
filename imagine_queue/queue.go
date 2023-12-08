@@ -106,7 +106,10 @@ type QueueItem struct {
 	Checkpoint   *string
 	VAE          *string
 	Hypernetwork *string
-	Interrupt    chan *discordgo.Interaction
+
+	Raw *entities.TextToImageRaw // raw JSON input
+
+	Interrupt chan *discordgo.Interaction
 }
 
 type Img2ImgItem struct {
@@ -235,23 +238,25 @@ func (q *queueImplementation) pullNextInQueue() {
 		}
 		select {
 		case q.currentImagine = <-q.queue:
-			if q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
+			if q.currentImagine.DiscordInteraction == nil {
+				// If the interaction is nil, we can't respond. Make sure to set the implementation before adding to the queue.
+				// Example: queue.DiscordInteraction = i.Interaction
+				log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.currentImagine)
+				return
+			}
+			if interaction := q.currentImagine.DiscordInteraction; interaction != nil && q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
 				// If the item is cancelled, skip it
-				delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
+				delete(q.cancelledItems, interaction.ID)
 				q.done()
 				return
 			}
 			switch q.currentImagine.Type {
-			case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
+			case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation, ItemTypeRaw:
 				go q.processCurrentImagine()
 			case ItemTypeImg2Img:
 				go q.processImg2ImgImagine()
 			case ItemTypeUpscale:
 				go q.processUpscaleImagine(q.currentImagine)
-			case ItemTypeRaw:
-				// TODO: Implement raw JSON input
-				//q.processRawImagine(q.currentImagine)
-				q.done()
 			default:
 				handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 				log.Printf("Unknown item type: %v", q.currentImagine.Type)

@@ -118,18 +118,25 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 	}()
 
 	switch c.Type {
-	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
-		resp, err := q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
+	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation, ItemTypeRaw:
+		var resp *stable_diffusion_api.TextToImageResponse
+		var err error
+		switch c.Type {
+		case ItemTypeRaw:
+			marshal, err := q.currentImagine.Raw.Marshal()
+			if err != nil {
+				log.Printf("Error marshalling raw: %v", err)
+				return err
+			}
+			resp, err = q.stableDiffusionAPI.TextToImageRaw(marshal)
+		default:
+			resp, err = q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
+		}
 
 		generationDone <- true
 
 		if err != nil {
 			log.Printf("Error processing image: %v\n", err)
-
-			errorContent := fmt.Sprint("I'm sorry, but I had a problem imagining your image. ", err)
-
-			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, errorContent)
-
 			return err
 		}
 
@@ -175,6 +182,10 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		}
 
 		const maxImages = 4
+		if newGeneration.BatchSize == 0 {
+			log.Printf("Warning: newGeneration.Batchsize == 0")
+			newGeneration.BatchSize = between(newGeneration.BatchSize, 1, maxImages)
+		}
 		if newGeneration.NIter == 0 {
 			log.Printf("Warning: newGeneration.NIter == 0")
 			newGeneration.NIter = between(newGeneration.NIter, 1, maxImages/newGeneration.BatchSize)

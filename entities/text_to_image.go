@@ -18,6 +18,21 @@ func (r *TextToImageRequest) Marshal() ([]byte, error) {
 	return json.Marshal(r)
 }
 
+func UnmarshalTextToImageRaw(data []byte) (TextToImageRaw, error) {
+	var r TextToImageRaw
+	err := json.Unmarshal(data, &r)
+	return r, err
+}
+
+func (r *TextToImageRaw) Marshal() ([]byte, error) {
+	return json.Marshal(r)
+}
+
+type TextToImageRaw struct {
+	RawScripts map[string]any `json:"alwayson_scripts,omitempty"`
+	*TextToImageRequest
+}
+
 type TextToImageRequest struct {
 	Scripts                           `json:"alwayson_scripts,omitempty"`
 	BatchSize                         int               `json:"batch_size,omitempty"`

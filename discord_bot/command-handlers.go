@@ -771,23 +771,30 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON blob.")
 		return
 	} else {
+		queue := b.imagineQueue.NewQueueItem()
 
-		textToImage, err := entities.UnmarshalTextToImageRequest([]byte(data.Value))
+		queue.Type = imagine_queue.ItemTypeRaw
+		queue.DiscordInteraction = i.Interaction
+
+		err := json.Unmarshal([]byte(data.Value), &queue.TextToImageRequest)
 		if err != nil {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error unmarshalling JSON blob.", err)
 			return
 		}
 
-		queue := b.imagineQueue.NewQueueItem()
-		queue.TextToImageRequest = textToImage
+		queue.Raw = &entities.TextToImageRaw{TextToImageRequest: &queue.TextToImageRequest}
 
-		queue.Type = imagine_queue.ItemTypeRaw
+		// Override Scripts by unmarshalling to Raw
+		err = json.Unmarshal([]byte(data.Value), &queue.Raw)
+		if err != nil {
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error unmarshalling JSON blob.", err)
+			return
+		}
 
 		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
 			modalData[handlers.JSONInput].Value,
 		)
 
-		return
 		position, err := b.imagineQueue.AddImagine(queue)
 		if err != nil {
 			log.Printf("Error adding imagine to queue: %v\n", err)
