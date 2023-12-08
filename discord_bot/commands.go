@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"strings"
 )
@@ -22,6 +23,7 @@ var (
 const (
 	helloCommand   Command = "hello"
 	refreshCommand Command = "refresh"
+	rawCommand     Command = Command(handlers.JSONInput)
 )
 
 const (
@@ -80,10 +82,12 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Name:        string(imagineCommand),
 		Description: "Ask the bot to imagine something",
 		Options:     imagineOptions(),
+		Type:        discordgo.ChatApplicationCommand,
 	},
 	imagineSettingsCommand: {
 		Name:        string(imagineSettingsCommand),
 		Description: "Change the default settings for the imagine command",
+		Type:        discordgo.ChatApplicationCommand,
 	},
 	refreshCommand: {
 		Name:        string(refreshCommand),
@@ -94,6 +98,12 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[refreshVAEOption],
 			commandOptions[refreshAllOption],
 		},
+	},
+	rawCommand: {
+		Name:        string(rawCommand),
+		Description: "Send a raw json request to the API. ",
+		Type:        discordgo.ChatApplicationCommand,
+		// TODO: Allow uploading a JSON file
 	},
 }
 

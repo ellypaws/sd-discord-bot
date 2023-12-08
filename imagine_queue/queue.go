@@ -86,6 +86,7 @@ const (
 	ItemTypeUpscale
 	ItemTypeVariation
 	ItemTypeImg2Img
+	ItemTypeRaw // raw JSON input
 )
 
 type QueueItem struct {
@@ -242,6 +243,10 @@ func (q *queueImplementation) pullNextInQueue() {
 					q.processImg2ImgImagine()
 				case ItemTypeUpscale:
 					q.processUpscaleImagine(q.currentImagine)
+				case ItemTypeRaw:
+					// TODO: Implement raw JSON input
+					//q.processRawImagine(q.currentImagine)
+					q.done()
 				default:
 					handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 					log.Printf("Unknown item type: %v", q.currentImagine.Type)

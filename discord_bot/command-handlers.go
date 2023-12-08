@@ -2,6 +2,7 @@ package discord_bot
 
 import (
 	"cmp"
+	"encoding/json"
 	"fmt"
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
@@ -23,10 +24,15 @@ var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *disc
 	imagineCommand:         (*botImpl).processImagineCommand,
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
 	refreshCommand:         (*botImpl).processRefreshCommand,
+	rawCommand:             (*botImpl).processRawCommand,
 }
 
 var autocompleteHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
 	imagineCommand: (*botImpl).processImagineAutocomplete,
+}
+
+var modalHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+	rawCommand: (*botImpl).processRawModal,
 }
 
 func getOpts(data discordgo.ApplicationCommandInteractionData) map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption {
@@ -703,4 +709,93 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 	}
 
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, content.String())
+}
+
+// processRawCommand responds with a Modal to receive a json blob from the user to pass to the api
+func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	interactionResponse := discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseModal,
+		Data: &discordgo.InteractionResponseData{
+			CustomID: string(rawCommand),
+			Title:    "Raw JSON",
+			Components: []discordgo.MessageComponent{
+				handlers.Components[handlers.JSONInput],
+			},
+		},
+	}
+	err := s.InteractionRespond(i.Interaction, &interactionResponse)
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+
+		byteArr, err := json.Marshal(interactionResponse)
+		if err != nil {
+			log.Printf("Error marshalling interaction response data: %v", err)
+		}
+		log.Printf("Raw JSON: %v", string(byteArr))
+	}
+}
+
+//	type TextInput struct {
+//	   CustomID    string         `json:"custom_id"`
+//	   Label       string         `json:"label"`
+//	   Style       TextInputStyle `json:"style"`
+//	   Placeholder string         `json:"placeholder,omitempty"`
+//	   Value       string         `json:"value,omitempty"`
+//	   Required    bool           `json:"required"`
+//	   MinLength   int            `json:"min_length,omitempty"`
+//	   MaxLength   int            `json:"max_length,omitempty"`
+//	}
+func getModalData(data discordgo.ModalSubmitInteractionData) map[handlers.Component]*discordgo.TextInput {
+	var options = make(map[handlers.Component]*discordgo.TextInput)
+	for _, actionRow := range data.Components {
+		for _, c := range actionRow.(*discordgo.ActionsRow).Components {
+			switch c := c.(type) {
+			case *discordgo.TextInput:
+				options[handlers.Component(c.CustomID)] = c
+			default:
+				log.Fatalf("Wrong component type: %T, skipping...", c)
+			}
+		}
+	}
+	return options
+}
+
+func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+
+	modalData := getModalData(i.ModalSubmitData())
+
+	if data, ok := modalData[handlers.JSONInput]; !ok || data == nil || data.Value == "" {
+		log.Printf("modalData: %#v\n", modalData)
+		log.Printf("i.ModalSubmitData(): %#v\n", i.ModalSubmitData())
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON blob.")
+		return
+	} else {
+
+		textToImage, err := entities.UnmarshalTextToImageRequest([]byte(data.Value))
+		if err != nil {
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error unmarshalling JSON blob.", err)
+			return
+		}
+
+		queue := b.imagineQueue.NewQueueItem()
+		queue.TextToImageRequest = textToImage
+
+		queue.Type = imagine_queue.ItemTypeRaw
+
+		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+			modalData[handlers.JSONInput].Value,
+		)
+
+		return
+		position, err := b.imagineQueue.AddImagine(queue)
+		if err != nil {
+			log.Printf("Error adding imagine to queue: %v\n", err)
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+			return
+		}
+		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+			fmt.Sprintf("I'm dreaming something up for you. You are currently #%d in line.", position),
+		)
+	}
 }
