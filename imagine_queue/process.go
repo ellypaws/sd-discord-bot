@@ -10,6 +10,7 @@ import (
 )
 
 func (q *queueImplementation) processCurrentImagine() {
+	defer q.done()
 	c := q.currentImagine
 
 	newGeneration, err := &entities.ImageGenerationRequest{

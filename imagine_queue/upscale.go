@@ -14,6 +14,7 @@ import (
 )
 
 func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
+	defer q.done()
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
