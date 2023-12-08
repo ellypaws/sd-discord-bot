@@ -331,9 +331,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		if err != nil {
 			log.Printf("Error adding imagine to queue: %v\n", err)
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
-		} else {
-			// TODO: Remove debug message
-			//log.Printf("Added imagine %#v to queue. Position: %v\n", queue, position)
 		}
 	}
 
