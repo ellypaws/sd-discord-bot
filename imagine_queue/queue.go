@@ -235,26 +235,28 @@ func (q *queueImplementation) pullNextInQueue() {
 		}
 		select {
 		case q.currentImagine = <-q.queue:
-			if !q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
-				switch q.currentImagine.Type {
-				case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
-					q.processCurrentImagine()
-				case ItemTypeImg2Img:
-					q.processImg2ImgImagine()
-				case ItemTypeUpscale:
-					q.processUpscaleImagine(q.currentImagine)
-				case ItemTypeRaw:
-					// TODO: Implement raw JSON input
-					//q.processRawImagine(q.currentImagine)
-					q.done()
-				default:
-					handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
-					log.Printf("Unknown item type: %v", q.currentImagine.Type)
-				}
-				return // Process this item
+			if q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
+				// If the item is cancelled, skip it
+				delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
+				q.done()
+				return
 			}
-			// If the item is cancelled, skip it
-			delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
+			switch q.currentImagine.Type {
+			case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation:
+				go q.processCurrentImagine()
+			case ItemTypeImg2Img:
+				go q.processImg2ImgImagine()
+			case ItemTypeUpscale:
+				go q.processUpscaleImagine(q.currentImagine)
+			case ItemTypeRaw:
+				// TODO: Implement raw JSON input
+				//q.processRawImagine(q.currentImagine)
+				q.done()
+			default:
+				handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
+				log.Printf("Unknown item type: %v", q.currentImagine.Type)
+				q.done()
+			}
 		default:
 			log.Printf("WARNING: we're trying to pull the next item in the queue, but the queue is empty")
 			return // Queue is empty
