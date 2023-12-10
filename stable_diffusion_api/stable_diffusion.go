@@ -247,7 +247,7 @@ func (api *apiImplementation) TextToImageRaw(req []byte) (*TextToImageResponse, 
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
+		return nil, fmt.Errorf("unexpected status code: %v\n%v", response.Status, response.Body)
 	}
 
 	body, _ := io.ReadAll(response.Body)
