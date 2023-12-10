@@ -123,10 +123,10 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		var err error
 		switch c.Type {
 		case ItemTypeRaw:
-			marshal, err := q.currentImagine.Raw.Marshal()
-			if err != nil {
-				log.Printf("Error marshalling raw: %v", err)
-				return err
+			marshal, marshalErr := q.currentImagine.Raw.Marshal()
+			if marshalErr != nil {
+				log.Printf("Error marshalling raw: %v", marshalErr)
+				return marshalErr
 			}
 			resp, err = q.stableDiffusionAPI.TextToImageRaw(marshal)
 		default:
@@ -135,7 +135,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 		generationDone <- true
 
-		if err != nil {
+		if err != nil || resp == nil {
 			log.Printf("Error processing image: %v\n", err)
 			return err
 		}

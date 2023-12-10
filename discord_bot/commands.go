@@ -66,6 +66,9 @@ const (
 	controlnetPreprocessor CommandOption = "controlnet_preprocessor"
 	controlnetModel        CommandOption = "controlnet_model"
 
+	jsonFile    CommandOption = "json_file"
+	useDefaults CommandOption = "use_defaults"
+
 	extraLoras = 2
 )
 
@@ -103,7 +106,10 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Name:        string(rawCommand),
 		Description: "Send a raw json request to the API. ",
 		Type:        discordgo.ChatApplicationCommand,
-		// TODO: Allow uploading a JSON file
+		Options: []*discordgo.ApplicationCommandOption{
+			commandOptions[jsonFile],
+			commandOptions[useDefaults],
+		},
 	},
 }
 
@@ -507,6 +513,19 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Description:  "The model to use for controlnet. Set the type to see the available models. Defaults to None",
 		Required:     false,
 		Autocomplete: true,
+	},
+
+	jsonFile: {
+		Type:        discordgo.ApplicationCommandOptionAttachment,
+		Name:        string(jsonFile),
+		Description: "The json file to use for the raw command. If not specified, a modal will be opened to paste the json",
+		Required:    false,
+	},
+	useDefaults: {
+		Type:        discordgo.ApplicationCommandOptionBoolean,
+		Name:        string(useDefaults),
+		Description: "Use the default values for the raw command. This is set to True by default",
+		Required:    false,
 	},
 }
 

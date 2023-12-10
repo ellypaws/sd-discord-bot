@@ -7,7 +7,9 @@ import (
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"github.com/sahilm/fuzzy"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"regexp"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
@@ -713,27 +715,86 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 
 // processRawCommand responds with a Modal to receive a json blob from the user to pass to the api
 func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	interactionResponse := discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseModal,
-		Data: &discordgo.InteractionResponseData{
-			CustomID: string(rawCommand),
-			Title:    "Raw JSON",
-			Components: []discordgo.MessageComponent{
-				handlers.Components[handlers.JSONInput],
-			},
-		},
-	}
-	err := s.InteractionRespond(i.Interaction, &interactionResponse)
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
+	optionMap := getOpts(i.ApplicationCommandData())
 
-		byteArr, err := json.Marshal(interactionResponse)
-		if err != nil {
-			log.Printf("Error marshalling interaction response data: %v", err)
-		}
-		log.Printf("Raw JSON: %v", string(byteArr))
+	var useDefault bool = true
+	if option, ok := optionMap[useDefaults]; ok {
+		useDefault = option.BoolValue()
 	}
+	fmt.Printf("defaults: %v\n", useDefault)
+
+	interactionBytes, _ := json.Marshal(i.Interaction)
+	log.Printf("Interaction: %v", string(interactionBytes))
+
+	var snowflake string
+	if option, ok := optionMap[jsonFile]; !ok {
+		// if no json file is provided, we need to respond with a modal to get the json blob from the user
+		modalDefault[i.ID] = useDefault
+		log.Printf("modalDefault: %v", modalDefault)
+		interactionResponse := discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseModal,
+			Data: &discordgo.InteractionResponseData{
+				CustomID: string(rawCommand),
+				Title:    "Raw JSON",
+				Components: []discordgo.MessageComponent{
+					handlers.Components[handlers.JSONInput],
+				},
+			},
+		}
+		err := s.InteractionRespond(i.Interaction, &interactionResponse)
+		if err != nil {
+			delete(modalDefault, i.ID)
+			log.Printf("Error responding to interaction: %v", err)
+
+			byteArr, err := json.Marshal(interactionResponse)
+			if err != nil {
+				log.Printf("Error marshalling interaction response data: %v", err)
+			}
+			log.Printf("Raw JSON: %v", string(byteArr))
+		}
+		return
+	} else {
+		snowflake = option.Value.(string)
+	}
+
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+	attachments := i.ApplicationCommandData().Resolved.Attachments
+	if attachments == nil {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON file.")
+		return
+	}
+
+	for snowflake, attachment := range attachments {
+		log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
+		if !strings.HasPrefix(attachment.ContentType, "application/json") {
+			log.Printf("Attachment[%v] is not a json file, removing from queue.", snowflake)
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON file.")
+			return
+		}
+	}
+
+	attachment, ok := attachments[snowflake]
+	if !ok {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON file.")
+		return
+	}
+
+	// download attachment url using http and convert to []byte
+	resp, err := http.Get(attachment.URL)
+	if err != nil {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error downloading attachment.", err)
+		return
+	}
+	defer resp.Body.Close()
+	jsonBlob, err := ioutil.ReadAll(resp.Body)
+	if err := b.jsonToQueue(i, useDefault, jsonBlob); err != nil {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+		return
+	}
+
 }
+
+var modalDefault map[string]bool = make(map[string]bool)
 
 //	type TextInput struct {
 //	   CustomID    string         `json:"custom_id"`
@@ -765,44 +826,56 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 
 	modalData := getModalData(i.ModalSubmitData())
 
+	useDefault := true
+	if message, err := b.botSession.InteractionResponse(i.Interaction); err != nil {
+		if d, ok := modalDefault[message.Interaction.ID]; ok {
+			useDefault = d
+			delete(modalDefault, message.Interaction.ID)
+		} else {
+			log.Printf("Could not find if we should use defaults for interaction %v, modalDefault: %v", message.Interaction.ID, modalDefault)
+		}
+	}
+
 	if data, ok := modalData[handlers.JSONInput]; !ok || data == nil || data.Value == "" {
 		log.Printf("modalData: %#v\n", modalData)
 		log.Printf("i.ModalSubmitData(): %#v\n", i.ModalSubmitData())
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON blob.")
 		return
 	} else {
-		queue := b.imagineQueue.NewQueueItem()
-
-		queue.Type = imagine_queue.ItemTypeRaw
-		queue.DiscordInteraction = i.Interaction
-
-		err := json.Unmarshal([]byte(data.Value), &queue.TextToImageRequest)
-		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error unmarshalling JSON blob.", err)
-			return
-		}
-
-		queue.Raw = &entities.TextToImageRaw{TextToImageRequest: &queue.TextToImageRequest}
-
-		// Override Scripts by unmarshalling to Raw
-		err = json.Unmarshal([]byte(data.Value), &queue.Raw)
-		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error unmarshalling JSON blob.", err)
-			return
-		}
-
-		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
-			modalData[handlers.JSONInput].Value,
-		)
-
-		position, err := b.imagineQueue.AddImagine(queue)
-		if err != nil {
-			log.Printf("Error adding imagine to queue: %v\n", err)
+		if err := b.jsonToQueue(i, useDefault, []byte(data.Value)); err != nil {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
-			return
 		}
-		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
-			fmt.Sprintf("I'm dreaming something up for you. You are currently #%d in line.", position),
-		)
 	}
+}
+
+func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, useDefault bool, jsonBlob []byte) error {
+	queue := &imagine_queue.QueueItem{}
+	if useDefault {
+		queue = b.imagineQueue.NewQueueItem()
+	}
+
+	queue.Type = imagine_queue.ItemTypeRaw
+	queue.DiscordInteraction = i.Interaction
+
+	err := json.Unmarshal(jsonBlob, &queue.TextToImageRequest)
+	if err != nil {
+		log.Printf("Error unmarshalling JSON, will attempt to continue... %v", err)
+	}
+
+	queue.Raw = &entities.TextToImageRaw{TextToImageRequest: &queue.TextToImageRequest}
+
+	// Override Scripts by unmarshalling to Raw
+	err = json.Unmarshal(jsonBlob, &queue.Raw)
+	if err != nil {
+		return err
+	}
+
+	position, err := b.imagineQueue.AddImagine(queue)
+	if err != nil {
+		return err
+	}
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(b.botSession, i.Interaction,
+		fmt.Sprintf("I'm dreaming something up for you. You are currently #%d in line.", position),
+	)
+	return nil
 }
