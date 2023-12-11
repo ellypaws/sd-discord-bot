@@ -20,7 +20,7 @@ func (q *queueImplementation) processImg2ImgImagine() {
 	q.processCurrentImagine()
 }
 
-func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerationRequest, imagine *QueueItem, generationDone chan bool) (error, bool) {
+func (q *queueImplementation) imageToImage(newGeneration *entities.ImageGenerationRequest, imagine *entities.QueueItem, generationDone chan bool) (error, bool) {
 	img2img := entities.ImageToImageRequest{
 		Scripts:                           newGeneration.Scripts,
 		BatchSize:                         newGeneration.BatchSize,

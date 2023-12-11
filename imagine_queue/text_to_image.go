@@ -14,7 +14,8 @@ import (
 	"time"
 )
 
-func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGenerationRequest, c *QueueItem) error {
+func (q *queueImplementation) processImagineGrid(c *entities.QueueItem) error {
+	newGeneration := &c.ImageGenerationRequest
 	config, err := q.stableDiffusionAPI.GetConfig()
 	originalConfig := config
 	if err != nil {
@@ -29,7 +30,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 
 	log.Printf("Processing imagine #%s: %v\n", c.DiscordInteraction.ID, newGeneration.Prompt)
 
-	newContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, 0)
+	newContent := imagineMessageSimple(newGeneration, c.DiscordInteraction.Member.User, 0)
 
 	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, newGeneration, c, c.Interrupt != nil)
 
@@ -105,7 +106,7 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 					continue
 				}
 
-				progressContent := imagineMessageContent(newGeneration, c.DiscordInteraction.Member.User, progress.Progress)
+				progressContent := imagineMessageSimple(newGeneration, c.DiscordInteraction.Member.User, progress.Progress)
 
 				_, progressErr = q.botSession.InteractionResponseEdit(c.DiscordInteraction, &discordgo.WebhookEdit{
 					Content: &progressContent,
@@ -123,12 +124,16 @@ func (q *queueImplementation) processImagineGrid(newGeneration *entities.ImageGe
 		var err error
 		switch c.Type {
 		case ItemTypeRaw:
-			marshal, marshalErr := q.currentImagine.Raw.Marshal()
-			if marshalErr != nil {
-				log.Printf("Error marshalling raw: %v", marshalErr)
-				return marshalErr
+			if q.currentImagine.Raw.Unsafe {
+				resp, err = q.stableDiffusionAPI.TextToImageRaw(q.currentImagine.Raw.Blob)
+			} else {
+				marshal, marshalErr := q.currentImagine.Raw.Marshal()
+				if marshalErr != nil {
+					log.Printf("Error marshalling raw: %v", marshalErr)
+					return marshalErr
+				}
+				resp, err = q.stableDiffusionAPI.TextToImageRaw(marshal)
 			}
-			resp, err = q.stableDiffusionAPI.TextToImageRaw(marshal)
 		default:
 			resp, err = q.stableDiffusionAPI.TextToImageRequest(newGeneration.TextToImageRequest)
 		}
@@ -240,7 +245,7 @@ func (q *queueImplementation) revertModels(config *entities.Config, originalConf
 	return nil
 }
 
-func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerationRequest, c *QueueItem, config *entities.Config) (*entities.Config, error) {
+func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerationRequest, c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
 	if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
 		!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
 		!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {

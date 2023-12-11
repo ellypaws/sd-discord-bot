@@ -210,7 +210,7 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 }
 
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+	position, queueError := b.imagineQueue.AddImagine(&entities.QueueItem{
 		Type:               imagine_queue.ItemTypeReroll,
 		DiscordInteraction: i.Interaction,
 	})
@@ -230,7 +230,7 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 }
 
 func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) {
-	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+	position, queueError := b.imagineQueue.AddImagine(&entities.QueueItem{
 		Type:               imagine_queue.ItemTypeUpscale,
 		InteractionIndex:   upscaleIndex,
 		DiscordInteraction: i.Interaction,
@@ -251,7 +251,7 @@ func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.Inter
 }
 
 func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) {
-	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
+	position, queueError := b.imagineQueue.AddImagine(&entities.QueueItem{
 		Type:               imagine_queue.ItemTypeVariation,
 		InteractionIndex:   variationIndex,
 		DiscordInteraction: i.Interaction,

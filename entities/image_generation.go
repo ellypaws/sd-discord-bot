@@ -56,7 +56,6 @@ type GenerationInfo struct {
 	Checkpoint    *string   `json:"checkpoint,omitempty"`
 	VAE           *string   `json:"vae,omitempty"`
 	Hypernetwork  *string   `json:"hypernetwork,omitempty"`
-	Debug         bool      `json:"debug"`
 	CreatedAt     time.Time `json:"created_at"`
 }
 

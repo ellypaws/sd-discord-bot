@@ -8,12 +8,13 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/stable_diffusion_api"
 	"strings"
 	"time"
 )
 
-func (q *queueImplementation) processUpscaleImagine(imagine *QueueItem) {
+func (q *queueImplementation) processUpscaleImagine(imagine *entities.QueueItem) {
 	defer q.done()
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""

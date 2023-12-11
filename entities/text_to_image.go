@@ -31,6 +31,14 @@ func (r *TextToImageRaw) Marshal() ([]byte, error) {
 type TextToImageRaw struct {
 	RawScripts map[string]any `json:"alwayson_scripts,omitempty"`
 	*TextToImageRequest
+	RawParams `json:"-,omitempty"`
+}
+
+type RawParams struct {
+	UseDefault bool
+	Unsafe     bool
+	Debug      bool
+	Blob       []byte
 }
 
 type TextToImageRequest struct {

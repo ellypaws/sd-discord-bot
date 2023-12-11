@@ -66,8 +66,9 @@ const (
 	controlnetPreprocessor CommandOption = "controlnet_preprocessor"
 	controlnetModel        CommandOption = "controlnet_model"
 
-	jsonFile    CommandOption = "json_file"
-	useDefaults CommandOption = "use_defaults"
+	jsonFile     CommandOption = "json_file"
+	useDefaults  CommandOption = "use_defaults"
+	unsafeOption CommandOption = "unsafe"
 
 	extraLoras = 2
 )
@@ -109,6 +110,7 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Options: []*discordgo.ApplicationCommandOption{
 			commandOptions[jsonFile],
 			commandOptions[useDefaults],
+			commandOptions[unsafeOption],
 		},
 	},
 }
@@ -525,6 +527,12 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Type:        discordgo.ApplicationCommandOptionBoolean,
 		Name:        string(useDefaults),
 		Description: "Use the default values for the raw command. This is set to True by default",
+		Required:    false,
+	},
+	unsafeOption: {
+		Type:        discordgo.ApplicationCommandOptionBoolean,
+		Name:        string(unsafeOption),
+		Description: "Process the json file without validation. This is set to False by default",
 		Required:    false,
 	},
 }

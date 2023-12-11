@@ -7,7 +7,7 @@ import (
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"github.com/sahilm/fuzzy"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"regexp"
@@ -106,7 +106,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 	var position int
 
-	var queue *imagine_queue.QueueItem
+	var queue *entities.QueueItem
 
 	if option, ok := optionMap[promptOption]; !ok {
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
@@ -717,11 +717,17 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	optionMap := getOpts(i.ApplicationCommandData())
 
-	var useDefault bool = true
-	if option, ok := optionMap[useDefaults]; ok {
-		useDefault = option.BoolValue()
+	params := entities.RawParams{
+		UseDefault: true,
+		Unsafe:     false,
 	}
-	fmt.Printf("defaults: %v\n", useDefault)
+	if option, ok := optionMap[useDefaults]; ok {
+		params.UseDefault = option.BoolValue()
+	}
+
+	if option, ok := optionMap[unsafeOption]; ok {
+		params.Unsafe = option.BoolValue()
+	}
 
 	interactionBytes, _ := json.Marshal(i.Interaction)
 	log.Printf("Interaction: %v", string(interactionBytes))
@@ -729,7 +735,7 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 	var snowflake string
 	if option, ok := optionMap[jsonFile]; !ok {
 		// if no json file is provided, we need to respond with a modal to get the json blob from the user
-		modalDefault[i.ID] = useDefault
+		modalDefault[i.ID] = params
 		log.Printf("modalDefault: %v", modalDefault)
 		interactionResponse := discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseModal,
@@ -786,14 +792,19 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 		return
 	}
 	defer resp.Body.Close()
-	jsonBlob, err := ioutil.ReadAll(resp.Body)
-	if err := b.jsonToQueue(i, useDefault, strings.Contains(attachment.Filename, "DEBUG"), jsonBlob); err != nil {
+	if params.Blob, err = io.ReadAll(resp.Body); err != nil {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error reading attachment.", err)
+		return
+	}
+
+	params.Debug = strings.Contains(attachment.Filename, "DEBUG")
+	if err := b.jsonToQueue(i, params); err != nil {
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
 		return
 	}
 }
 
-var modalDefault map[string]bool = make(map[string]bool)
+var modalDefault = make(map[string]entities.RawParams)
 
 //	type TextInput struct {
 //	   CustomID    string         `json:"custom_id"`
@@ -825,13 +836,11 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 
 	modalData := getModalData(i.ModalSubmitData())
 
-	useDefault := true
+	var params entities.RawParams
 	if message, err := b.botSession.InteractionResponse(i.Interaction); err != nil {
-		if d, ok := modalDefault[message.Interaction.ID]; ok {
-			useDefault = d
+		if p, ok := modalDefault[message.Interaction.ID]; ok {
+			params = p
 			delete(modalDefault, message.Interaction.ID)
-		} else {
-			log.Printf("Could not find if we should use defaults for interaction %v, modalDefault: %v", message.Interaction.ID, modalDefault)
 		}
 	}
 
@@ -841,31 +850,27 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON blob.")
 		return
 	} else {
-		if err := b.jsonToQueue(i, useDefault, strings.Contains(data.Value, "{DEBUG}"), []byte(strings.ReplaceAll(data.Value, "{DEBUG}", ""))); err != nil {
+		params.Debug = strings.Contains(data.Value, "{DEBUG}")
+		params.Blob = []byte(strings.ReplaceAll(data.Value, "{DEBUG}", ""))
+		if err := b.jsonToQueue(i, params); err != nil {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
 		}
 	}
 }
 
-func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, useDefault, debug bool, jsonBlob []byte) error {
-	queue := &imagine_queue.QueueItem{}
-	if useDefault {
+func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, params entities.RawParams) error {
+	queue := &entities.QueueItem{}
+	if params.UseDefault {
 		queue = b.imagineQueue.NewQueueItem()
 	}
 
-	queue.Debug = debug
 	queue.Type = imagine_queue.ItemTypeRaw
 	queue.DiscordInteraction = i.Interaction
 
-	err := json.Unmarshal(jsonBlob, &queue.TextToImageRequest)
-	if err != nil {
-		log.Printf("Error unmarshalling JSON, will attempt to continue... %v", err)
-	}
-
-	queue.Raw = &entities.TextToImageRaw{TextToImageRequest: &queue.TextToImageRequest}
+	queue.Raw = &entities.TextToImageRaw{TextToImageRequest: queue.TextToImageRequest, RawParams: params}
 
 	// Override Scripts by unmarshalling to Raw
-	err = json.Unmarshal(jsonBlob, &queue.Raw)
+	err := json.Unmarshal(params.Blob, &queue.Raw)
 	if err != nil {
 		return err
 	}

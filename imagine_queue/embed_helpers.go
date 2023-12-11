@@ -204,7 +204,7 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 	return nil
 }
 
-func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *QueueItem, interrupted bool) *discordgo.MessageEmbed {
+func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *entities.QueueItem, interrupted bool) *discordgo.MessageEmbed {
 	if newGeneration == nil || c == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", newGeneration, c)
 		return embed
@@ -301,12 +301,14 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 			Value:  fmt.Sprintf("`%v`", safeDereference(newGeneration.Hypernetwork)),
 			Inline: true,
 		},
-	}
-	if !c.Debug && !newGeneration.Debug {
-		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
+		{
 			Name:  "Prompt",
 			Value: fmt.Sprintf("```\n%s\n```", newGeneration.Prompt),
-		})
+		},
+	}
+	if c.Raw.Debug {
+		// remove prompt, last item from embed.Fields
+		embed.Fields = embed.Fields[:len(embed.Fields)-1]
 	}
 	return embed
 }

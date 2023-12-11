@@ -13,25 +13,22 @@ func (q *queueImplementation) processCurrentImagine() {
 	defer q.done()
 	c := q.currentImagine
 
-	newGeneration, err := &entities.ImageGenerationRequest{
-		GenerationInfo: entities.GenerationInfo{
-			Processed:    false,
-			Checkpoint:   c.Checkpoint,
-			VAE:          c.VAE,
-			Hypernetwork: c.Hypernetwork,
-			Debug:        c.Debug,
-		},
-		TextToImageRequest: &c.TextToImageRequest,
-	}, error(nil)
+	newGeneration, err := &c.ImageGenerationRequest, error(nil)
 
-	newGeneration.Width, err = q.defaultWidth()
-	if err != nil {
-		log.Printf("Error getting default width: %v", err)
-	}
+	if c.Type != ItemTypeRaw {
+		newGeneration.Width, err = q.defaultWidth()
+		if err != nil {
+			log.Printf("Error getting default width: %v", err)
+		}
 
-	newGeneration.Height, err = q.defaultHeight()
-	if err != nil {
-		log.Printf("Error getting default height: %v", err)
+		newGeneration.Height, err = q.defaultHeight()
+		if err != nil {
+			log.Printf("Error getting default height: %v", err)
+		}
+
+		if c.AspectRatio != "" && c.AspectRatio != "1:1" {
+			newGeneration.Width, newGeneration.Height = aspectRatioCalculation(c.AspectRatio, newGeneration.Width, newGeneration.Height)
+		}
 	}
 
 	// add optional parameter: Negative prompt
@@ -44,22 +41,13 @@ func (q *queueImplementation) processCurrentImagine() {
 		newGeneration.SamplerName = "Euler a"
 	}
 
-	defaultWidth := newGeneration.Width
-	defaultHeight := newGeneration.Height
-	if c.AspectRatio != "" && c.AspectRatio != "1:1" {
-		newGeneration.Width, newGeneration.Height = aspectRatioCalculation(c.AspectRatio, defaultWidth, defaultHeight)
-	}
-
-	// extract --zoom parameter
-	adjustedWidth := newGeneration.Width
-	adjustedHeight := newGeneration.Height
 	if newGeneration.EnableHr && newGeneration.HrScale > 1.0 {
-		newGeneration.HrResizeX = int(float64(adjustedWidth) * newGeneration.HrScale)
-		newGeneration.HrResizeY = int(float64(adjustedHeight) * newGeneration.HrScale)
+		newGeneration.HrResizeX = int(float64(newGeneration.Width) * newGeneration.HrScale)
+		newGeneration.HrResizeY = int(float64(newGeneration.Height) * newGeneration.HrScale)
 	} else {
 		newGeneration.EnableHr = false
-		newGeneration.HrResizeX = adjustedWidth
-		newGeneration.HrResizeY = adjustedHeight
+		newGeneration.HrResizeX = newGeneration.Width
+		newGeneration.HrResizeY = newGeneration.Height
 	}
 
 	config, err := q.stableDiffusionAPI.GetConfig()
@@ -163,7 +151,7 @@ func (q *queueImplementation) processCurrentImagine() {
 		newGeneration.CreatedAt = time.Now()
 	}
 
-	err = q.processImagineGrid(newGeneration, c)
+	err = q.processImagineGrid(c)
 	if err != nil {
 		log.Printf("Error processing imagine grid: %v", err)
 		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
