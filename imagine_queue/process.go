@@ -19,6 +19,7 @@ func (q *queueImplementation) processCurrentImagine() {
 			Checkpoint:   c.Checkpoint,
 			VAE:          c.VAE,
 			Hypernetwork: c.Hypernetwork,
+			Debug:        c.Debug,
 		},
 		TextToImageRequest: &c.TextToImageRequest,
 	}, error(nil)

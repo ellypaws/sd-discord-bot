@@ -787,11 +787,10 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 	}
 	defer resp.Body.Close()
 	jsonBlob, err := ioutil.ReadAll(resp.Body)
-	if err := b.jsonToQueue(i, useDefault, jsonBlob); err != nil {
+	if err := b.jsonToQueue(i, useDefault, strings.Contains(attachment.Filename, "DEBUG"), jsonBlob); err != nil {
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
 		return
 	}
-
 }
 
 var modalDefault map[string]bool = make(map[string]bool)
@@ -842,18 +841,19 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON blob.")
 		return
 	} else {
-		if err := b.jsonToQueue(i, useDefault, []byte(data.Value)); err != nil {
+		if err := b.jsonToQueue(i, useDefault, strings.Contains(data.Value, "{DEBUG}"), []byte(strings.ReplaceAll(data.Value, "{DEBUG}", ""))); err != nil {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
 		}
 	}
 }
 
-func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, useDefault bool, jsonBlob []byte) error {
+func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, useDefault, debug bool, jsonBlob []byte) error {
 	queue := &imagine_queue.QueueItem{}
 	if useDefault {
 		queue = b.imagineQueue.NewQueueItem()
 	}
 
+	queue.Debug = debug
 	queue.Type = imagine_queue.ItemTypeRaw
 	queue.DiscordInteraction = i.Interaction
 

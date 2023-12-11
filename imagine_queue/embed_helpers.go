@@ -226,6 +226,8 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		embed.Title = "Reroll"
 	case c.Type == ItemTypeUpscale:
 		embed.Title = "Upscale"
+	case c.Type == ItemTypeRaw:
+		embed.Title = "JSON to Image"
 	default:
 		embed.Title = "Text to Image"
 	}
@@ -253,22 +255,28 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 
 	var scripts []string
 
-	if newGeneration.Scripts.ADetailer != nil {
-		scripts = append(scripts, "ADetailer")
-	}
-	if newGeneration.Scripts.ControlNet != nil {
-		scripts = append(scripts, "ControlNet")
-	}
-	if newGeneration.Scripts.CFGRescale != nil {
-		scripts = append(scripts, "CFGRescale")
+	if c.Type != ItemTypeRaw {
+		if newGeneration.Scripts.ADetailer != nil {
+			scripts = append(scripts, "ADetailer")
+		}
+		if newGeneration.Scripts.ControlNet != nil {
+			scripts = append(scripts, "ControlNet")
+		}
+		if newGeneration.Scripts.CFGRescale != nil {
+			scripts = append(scripts, "CFGRescale")
+		}
+	} else {
+		for script := range c.Raw.RawScripts {
+			scripts = append(scripts, script)
+		}
 	}
 
 	if len(scripts) > 0 {
-		embed.Description += fmt.Sprintf("\nScripts: [`%v`]", strings.Join(scripts, ", "))
+		embed.Description += fmt.Sprintf("\n**Scripts**: [`%v`]", strings.Join(scripts, ", "))
 	}
 
 	if newGeneration.OverrideSettings.CLIPStopAtLastLayers > 1 {
-		embed.Description += fmt.Sprintf("\nCLIPSkip: `%v`", newGeneration.OverrideSettings.CLIPStopAtLastLayers)
+		embed.Description += fmt.Sprintf("\n**CLIPSkip**: `%v`", newGeneration.OverrideSettings.CLIPStopAtLastLayers)
 	}
 
 	// store as "2015-12-31T12:00:00.000Z"
@@ -293,10 +301,12 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 			Value:  fmt.Sprintf("`%v`", safeDereference(newGeneration.Hypernetwork)),
 			Inline: true,
 		},
-		{
+	}
+	if !c.Debug && !newGeneration.Debug {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:  "Prompt",
 			Value: fmt.Sprintf("```\n%s\n```", newGeneration.Prompt),
-		},
+		})
 	}
 	return embed
 }

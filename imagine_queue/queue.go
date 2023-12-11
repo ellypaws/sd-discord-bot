@@ -107,6 +107,8 @@ type QueueItem struct {
 	VAE          *string
 	Hypernetwork *string
 
+	Debug bool
+
 	Raw *entities.TextToImageRaw // raw JSON input
 
 	Interrupt chan *discordgo.Interaction
@@ -815,7 +817,9 @@ func imagineMessageContent(generation *entities.ImageGenerationRequest, user *di
 		out.WriteString(fmt.Sprintf("\n**Progress**:\n```ansi\n%v\n```", p.Get().ViewAs(progress)))
 	}
 
-	out.WriteString(fmt.Sprintf("\n```\n%s\n```", generation.Prompt))
+	if !generation.Debug {
+		out.WriteString(fmt.Sprintf("\n```\n%s\n```", generation.Prompt))
+	}
 
 	if generation.Scripts.ADetailer != nil && len(generation.Scripts.ADetailer.Args) > 0 {
 		var models []string
