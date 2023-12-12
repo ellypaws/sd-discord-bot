@@ -228,8 +228,10 @@ func (q *queueImplementation) pullNextInQueue() {
 				return
 			}
 			switch q.currentImagine.Type {
-			case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation, ItemTypeRaw:
+			case ItemTypeImagine, ItemTypeRaw:
 				go q.processCurrentImagine()
+			case ItemTypeReroll, ItemTypeVariation:
+				go q.processVariation()
 			case ItemTypeImg2Img:
 				go q.processImg2ImgImagine()
 			case ItemTypeUpscale:
