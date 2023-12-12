@@ -2,6 +2,7 @@ package imagine_queue
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
@@ -13,7 +14,18 @@ func (q *queueImplementation) processCurrentImagine() {
 	defer q.done()
 	c := q.currentImagine
 
-	newGeneration, err := &c.ImageGenerationRequest, error(nil)
+	newGeneration, err := c.ImageGenerationRequest, error(nil)
+
+	if newGeneration == nil {
+		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction,
+			fmt.Sprintf("ImageGenerationRequest of type %v is nil", c.Type),
+		)
+	}
+	if newGeneration.TextToImageRequest == nil {
+		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction,
+			fmt.Sprintf("TextToImageRequest of type %v is nil", c.Type),
+		)
+	}
 
 	if c.Type != ItemTypeRaw {
 		newGeneration.Width, err = q.defaultWidth()
@@ -129,7 +141,7 @@ func (q *queueImplementation) processCurrentImagine() {
 
 	switch c.Type {
 	case ItemTypeReroll, ItemTypeVariation:
-		foundGeneration, err := q.getPreviousGeneration(c, c.InteractionIndex)
+		foundGeneration, err := q.getPreviousGeneration(c)
 		if err != nil {
 			log.Printf("Error getting prompt for reroll: %v", err)
 			handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
@@ -140,15 +152,21 @@ func (q *queueImplementation) processCurrentImagine() {
 		newGeneration = foundGeneration
 
 		// for variations, we need random subseeds
-		newGeneration.Subseed = -1
+		foundGeneration.Subseed = -1
+
+		if c.Type == ItemTypeReroll {
+			foundGeneration.Seed = -1
+		}
 
 		// for variations, the subseed strength determines how much variation we get
 		if c.Type == ItemTypeVariation {
-			newGeneration.SubseedStrength = 0.15
+			foundGeneration.SubseedStrength = 0.15
 		}
 
 		// set the time to now since time from database is from the past
-		newGeneration.CreatedAt = time.Now()
+		foundGeneration.CreatedAt = time.Now()
+
+		c.ImageGenerationRequest = foundGeneration
 	}
 
 	err = q.processImagineGrid(c)
