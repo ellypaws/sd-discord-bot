@@ -77,23 +77,32 @@ This has been written as an interface to allow for more scripts to be added in t
 ![adetailer](/document/017_adetailer.png?raw=true)
 
 
+### Updates
+#### 1.3.7: 4e4d8f4d05caaf14511139069fd99f7920496cb1
+* Added raw json input to send to the API
+* APIに送信するための生のJSON入力を追加しました
+
+#### 1.3.4: 3e5719eec95df990a2be22264a3613be9f3c5f16
+* Rewrite the output to display a Discord embed
+* 出力を書き直してDiscord埋め込みを表示する
+
 #### Under the hood
 
 1. [x] Img2Img
 2. [x] Controlnet
 3. [x] Interrupt generation
-3. [x] Moved handlers to a map to easily add and find them with constants
-4. [x] Also did this for the components
-5. [x] Added a progress bar while generating
-6. [x] Methods for getting the current config and checkpoint
-7. [x] Methods to get the available checkpoints and loras and store them in a cache slice
-8. [x] Automatically use the face ADetailer even if the user doesn't specify it
-9. [x] Allow changing vae and searching for hypernetwork models
-10. [x] Command to reload lora, checkpoints, and vae
-11. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
-12. [ ] With bubbletea, add options to restart API, interrupt generations
-13. [ ] Allow single image generations
-14. [ ] Embed png info into the image
+4. [x] Moved handlers to a map to easily add and find them with constants
+5. [x] Also did this for the components
+6. [x] Added a progress bar while generating
+7. [x] Methods for getting the current config and checkpoint
+8. [x] Methods to get the available checkpoints and loras and store them in a cache slice
+9. [x] Automatically use the face ADetailer even if the user doesn't specify it
+10. [x] Allow changing vae and searching for hypernetwork models
+11. [x] Command to reload lora, checkpoints, and vae
+12. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
+13. [ ] With bubbletea, add options to restart API, interrupt generations
+14. [ ] Allow single image generations
+15. [ ] Embed png info into the image
 
 ---
 1. [x] Img2Img
