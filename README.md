@@ -86,7 +86,7 @@ This has been written as an interface to allow for more scripts to be added in t
 * Automatically revert model and lora after generation
 * 生成後にモデルとロラを自動的に元に戻す
 
-### 1.3.6: [8abd059](https://github.com/ellypaws/sd-discord-bot/commit/8abd05988943940173230a007901055268cc9d0f)
+#### 1.3.6: [8abd059](https://github.com/ellypaws/sd-discord-bot/commit/8abd05988943940173230a007901055268cc9d0f)
 
 * Interrupt button to cancel the current generation
 * 現在の生成をキャンセルするための中断ボタン
@@ -98,7 +98,7 @@ This has been written as an interface to allow for more scripts to be added in t
 * Rewrite the output to display a Discord embed
 * 出力を書き直してDiscord埋め込みを表示する
 
-### 1.2.3: [6fb9992](https://github.com/ellypaws/sd-discord-bot/commit/6fb9992eeaf93792833d95a69892e7d2e3042773)
+#### 1.2.3: [6fb9992](https://github.com/ellypaws/sd-discord-bot/commit/6fb9992eeaf93792833d95a69892e7d2e3042773)
 
 * Added generic --parameter for key value pairs in prompt
 * プロンプトのキーと値のペアのための一般的な--パラメータを追加しました
