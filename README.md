@@ -78,13 +78,30 @@ This has been written as an interface to allow for more scripts to be added in t
 
 
 ### Updates
-#### 1.3.7: 4e4d8f4d05caaf14511139069fd99f7920496cb1
+
+#### 1.3.7: [4e4d8f4](https://github.com/ellypaws/sd-discord-bot/commit/4e4d8f4d05caaf14511139069fd99f7920496cb1)
+
 * Added raw json input to send to the API
 * APIに送信するための生のJSON入力を追加しました
+* Automatically revert model and lora after generation
+* 生成後にモデルとロラを自動的に元に戻す
 
-#### 1.3.4: 3e5719eec95df990a2be22264a3613be9f3c5f16
+### 1.3.6: [8abd059](https://github.com/ellypaws/sd-discord-bot/commit/8abd05988943940173230a007901055268cc9d0f)
+
+* Interrupt button to cancel the current generation
+* 現在の生成をキャンセルするための中断ボタン
+* Cancel generation while in queue
+* キュー中に生成をキャンセルする
+
+#### 1.3.4: [3e5719e](https://github.com/ellypaws/sd-discord-bot/commit/3e5719eec95df990a2be22264a3613be9f3c5f16)
+
 * Rewrite the output to display a Discord embed
 * 出力を書き直してDiscord埋め込みを表示する
+
+### 1.2.3: [6fb9992](https://github.com/ellypaws/sd-discord-bot/commit/6fb9992eeaf93792833d95a69892e7d2e3042773)
+
+* Added generic --parameter for key value pairs in prompt
+* プロンプトのキーと値のペアのための一般的な--パラメータを追加しました
 
 #### Under the hood
 
@@ -99,12 +116,14 @@ This has been written as an interface to allow for more scripts to be added in t
 9. [x] Automatically use the face ADetailer even if the user doesn't specify it
 10. [x] Allow changing vae and searching for hypernetwork models
 11. [x] Command to reload lora, checkpoints, and vae
-12. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
-13. [ ] With bubbletea, add options to restart API, interrupt generations
-14. [ ] Allow single image generations
-15. [ ] Embed png info into the image
+12. [x] Interrupt button and cancel from queue
+13. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
+14. [ ] With bubbletea, add options to restart API, interrupt generations
+15. [ ] Allow single image generations
+16. [ ] Embed png info into the image
 
 ---
+
 1. [x] Img2Img
 2. [x] Controlnet
 3. [x] 生成を中断する
@@ -116,10 +135,11 @@ This has been written as an interface to allow for more scripts to be added in t
 9. [x] ユーザーが指定しなくても、顔のADetailerを自動的に使用するようにしました。
 10. [x] VAEを変更したり、ハイパーネットワークモデルを検索したりすることを許可する
 11. [x] lora、チェックポイント、vaeを再読み込みするコマンド
-12. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
-13. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
-14. [ ] 単一の画像生成を許可する
-15. [ ] png情報を画像に埋め込む
+12. [x] 中断ボタンとキューからのキャンセル
+13. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
+14. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
+15. [ ] 単一の画像生成を許可する
+16. [ ] png情報を画像に埋め込む
 
 ---
 
