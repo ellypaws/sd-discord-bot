@@ -122,22 +122,9 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 		Components: rerollVariationComponents(min(len(imageBuffers), totalImages), queue.Type == ItemTypeImg2Img),
 	}
 
-	if queue.Type != ItemTypeImg2Img || len(thumbnailBuffers) > 0 {
-		if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
-			log.Printf("Error creating image embed: %v\n", err)
-			return err
-		}
-	} else {
-		// because we don't have the original webhook that contains the image file
-		var primaryImage *bytes.Reader
-		if len(imageBuffers) > 0 {
-			primaryImage = bytes.NewReader(imageBuffers[0].Bytes())
-		}
-		err := imageAttachmentAsThumbnail(webhook, embed, primaryImage, queue.Img2ImgItem.MessageAttachment, true)
-		if err != nil {
-			log.Printf("Error attaching image as thumbnail: %v", err)
-			return err
-		}
+	if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
+		log.Printf("Error creating image embed: %v\n", err)
+		return err
 	}
 
 	_, err := q.botSession.InteractionResponseEdit(queue.DiscordInteraction, webhook)
