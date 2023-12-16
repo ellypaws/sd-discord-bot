@@ -65,8 +65,8 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 			return err
 		}
 	case ItemTypeImg2Img:
-		err, done := q.imageToImage(request, queue, generationDone)
-		if done {
+		err := q.imageToImage(generationDone, embed, webhook)
+		if err != nil {
 			return err
 		}
 	}
@@ -75,10 +75,10 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 }
 
 func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
-	generation := queue.ImageGenerationRequest
-	newContent := imagineMessageSimple(generation, queue.DiscordInteraction.Member.User, 0)
+	request := queue.ImageGenerationRequest
+	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, 0)
 
-	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, generation, queue, queue.Interrupt != nil)
+	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, request, queue, queue.Interrupt != nil)
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
@@ -98,23 +98,23 @@ func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*dis
 		queue.DiscordInteraction.Message = message
 	}
 
-	generation.InteractionID = queue.DiscordInteraction.ID
-	generation.MessageID = message.ID
-	generation.MemberID = queue.DiscordInteraction.Member.User.ID
-	generation.SortOrder = 0
-	generation.Processed = true
+	request.InteractionID = queue.DiscordInteraction.ID
+	request.MessageID = message.ID
+	request.MemberID = queue.DiscordInteraction.Member.User.ID
+	request.SortOrder = 0
+	request.Processed = true
 	return embed, webhook, nil
 }
 
 func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, response *stable_diffusion_api.TextToImageResponse, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
-	generation := queue.ImageGenerationRequest
-	totalImages := totalImageCount(generation)
+	request := queue.ImageGenerationRequest
+	totalImages := totalImageCount(request)
 
 	imageBuffers, thumbnailBuffers := retrieveImagesFromResponse(response, queue)
 
 	mention := fmt.Sprintf("<@%v>", queue.DiscordInteraction.Member.User.ID)
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
-	embed = generationEmbedDetails(embed, generation, queue, queue.Interrupt != nil)
+	embed = generationEmbedDetails(embed, request, queue, queue.Interrupt != nil)
 
 	webhook = &discordgo.WebhookEdit{
 		Content:    &mention,
@@ -122,9 +122,22 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 		Components: rerollVariationComponents(min(len(imageBuffers), totalImages), queue.Type == ItemTypeImg2Img),
 	}
 
-	if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
-		log.Printf("Error creating image embed: %v\n", err)
-		return err
+	if queue.Type != ItemTypeImg2Img || len(thumbnailBuffers) > 0 {
+		if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
+			log.Printf("Error creating image embed: %v\n", err)
+			return err
+		}
+	} else {
+		// because we don't have the original webhook that contains the image file
+		var primaryImage *bytes.Reader
+		if len(imageBuffers) > 0 {
+			primaryImage = bytes.NewReader(imageBuffers[0].Bytes())
+		}
+		err := imageAttachmentAsThumbnail(webhook, embed, primaryImage, queue.Img2ImgItem.MessageAttachment, true)
+		if err != nil {
+			log.Printf("Error attaching image as thumbnail: %v", err)
+			return err
+		}
 	}
 
 	_, err := q.botSession.InteractionResponseEdit(queue.DiscordInteraction, webhook)
@@ -182,6 +195,14 @@ func retrieveImagesFromResponse(response *stable_diffusion_api.TextToImageRespon
 
 	if queue.ControlnetItem.MessageAttachment != nil {
 		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(queue.ControlnetItem.MessageAttachment.Image))
+		if err != nil {
+			log.Printf("Error decoding image: %v\n", err)
+		}
+		thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
+	}
+
+	if queue.Img2ImgItem.MessageAttachment != nil {
+		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(queue.Img2ImgItem.MessageAttachment.Image))
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
