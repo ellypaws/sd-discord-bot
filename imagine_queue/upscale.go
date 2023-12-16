@@ -169,25 +169,29 @@ func (q *queueImplementation) processUpscaleImagine(imagine *entities.QueueItem)
 		interactionID, messageID, imagine.InteractionIndex)
 
 	var scriptsString string
+	var scripts []string
 
-	if generation.Scripts.ADetailer != nil && len(generation.Scripts.ADetailer.Args) > 0 {
-		var models []string
-		for _, v := range generation.Scripts.ADetailer.Args {
-			models = append(models, v.AdModel)
+	if imagine.Type != ItemTypeRaw {
+		if generation.Scripts.ADetailer != nil {
+			scripts = append(scripts, "ADetailer")
 		}
-		scriptsString = fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", "))
-	}
-	if generation.Scripts.ControlNet != nil && len(generation.Scripts.ControlNet.Args) > 0 {
-		var preprocessor []string
-		var model []string
-		for _, v := range generation.Scripts.ControlNet.Args {
-			preprocessor = append(preprocessor, v.Module)
-			model = append(model, v.Model)
+		if generation.Scripts.ControlNet != nil {
+			scripts = append(scripts, "ControlNet")
 		}
-		scriptsString = fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(model, ", "), strings.Join(preprocessor, ", "))
+		if generation.Scripts.CFGRescale != nil {
+			scripts = append(scripts, "CFGRescale")
+		}
+	} else {
+		for script := range imagine.Raw.RawScripts {
+			scripts = append(scripts, script)
+		}
 	}
 
-	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:\n\n Scripts: ```json\n%v\n```",
+	if len(scripts) > 0 {
+		scriptsString = fmt.Sprintf("\n**Scripts**: [`%v`]", strings.Join(scripts, ", "))
+	}
+
+	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:%v",
 		imagine.DiscordInteraction.Member.User.ID,
 		generation.Seed,
 		scriptsString,
