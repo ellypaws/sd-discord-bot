@@ -235,7 +235,7 @@ func (q *queueImplementation) pullNextInQueue() {
 			case ItemTypeImg2Img:
 				go q.processImg2ImgImagine()
 			case ItemTypeUpscale:
-				go q.processUpscaleImagine(q.currentImagine)
+				go q.processUpscaleImagine()
 			default:
 				handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 				log.Printf("Unknown item type: %v", q.currentImagine.Type)
