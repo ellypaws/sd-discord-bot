@@ -86,11 +86,7 @@ func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*dis
 		Embeds:     &[]*discordgo.MessageEmbed{embed},
 	}
 
-	message, err := q.botSession.InteractionResponseEdit(queue.DiscordInteraction, webhook)
-	if err != nil {
-		log.Printf("Error editing interaction: %v", err)
-		return nil, nil, err
-	}
+	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
 
 	// store message ID in c.DiscordInteraction.Message
 	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
@@ -98,8 +94,12 @@ func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*dis
 		queue.DiscordInteraction.Message = message
 	}
 
+	if queue.DiscordInteraction == nil || queue.DiscordInteraction.Message == nil {
+		return nil, nil, fmt.Errorf("interaction or message is nil")
+	}
+
 	request.InteractionID = queue.DiscordInteraction.ID
-	request.MessageID = message.ID
+	request.MessageID = queue.DiscordInteraction.Message.ID
 	request.MemberID = queue.DiscordInteraction.Member.User.ID
 	request.SortOrder = 0
 	request.Processed = true
@@ -127,11 +127,7 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 		return err
 	}
 
-	_, err := q.botSession.InteractionResponseEdit(queue.DiscordInteraction, webhook)
-	if err != nil {
-		log.Printf("Error editing interaction: %v\n", err)
-		return err
-	}
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
 	return nil
 }
 
@@ -277,6 +273,7 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 
 			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress)
 
+			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
 			_, progressErr = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
 				Content: &progressContent,
 			})
