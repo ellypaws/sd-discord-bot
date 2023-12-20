@@ -98,6 +98,18 @@ func (q *queueImplementation) DefaultQueueItem() *entities.QueueItem {
 		defaultBatchSize = 4
 	}
 
+	defaultWidth, err := q.defaultWidth()
+	if err != nil {
+		log.Printf("Error getting default width: %v", err)
+		defaultWidth = 512
+	}
+
+	defaultHeight, err := q.defaultHeight()
+	if err != nil {
+		log.Printf("Error getting default height: %v", err)
+		defaultHeight = 512
+	}
+
 	return &entities.QueueItem{
 		Type: ItemTypeImagine,
 
@@ -106,6 +118,8 @@ func (q *queueImplementation) DefaultQueueItem() *entities.QueueItem {
 				CreatedAt: time.Now(),
 			},
 			TextToImageRequest: &entities.TextToImageRequest{
+				Width:             defaultWidth,
+				Height:            defaultHeight,
 				NegativePrompt:    DefaultNegative,
 				Steps:             20,
 				Seed:              -1,
