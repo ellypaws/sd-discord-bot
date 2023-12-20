@@ -500,13 +500,17 @@ func betweenPtr[T cmp.Ordered](value, minimum, maximum T) *T {
 }
 
 func (q *queueImplementation) getPreviousGeneration(queue *entities.QueueItem) (*entities.ImageGenerationRequest, error) {
+	if queue.DiscordInteraction == nil {
+		return nil, errors.New("interaction is nil")
+	}
+
+	if queue.DiscordInteraction.Message == nil {
+		return nil, errors.New("interaction message is nil")
+	}
+
 	interactionID := queue.DiscordInteraction.ID
 	sortOrder := queue.InteractionIndex
-	messageID := ""
-
-	if queue.DiscordInteraction.Message != nil {
-		messageID = queue.DiscordInteraction.Message.ID
-	}
+	messageID := queue.DiscordInteraction.Message.ID
 
 	log.Printf("Reimagining interaction: %v, Message: %v", interactionID, messageID)
 
