@@ -17,6 +17,17 @@ func (q *queueImplementation) processVariation() {
 		return
 	}
 
+	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction, "Found previous generation...")
+	// store the new message to record the correct message ID in the database
+	c.DiscordInteraction.Message = message
+
+	err = q.storeMessageInteraction(c, message)
+	if err != nil {
+		log.Printf("Error storing message interaction: %v", err)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+		return
+	}
+
 	// for variations, we need random subseeds
 	request.Subseed = -1
 
