@@ -616,7 +616,7 @@ func imagineMessageContent(request *entities.ImageGenerationRequest, user *disco
 	return out.String()
 }
 
-func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discordgo.User, progress float64) string {
+func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discordgo.User, progress float64, ram, vram *entities.ReadableMemory) string {
 	var out = strings.Builder{}
 
 	seedString := fmt.Sprintf("%d", request.Seed)
@@ -627,6 +627,14 @@ func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discor
 	out.WriteString(fmt.Sprintf("<@%s> asked me to imagine", user.ID))
 
 	out.WriteString(fmt.Sprintf(" `%d x %d`", request.Width, request.Height))
+
+	if ram != nil {
+		out.WriteString(fmt.Sprintf(" **RAM**: `%s`/`%s`", ram.Used, ram.Total))
+	}
+
+	if vram != nil {
+		out.WriteString(fmt.Sprintf(" **VRAM**:`%s`/`%s`", vram.Used, vram.Total))
+	}
 
 	if request.EnableHr == true {
 		// " -> (x %x) = %d x %d"

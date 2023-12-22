@@ -74,7 +74,7 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 
 func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
 	request := queue.ImageGenerationRequest
-	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, 0)
+	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, 0, nil, nil)
 
 	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, request, queue, queue.Interrupt != nil)
 
@@ -146,13 +146,13 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 
 func (q *queueImplementation) recordSeeds(response *entities.TextToImageResponse, generation *entities.ImageGenerationRequest, config *entities.Config) {
 	log.Printf("Seeds: %v Subseeds:%v", response.Seeds, response.Subseeds)
-	for idx := range response.Seeds {
+	for idx := range *response.Seeds {
 		subGeneration := generation
 		subGeneration.SortOrder = idx + 1
-		subGeneration.Seed = response.Seeds[idx]
-		subGeneration.Subseed = int64(response.Subseeds[idx])
-		subGeneration.Checkpoint = config.SDModelCheckpoint
-		subGeneration.VAE = config.SDVae
+		subGeneration.Seed = (*response.Seeds)[idx]
+		subGeneration.Subseed = (*response.Subseeds)[idx]
+		subGeneration.Checkpoint = response.Info.SDModelName
+		subGeneration.VAE = response.Info.SDVaeName
 		subGeneration.Hypernetwork = config.SDHypernetwork
 
 		_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
@@ -283,7 +283,17 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 				continue
 			}
 
-			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress)
+			ram, err := q.stableDiffusionAPI.GetMemoryReadable()
+			if err != nil {
+				log.Printf("Error getting memory: %v", err)
+			}
+
+			vram, err := q.stableDiffusionAPI.GetVRAMReadable()
+			if err != nil {
+				log.Printf("Error getting vram: %v", err)
+			}
+
+			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress, ram, vram)
 
 			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
 			_, progressErr = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
