@@ -125,8 +125,8 @@ func JSONToTextToImageResponse(data []byte) (*TextToImageResponse, error) {
 	}
 	return &TextToImageResponse{
 		Images:     r.Images,
-		Seeds:      info.AllSeeds,
-		Subseeds:   info.AllSubseeds,
+		Seeds:      &info.AllSeeds,
+		Subseeds:   &info.AllSubseeds,
 		Parameters: r.Parameters,
 		Info:       info,
 	}, err
@@ -140,8 +140,8 @@ type TextToImageJSONResponse struct {
 
 type TextToImageResponse struct {
 	Images     []string       `json:"images"`
-	Seeds      []int64        `json:"seeds"`
-	Subseeds   []int64        `json:"subseeds"`
+	Seeds      *[]int64       `json:"seeds"`
+	Subseeds   *[]int64       `json:"subseeds"`
 	Parameters TextToImageRaw `json:"parameters"`
 	Info       Info           `json:"info"`
 }

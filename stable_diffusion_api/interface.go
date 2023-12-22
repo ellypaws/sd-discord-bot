@@ -28,6 +28,10 @@ type StableDiffusionAPI interface {
 	GetVAE() (*string, error)
 	GetHypernetwork() (*string, error)
 
+	GetMemory() (*entities.Memory, error)
+	GetMemoryReadable() (*entities.ReadableMemory, error)
+	GetVRAMReadable() (*entities.ReadableMemory, error)
+
 	GET(string) ([]byte, error)
 	POST(postURL string, jsonData []byte) (*http.Response, error)
 	Host() string
