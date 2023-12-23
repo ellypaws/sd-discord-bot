@@ -467,7 +467,6 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 			// make sure we're under 100 char limit and under 25 choices
 			for i, choice := range choices {
 				if len(choice.Name) > 100 {
-					// TODO: check if discord counts bytes or chars
 					choices[i].Name = choice.Name[:100]
 				}
 			}
@@ -540,7 +539,6 @@ func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 	// make sure we're under 100 char limit and under 25 choices
 	for i, choice := range choices {
 		if len(choice.Name) > 100 {
-			// TODO: check if discord counts bytes or chars
 			choices[i].Name = choice.Name[:100]
 		}
 	}
