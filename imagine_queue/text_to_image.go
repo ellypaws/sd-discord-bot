@@ -283,17 +283,16 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 				continue
 			}
 
-			ram, err := q.stableDiffusionAPI.GetMemoryReadable()
+			var ram, cuda *entities.ReadableMemory
+			mem, err := q.stableDiffusionAPI.GetMemory()
 			if err != nil {
 				log.Printf("Error getting memory: %v", err)
+			} else {
+				ram = mem.RAM.Readable()
+				cuda = mem.Cuda.Readable()
 			}
 
-			vram, err := q.stableDiffusionAPI.GetVRAMReadable()
-			if err != nil {
-				log.Printf("Error getting vram: %v", err)
-			}
-
-			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress, ram, vram)
+			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress, ram, cuda)
 
 			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
 			_, progressErr = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
