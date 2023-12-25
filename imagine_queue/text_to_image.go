@@ -144,10 +144,10 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 	return nil
 }
 
-func (q *queueImplementation) recordSeeds(response *entities.TextToImageResponse, generation *entities.ImageGenerationRequest, config *entities.Config) {
+func (q *queueImplementation) recordSeeds(response *entities.TextToImageResponse, request *entities.ImageGenerationRequest, config *entities.Config) {
 	log.Printf("Seeds: %v Subseeds:%v", response.Seeds, response.Subseeds)
 	for idx := range *response.Seeds {
-		subGeneration := generation
+		subGeneration := request
 		subGeneration.SortOrder = idx + 1
 		subGeneration.Seed = (*response.Seeds)[idx]
 		subGeneration.Subseed = (*response.Subseeds)[idx]
@@ -162,18 +162,18 @@ func (q *queueImplementation) recordSeeds(response *entities.TextToImageResponse
 	}
 }
 
-func totalImageCount(generation *entities.ImageGenerationRequest) int {
+func totalImageCount(request *entities.ImageGenerationRequest) int {
 	const maxImages = 4
-	if generation.BatchSize == 0 {
+	if request.BatchSize == 0 {
 		log.Printf("Warning: newGeneration.Batchsize == 0")
-		generation.BatchSize = between(generation.BatchSize, 1, maxImages)
+		request.BatchSize = between(request.BatchSize, 1, maxImages)
 	}
-	if generation.NIter == 0 {
+	if request.NIter == 0 {
 		log.Printf("Warning: newGeneration.NIter == 0")
-		generation.NIter = between(generation.NIter, 1, maxImages/generation.BatchSize)
+		request.NIter = between(request.NIter, 1, maxImages/request.BatchSize)
 	}
 
-	totalImages := generation.NIter * generation.BatchSize
+	totalImages := request.NIter * request.BatchSize
 	return totalImages
 }
 
@@ -234,20 +234,20 @@ func (q *queueImplementation) textInference(queue *entities.QueueItem) (response
 	return response, err
 }
 
-func (q *queueImplementation) recordToRepository(generation *entities.ImageGenerationRequest, err error) (*entities.ImageGenerationRequest, error) {
+func (q *queueImplementation) recordToRepository(request *entities.ImageGenerationRequest, err error) (*entities.ImageGenerationRequest, error) {
 	var ok bool
-	if generation.Prompt, ok = strings.CutSuffix(generation.Prompt, "{DEBUG}"); ok {
-		byteArr, _ := generation.TextToImageRequest.Marshal()
+	if request.Prompt, ok = strings.CutSuffix(request.Prompt, "{DEBUG}"); ok {
+		byteArr, _ := request.TextToImageRequest.Marshal()
 		log.Printf("{DEBUG} TextToImageRequest: %v", string(byteArr))
 	}
 
 	// return newGeneration from image_generations.Create as we need newGeneration.CreatedAt later on
-	generation, err = q.imageGenerationRepo.Create(context.Background(), generation)
+	request, err = q.imageGenerationRepo.Create(context.Background(), request)
 	if err != nil {
 		log.Printf("Error creating image generation record: %v\n", err)
 		return nil, err
 	}
-	return generation, nil
+	return request, nil
 }
 
 func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
@@ -320,21 +320,21 @@ func (q *queueImplementation) revertModels(config *entities.Config, originalConf
 	return nil
 }
 
-func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerationRequest, c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
-	if !ptrStringCompare(newGeneration.Checkpoint, config.SDModelCheckpoint) ||
-		!ptrStringCompare(newGeneration.VAE, config.SDVae) ||
-		!ptrStringCompare(newGeneration.Hypernetwork, config.SDHypernetwork) {
+func (q *queueImplementation) updateModels(request *entities.ImageGenerationRequest, c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
+	if !ptrStringCompare(request.Checkpoint, config.SDModelCheckpoint) ||
+		!ptrStringCompare(request.VAE, config.SDVae) ||
+		!ptrStringCompare(request.Hypernetwork, config.SDHypernetwork) {
 		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction,
 			fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
-				safeDereference(config.SDModelCheckpoint), safeDereference(newGeneration.Checkpoint),
-				safeDereference(config.SDVae), safeDereference(newGeneration.VAE),
-				safeDereference(config.SDHypernetwork), safeDereference(newGeneration.Hypernetwork),
+				safeDereference(config.SDModelCheckpoint), safeDereference(request.Checkpoint),
+				safeDereference(config.SDVae), safeDereference(request.VAE),
+				safeDereference(config.SDHypernetwork), safeDereference(request.Hypernetwork),
 			),
 			handlers.Components[handlers.CancelDisabled])
 
 		// Insert code to update the configuration here
 		err := q.stableDiffusionAPI.UpdateConfiguration(
-			q.lookupModel(newGeneration, config,
+			q.lookupModel(request, config,
 				[]stable_diffusion_api.Cacheable{
 					stable_diffusion_api.CheckpointCache,
 					stable_diffusion_api.VAECache,
@@ -349,9 +349,9 @@ func (q *queueImplementation) updateModels(newGeneration *entities.ImageGenerati
 			log.Printf("Error getting config: %v", err)
 			return nil, err
 		}
-		newGeneration.Checkpoint = config.SDModelCheckpoint
-		newGeneration.VAE = config.SDVae
-		newGeneration.Hypernetwork = config.SDHypernetwork
+		request.Checkpoint = config.SDModelCheckpoint
+		request.VAE = config.SDVae
+		request.Hypernetwork = config.SDHypernetwork
 	}
 	return config, nil
 }
