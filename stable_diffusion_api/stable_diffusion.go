@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 )
@@ -119,24 +118,6 @@ func (api *apiImplementation) RefreshCache(cache Cacheable) (Cacheable, error) {
 		return cache.GetCache(api)
 	}
 	return cache.Refresh(api)
-}
-
-// Deprecated: Use SDCheckpointsCache instead
-func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
-	// Make an HTTP request to fetch the stable diffusion models
-	handle, err := os.Open("available_models.json")
-	if err != nil {
-		return nil, err
-	}
-	defer handle.Close()
-	// Parse the response and create choices
-	var sdModels []StableDiffusionModel
-	err = json.NewDecoder(handle).Decode(&sdModels)
-	if err != nil {
-		return nil, err
-	}
-
-	return sdModels, nil
 }
 
 func (api *apiImplementation) TextToImageRequest(req *entities.TextToImageRequest) (*entities.TextToImageResponse, error) {

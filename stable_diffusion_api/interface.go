@@ -7,8 +7,6 @@ import (
 )
 
 type StableDiffusionAPI interface {
-	SDModels() ([]StableDiffusionModel, error) // Deprecated: use SDCheckpointsCache instead
-
 	PopulateCache() (errors []error)
 	RefreshCache(cache Cacheable) (Cacheable, error)
 	CachePreview(c Cacheable) (Cacheable, error)
