@@ -35,26 +35,6 @@ func (api *apiImplementation) Host() string {
 	return api.host
 }
 
-// Deprecated: Use the entities.TextToImageJSONResponse instead
-type jsonTextToImageResponse struct {
-	Images []string `json:"images"`
-	Info   string   `json:"info"`
-}
-
-// Deprecated: Use the entities.TextToImageResponse instead
-type jsonInfoResponse struct {
-	Seed        int64   `json:"seed"`
-	AllSeeds    []int64 `json:"all_seeds"`
-	AllSubseeds []int   `json:"all_subseeds"`
-}
-
-// Deprecated: Use the entities.TextToImageResponse instead
-type TextToImageResponse struct {
-	Images   []string `json:"images"`
-	Seeds    []int64  `json:"seeds"`
-	Subseeds []int    `json:"subseeds"`
-}
-
 // Deprecated: Use the entities.ImageToImageResponse instead
 type ImageToImageResponse struct {
 	Images     []string          `json:"images,omitempty"`
@@ -157,72 +137,6 @@ func (api *apiImplementation) SDModels() ([]StableDiffusionModel, error) {
 	}
 
 	return sdModels, nil
-}
-
-// Deprecated: Use TextToImageRequest instead with an entities.ImageGeneration object
-func (api *apiImplementation) TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) {
-	//fmt.Println("TextToImageRequest", req)
-	if req == nil {
-		return nil, errors.New("missing request")
-	}
-
-	postURL := api.host + "/sdapi/v1/txt2img"
-
-	jsonData, err := json.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-
-	if !handlers.CheckAPIAlive(api.host) {
-		return nil, errors.New(handlers.DeadAPI)
-	}
-
-	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, err
-	}
-
-	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
-
-	client := &http.Client{}
-
-	response, err := client.Do(request)
-	if err != nil {
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Error with API Request: %s", string(jsonData))
-
-		return nil, err
-	}
-
-	defer response.Body.Close()
-
-	body, _ := io.ReadAll(response.Body)
-
-	respStruct := &jsonTextToImageResponse{}
-
-	err = json.Unmarshal(body, respStruct)
-	if err != nil {
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, err
-	}
-
-	infoStruct := &jsonInfoResponse{}
-
-	err = json.Unmarshal([]byte(respStruct.Info), infoStruct)
-	if err != nil {
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, err
-	}
-
-	return &TextToImageResponse{
-		Images:   respStruct.Images,
-		Seeds:    infoStruct.AllSeeds,
-		Subseeds: infoStruct.AllSubseeds,
-	}, nil
 }
 
 func (api *apiImplementation) TextToImageRequest(req *entities.TextToImageRequest) (*entities.TextToImageResponse, error) {
