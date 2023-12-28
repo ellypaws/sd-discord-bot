@@ -76,7 +76,7 @@ func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*dis
 	request := queue.ImageGenerationRequest
 	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, 0, nil, nil)
 
-	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, request, queue, queue.Interrupt != nil)
+	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, queue, queue.Interrupt != nil)
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
@@ -127,7 +127,7 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 
 	mention := fmt.Sprintf("<@%v>", queue.DiscordInteraction.Member.User.ID)
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
-	embed = generationEmbedDetails(embed, request, queue, queue.Interrupt != nil)
+	embed = generationEmbedDetails(embed, queue, queue.Interrupt != nil)
 
 	webhook = &discordgo.WebhookEdit{
 		Content:    &mention,
