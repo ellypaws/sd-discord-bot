@@ -279,7 +279,7 @@ func (q *queueImplementation) RemoveFromQueue(messageInteraction *discordgo.Mess
 	return nil
 }
 
-func (q *queueImplementation) Interrupt(i *discordgo.InteractionCreate) error {
+func (q *queueImplementation) Interrupt(i *discordgo.Interaction) error {
 
 	if q.currentImagine == nil {
 		return errors.New("there is no generation currently in progress")
@@ -290,7 +290,7 @@ func (q *queueImplementation) Interrupt(i *discordgo.InteractionCreate) error {
 	if q.currentImagine.Interrupt == nil {
 		q.currentImagine.Interrupt = make(chan *discordgo.Interaction)
 	}
-	q.currentImagine.Interrupt <- i.Interaction
+	q.currentImagine.Interrupt <- i
 
 	return nil
 }
