@@ -154,11 +154,13 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 		// modals
 		case discordgo.InteractionModalSubmit:
 			h, ok = modalHandlers[Command(i.ModalSubmitData().CustomID)]
+		default:
+			log.Printf("Unknown interaction type '%v'", i.Type)
 		}
 
-		if !ok {
-			var interactionType string
-			var interactionName string
+		if !ok || h == nil {
+			var interactionType string = "unknown"
+			var interactionName string = "unknown"
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
 				interactionType = "command"
