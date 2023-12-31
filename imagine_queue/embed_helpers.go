@@ -205,9 +205,14 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 	return nil
 }
 
-func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entities.ImageGenerationRequest, c *entities.QueueItem, interrupted bool) *discordgo.MessageEmbed {
-	if newGeneration == nil || c == nil {
-		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", newGeneration, c)
+func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *entities.QueueItem, interrupted bool) *discordgo.MessageEmbed {
+	if queue == nil {
+		log.Printf("WARNING: generationEmbedDetails called with nil %T", queue)
+		return embed
+	}
+	request := queue.ImageGenerationRequest
+	if request == nil {
+		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", request, queue)
 		return embed
 	}
 	if embed == nil {
@@ -215,19 +220,19 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		embed = &discordgo.MessageEmbed{}
 	}
 	switch {
-	case c.Enabled && c.Type == ItemTypeImg2Img:
+	case queue.Enabled && queue.Type == ItemTypeImg2Img:
 		embed.Title = "Image to Image (Controlnet)"
-	case c.Enabled || (c.ControlnetItem.MessageAttachment != nil && c.ControlnetItem.Image != nil):
+	case queue.Enabled || (queue.ControlnetItem.MessageAttachment != nil && queue.ControlnetItem.Image != nil):
 		embed.Title = "Text to Image (Controlnet)"
-	case c.Type == ItemTypeImg2Img || (c.Img2ImgItem.MessageAttachment != nil && c.Img2ImgItem.Image != nil):
+	case queue.Type == ItemTypeImg2Img || (queue.Img2ImgItem.MessageAttachment != nil && queue.Img2ImgItem.Image != nil):
 		embed.Title = "Image to Image"
-	case c.Type == ItemTypeVariation:
+	case queue.Type == ItemTypeVariation:
 		embed.Title = "Variation"
-	case c.Type == ItemTypeReroll:
+	case queue.Type == ItemTypeReroll:
 		embed.Title = "Reroll"
-	case c.Type == ItemTypeUpscale:
+	case queue.Type == ItemTypeUpscale:
 		embed.Title = "Upscale"
-	case c.Type == ItemTypeRaw:
+	case queue.Type == ItemTypeRaw:
 		embed.Title = "JSON to Image"
 	default:
 		embed.Title = "Text to Image"
@@ -238,36 +243,36 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 	embed.Type = discordgo.EmbedTypeImage
 	embed.URL = "https://github.com/ellypaws/sd-discord-bot/"
 	embed.Author = &discordgo.MessageEmbedAuthor{
-		Name:         c.DiscordInteraction.Member.User.Username,
-		IconURL:      c.DiscordInteraction.Member.User.AvatarURL(""),
+		Name:         queue.DiscordInteraction.Member.User.Username,
+		IconURL:      queue.DiscordInteraction.Member.User.AvatarURL(""),
 		ProxyIconURL: "https://i.keiau.space/data/00144.png",
 	}
 
 	var timeSince string
-	if newGeneration.CreatedAt.IsZero() {
+	if request.CreatedAt.IsZero() {
 		timeSince = "unknown"
 	} else {
-		timeSince = time.Since(newGeneration.CreatedAt).Round(time.Second).String()
+		timeSince = time.Since(request.CreatedAt).Round(time.Second).String()
 	}
 
 	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` images, `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
-		c.DiscordInteraction.Member.User.ID, newGeneration.NIter*newGeneration.BatchSize, newGeneration.Steps, timeSince,
-		newGeneration.CFGScale, newGeneration.Seed, newGeneration.SamplerName)
+		queue.DiscordInteraction.Member.User.ID, request.NIter*request.BatchSize, request.Steps, timeSince,
+		request.CFGScale, request.Seed, request.SamplerName)
 
 	var scripts []string
 
-	if c.Type != ItemTypeRaw {
-		if newGeneration.Scripts.ADetailer != nil {
+	if queue.Type != ItemTypeRaw {
+		if request.Scripts.ADetailer != nil {
 			scripts = append(scripts, "ADetailer")
 		}
-		if newGeneration.Scripts.ControlNet != nil {
+		if request.Scripts.ControlNet != nil {
 			scripts = append(scripts, "ControlNet")
 		}
-		if newGeneration.Scripts.CFGRescale != nil {
+		if request.Scripts.CFGRescale != nil {
 			scripts = append(scripts, "CFGRescale")
 		}
 	} else {
-		for script := range c.Raw.RawScripts {
+		for script := range queue.Raw.RawScripts {
 			scripts = append(scripts, script)
 		}
 	}
@@ -276,8 +281,8 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 		embed.Description += fmt.Sprintf("\n**Scripts**: [`%v`]", strings.Join(scripts, ", "))
 	}
 
-	if newGeneration.OverrideSettings.CLIPStopAtLastLayers > 1 {
-		embed.Description += fmt.Sprintf("\n**CLIPSkip**: `%v`", newGeneration.OverrideSettings.CLIPStopAtLastLayers)
+	if request.OverrideSettings.CLIPStopAtLastLayers > 1 {
+		embed.Description += fmt.Sprintf("\n**CLIPSkip**: `%v`", request.OverrideSettings.CLIPStopAtLastLayers)
 	}
 
 	// store as "2015-12-31T12:00:00.000Z"
@@ -289,25 +294,25 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, newGeneration *entiti
 	embed.Fields = []*discordgo.MessageEmbedField{
 		{
 			Name:   "Checkpoint",
-			Value:  fmt.Sprintf("`%v`", safeDereference(newGeneration.Checkpoint)),
+			Value:  fmt.Sprintf("`%v`", safeDereference(request.Checkpoint)),
 			Inline: false,
 		},
 		{
 			Name:   "VAE",
-			Value:  fmt.Sprintf("`%v`", safeDereference(newGeneration.VAE)),
+			Value:  fmt.Sprintf("`%v`", safeDereference(request.VAE)),
 			Inline: true,
 		},
 		{
 			Name:   "Hypernetwork",
-			Value:  fmt.Sprintf("`%v`", safeDereference(newGeneration.Hypernetwork)),
+			Value:  fmt.Sprintf("`%v`", safeDereference(request.Hypernetwork)),
 			Inline: true,
 		},
 		{
 			Name:  "Prompt",
-			Value: fmt.Sprintf("```\n%s\n```", newGeneration.Prompt),
+			Value: fmt.Sprintf("```\n%s\n```", request.Prompt),
 		},
 	}
-	if c.Raw != nil && c.Raw.Debug {
+	if queue.Raw != nil && queue.Raw.Debug {
 		// remove prompt, last item from embed.Fields
 		embed.Fields = embed.Fields[:len(embed.Fields)-1]
 	}

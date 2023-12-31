@@ -119,7 +119,7 @@ This has been written as an interface to allow for more scripts to be added in t
 12. [x] Interrupt button and cancel from queue
 13. [ ] Implement bubbletea TUI to include logging, progress bar, and api heartbeat
 14. [ ] With bubbletea, add options to restart API, interrupt generations
-15. [ ] Allow single image generations
+15. [x] Allow single image generations
 16. [ ] Embed png info into the image
 
 ---
@@ -138,7 +138,7 @@ This has been written as an interface to allow for more scripts to be added in t
 12. [x] 中断ボタンとキューからのキャンセル
 13. [ ] ロギング、進捗バー、およびAPIハートビートを含むbubbletea TUIを実装する
 14. [ ] bubbleteaを使用して、APIの再起動、生成の中断などのオプションを追加します。
-15. [ ] 単一の画像生成を許可する
+15. [x] 単一の画像生成を許可する
 16. [ ] png情報を画像に埋め込む
 
 ---

@@ -618,7 +618,7 @@ func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate
 		return
 	}
 
-	err := b.imagineQueue.Interrupt(i)
+	err := b.imagineQueue.Interrupt(i.Interaction)
 	if err != nil {
 		log.Printf("Error interrupting generation: %v", err)
 		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, err)

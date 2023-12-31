@@ -13,6 +13,6 @@ type Queue interface {
 	UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error)
 	UpdateModelName(modelName string) (*entities.DefaultSettings, error) // Deprecated: No longer store the SDModelName to DefaultSettings struct, use stable_diffusion_api.GetConfig instead
 	RemoveFromQueue(messageInteraction *discordgo.MessageInteraction) error
-	Interrupt(messageInteraction *discordgo.InteractionCreate) error
+	Interrupt(messageInteraction *discordgo.Interaction) error
 	NewQueueItem(options ...func(*entities.QueueItem)) *entities.QueueItem
 }
