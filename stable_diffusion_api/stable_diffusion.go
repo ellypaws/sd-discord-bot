@@ -141,7 +141,7 @@ func (api *apiImplementation) TextToImageRaw(req []byte) (*entities.TextToImageR
 	if err != nil {
 		return nil, fmt.Errorf("error with POST request: %w", err)
 	}
-	defer response.Body.Close()
+	defer closeResponseBody(response)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -168,7 +168,7 @@ func (api *apiImplementation) ImageToImageRequest(req *entities.ImageToImageRequ
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer closeResponseBody(response)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -260,8 +260,7 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		return nil, err
 	}
 
-	defer response.Body.Close()
-
+	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
 		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
 	}
@@ -341,7 +340,7 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 		return nil, err
 	}
 
-	defer response.Body.Close()
+	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
 		errorString := "(unknown error)"
@@ -400,7 +399,7 @@ func (api *apiImplementation) UpdateConfiguration(config entities.Config) error 
 	log.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
 	response, err := api.POST("/sdapi/v1/options", body)
-	defer response.Body.Close()
+	defer closeResponseBody(response)
 	if err != nil {
 		return err
 	}
@@ -408,6 +407,14 @@ func (api *apiImplementation) UpdateConfiguration(config entities.Config) error 
 	log.Printf("Response status: %v", response)
 
 	return nil
+}
+
+func closeResponseBody(response *http.Response) {
+	if response != nil {
+		if err := response.Body.Close(); err != nil {
+			log.Printf("Error closing response body: %v", err)
+		}
+	}
 }
 
 // interrupt by posting to /sdapi/v1/interrupt using the POST() function

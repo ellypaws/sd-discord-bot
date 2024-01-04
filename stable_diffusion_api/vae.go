@@ -58,7 +58,7 @@ func (c *VAEModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer response.Body.Close()
+	defer closeResponseBody(response)
 
 	if response.StatusCode != 200 {
 		body, _ := io.ReadAll(response.Body)
