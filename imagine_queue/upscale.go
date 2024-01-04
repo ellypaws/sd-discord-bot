@@ -33,10 +33,25 @@ func (q *queueImplementation) processUpscaleImagine() {
 		return
 	}
 
+	config, err := q.stableDiffusionAPI.GetConfig()
+	originalConfig := config
+	if err != nil {
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting config: %v", err))
+		return
+	} else {
+		config, err = q.updateModels(request, queue, config)
+		if err != nil {
+			handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error updating models: %v", err))
+			return
+		}
+	}
+
 	newContent := upscaleMessageContent(queue.DiscordInteraction.Member.User, 0, 0)
+	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, queue, queue.Interrupt != nil)
 
 	_, err = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &newContent,
+		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	})
 	if err != nil {
 		log.Printf("Error editing interaction: %v", err)
@@ -44,7 +59,7 @@ func (q *queueImplementation) processUpscaleImagine() {
 
 	generationDone := make(chan bool)
 
-	go q.updateUpscaleProgress(queue, generationDone)
+	go q.updateUpscaleProgress(queue, generationDone, config, originalConfig)
 
 	resp, err := q.upscale(request)
 	generationDone <- true
@@ -82,7 +97,7 @@ func (q *queueImplementation) upscale(request *entities.ImageGenerationRequest) 
 	})
 }
 
-func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, resp *stable_diffusion_api.UpscaleResponse) error {
+func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, resp *stable_diffusion_api.UpscaleResponse, embed *discordgo.MessageEmbed) error {
 	textToImage := queue.ImageGenerationRequest.TextToImageRequest
 
 	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
@@ -126,39 +141,24 @@ func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, res
 		finishedContent = finishedContent[:2000]
 	}
 
-	_, err := q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
+	webhook := &discordgo.WebhookEdit{
 		Content: &finishedContent,
-		Files: []*discordgo.File{
-			{
-				ContentType: "image/png",
-				// add timestamp to output file
-				Name:   "upscale_" + time.Now().Format("20060102150405") + ".png",
-				Reader: bytes.NewBuffer(decodedImage),
-			},
-		},
+		Embeds:  &[]*discordgo.MessageEmbed{embed},
 		Components: &[]discordgo.MessageComponent{
 			handlers.Components[handlers.DeleteGeneration],
 		},
-	})
-	if err != nil {
+	}
+
+	if err := imageEmbedFromBuffers(webhook, embed, []*bytes.Buffer{bytes.NewBuffer(decodedImage)}, nil); err != nil {
+		log.Printf("Error creating image embed: %v\n", err)
 		return err
 	}
 
+	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
 	return nil
 }
 
-func (q *queueImplementation) updateUpscaleProgress(queue *entities.QueueItem, generationDone chan bool) {
-	config, err := q.stableDiffusionAPI.GetConfig()
-	originalConfig := config
-	if err != nil {
-		log.Printf("Error getting config: %v", err)
-		return
-	} else {
-		config, err = q.updateModels(queue.ImageGenerationRequest, queue, config)
-		if err != nil {
-			return
-		}
-	}
+func (q *queueImplementation) updateUpscaleProgress(queue *entities.QueueItem, generationDone chan bool, config, originalConfig *entities.Config) {
 	lastProgress := float64(0)
 	fetchProgress := float64(0)
 	upscaleProgress := float64(0)
