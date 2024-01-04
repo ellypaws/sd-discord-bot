@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
@@ -224,7 +225,10 @@ func logError(errorString string, i *discordgo.Interaction) {
 	//	GetBot().p.Send(logger.Message(fmt.Sprintf("Command: %v", i.MessageComponentData().CustomID)))
 	//}
 	log.Printf("ERROR: %v", errorString)
-	if i == nil {
+	byteArr, _ := json.MarshalIndent(i, "", " ")
+	log.Printf("Interaction: %v", string(byteArr))
+	if i == nil || i.Member == nil {
+		log.Printf("WARNING: Member is nil!")
 		return
 	}
 	log.Printf("User: %v", i.Member.User.Username)

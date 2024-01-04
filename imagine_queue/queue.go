@@ -638,6 +638,12 @@ func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discor
 
 	if request.EnableHr == true {
 		// " -> (x %x) = %d x %d"
+		if request.HrResizeX == 0 {
+			request.HrResizeX = scaleDimension(request.Width, request.HrScale)
+		}
+		if request.HrResizeY == 0 {
+			request.HrResizeY = scaleDimension(request.Height, request.HrScale)
+		}
 		out.WriteString(fmt.Sprintf(" -> (x `%s` by hires.fix) = `%d x %d`",
 			strconv.FormatFloat(request.HrScale, 'f', 1, 64),
 			request.HrResizeX,
@@ -653,6 +659,10 @@ func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discor
 		return out.String()[:2000]
 	}
 	return out.String()
+}
+
+func scaleDimension(dimension int, scale float64) int {
+	return int(float64(dimension) * scale)
 }
 
 // lookupModel searches through []stable_diffusion_api.Cacheable models to find the model to load
