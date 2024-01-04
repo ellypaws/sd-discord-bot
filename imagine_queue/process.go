@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/SpenserCai/sd-webui-discord/utils"
 	"log"
-	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 )
 
@@ -15,13 +14,13 @@ func (q *queueImplementation) processCurrentImagine() {
 
 	request, err := queue.ImageGenerationRequest, error(nil)
 	if request == nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type))
+		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type))
 		return
 	}
 
 	textToImage := request.TextToImageRequest
 	if textToImage == nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type))
+		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type))
 		return
 	}
 
@@ -29,7 +28,7 @@ func (q *queueImplementation) processCurrentImagine() {
 	if queue.Type != ItemTypeRaw || (queue.Type == ItemTypeRaw && queue.Raw != nil && queue.Raw.Unsafe) {
 		err = calculateDimensions(q, queue)
 		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("error calculating dimensions: %w", err))
+			errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error calculating dimensions: %w", err))
 			return
 		}
 	}
@@ -40,7 +39,7 @@ func (q *queueImplementation) processCurrentImagine() {
 
 	err = q.processImagineGrid(queue)
 	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
+		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
 		return
 	}
 }

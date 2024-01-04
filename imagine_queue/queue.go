@@ -34,6 +34,8 @@ const (
 	initializedBatchSize  = 1
 )
 
+var errorResponse = handlers.Errors[handlers.ErrorResponse]
+
 type queueImplementation struct {
 	botSession          *discordgo.Session
 	stableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
@@ -251,7 +253,7 @@ func (q *queueImplementation) pullNextInQueue() {
 			case ItemTypeUpscale:
 				go q.processUpscaleImagine()
 			default:
-				handlers.Errors[handlers.ErrorResponse](q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
+				errorResponse(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 				q.done()
 			}
 		default:

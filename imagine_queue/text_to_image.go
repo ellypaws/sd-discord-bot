@@ -258,7 +258,7 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 		case queue.DiscordInteraction = <-queue.Interrupt:
 			err := q.stableDiffusionAPI.Interrupt()
 			if err != nil {
-				handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
 				return
 			}
 			message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
@@ -269,14 +269,14 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 		case <-generationDone:
 			err := q.revertModels(config, originalConfig)
 			if err != nil {
-				handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
 			}
 			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
 				log.Printf("Error getting current progress: %v", progressErr)
-				handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
+				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 				return
 			}
 

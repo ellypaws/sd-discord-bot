@@ -12,7 +12,7 @@ func (q *queueImplementation) processVariation() {
 	c.ImageGenerationRequest, err = q.getPreviousGeneration(c)
 	request := c.ImageGenerationRequest
 	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Errorf("error getting prompt for reroll: %w", err))
+		errorResponse(q.botSession, c.DiscordInteraction, fmt.Errorf("error getting prompt for reroll: %w", err))
 		return
 	}
 
@@ -22,7 +22,7 @@ func (q *queueImplementation) processVariation() {
 
 	err = q.storeMessageInteraction(c, message)
 	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Errorf("error storing message interaction: %w", err))
+		errorResponse(q.botSession, c.DiscordInteraction, fmt.Errorf("error storing message interaction: %w", err))
 		return
 	}
 
@@ -45,7 +45,7 @@ func (q *queueImplementation) processVariation() {
 
 	err = q.processImagineGrid(c)
 	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
+		errorResponse(q.botSession, c.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
 		return
 	}
 }
