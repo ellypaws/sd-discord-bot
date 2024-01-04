@@ -37,7 +37,7 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 
 	request, err = q.recordToRepository(request, err)
 	if err != nil {
-		return fmt.Errorf("error recording to repository: %v", err)
+		return fmt.Errorf("error recording to repository: %w", err)
 	}
 
 	generationDone := make(chan bool)
@@ -49,7 +49,7 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 		response, err := q.textInference(queue)
 		generationDone <- true
 		if err != nil {
-			return fmt.Errorf("error inferencing generation: %v", err)
+			return fmt.Errorf("error inferencing generation: %w", err)
 		}
 
 		if response == nil {
@@ -67,6 +67,8 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown queue type: %v", queue.Type)
 	}
 
 	return nil
@@ -136,8 +138,7 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 	}
 
 	if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
-		log.Printf("Error creating image embed: %v\n", err)
-		return err
+		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)

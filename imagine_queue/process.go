@@ -15,25 +15,21 @@ func (q *queueImplementation) processCurrentImagine() {
 
 	request, err := queue.ImageGenerationRequest, error(nil)
 	if request == nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction,
-			fmt.Sprintf("ImageGenerationRequest of type %v is nil", queue.Type),
-		)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type))
 		return
 	}
 
 	textToImage := request.TextToImageRequest
 	if textToImage == nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction,
-			fmt.Sprintf("TextToImageRequest of type %v is nil", queue.Type),
-		)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type))
 		return
 	}
 
 	// only set width and height if it is not a raw json request
-	if queue.Type != ItemTypeRaw {
+	if queue.Type != ItemTypeRaw || (queue.Type == ItemTypeRaw && queue.Raw != nil && queue.Raw.Unsafe) {
 		err = calculateDimensions(q, queue)
 		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, err)
+			handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("error calculating dimensions: %w", err))
 			return
 		}
 	}
@@ -44,8 +40,7 @@ func (q *queueImplementation) processCurrentImagine() {
 
 	err = q.processImagineGrid(queue)
 	if err != nil {
-		log.Printf("Error processing imagine grid: %v", err)
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, err)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
 		return
 	}
 }

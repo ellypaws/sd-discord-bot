@@ -50,7 +50,7 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		}
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, err)
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, fmt.Errorf("error deleting message: %w", err))
 			return
 		}
 

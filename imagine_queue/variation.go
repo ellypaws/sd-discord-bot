@@ -1,7 +1,7 @@
 package imagine_queue
 
 import (
-	"log"
+	"fmt"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"time"
 )
@@ -12,8 +12,7 @@ func (q *queueImplementation) processVariation() {
 	c.ImageGenerationRequest, err = q.getPreviousGeneration(c)
 	request := c.ImageGenerationRequest
 	if err != nil {
-		log.Printf("Error getting prompt for reroll: %v", err)
-		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Errorf("error getting prompt for reroll: %w", err))
 		return
 	}
 
@@ -23,8 +22,7 @@ func (q *queueImplementation) processVariation() {
 
 	err = q.storeMessageInteraction(c, message)
 	if err != nil {
-		log.Printf("Error storing message interaction: %v", err)
-		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Errorf("error storing message interaction: %w", err))
 		return
 	}
 
@@ -47,8 +45,7 @@ func (q *queueImplementation) processVariation() {
 
 	err = q.processImagineGrid(c)
 	if err != nil {
-		log.Printf("Error processing imagine grid: %v", err)
-		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, err)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, c.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
 		return
 	}
 }

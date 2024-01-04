@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
@@ -74,13 +73,12 @@ const DeadAPI = "API is not running"
 // errorFollowup [ErrorFollowup] sends an error message as a followup message with a deletion button.
 func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	embed, toPrint := errorEmbed(i, errorContent...)
-	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
 	logError(toPrint, i)
 
 	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
 		Content:    *sanitizeToken(&toPrint),
-		Components: components,
+		Components: []discordgo.MessageComponent{Components[DeleteButton]},
 		Embeds:     embed,
 	})
 }
@@ -88,20 +86,24 @@ func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorConten
 // ErrorEdit [ErrorResponse] responds to the interaction with an error message and a deletion button.
 func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	embed, toPrint := errorEmbed(i, errorContent...)
-	components := []discordgo.MessageComponent{Components[DeleteButton]}
 
 	logError(toPrint, i)
 
-	_, _ = bot.InteractionResponseEdit(i, &discordgo.WebhookEdit{
+	_, err := bot.InteractionResponseEdit(i, &discordgo.WebhookEdit{
 		Content:    sanitizeToken(&toPrint),
-		Components: &components,
+		Components: &[]discordgo.MessageComponent{Components[DeleteButton]},
 		Embeds:     &embed,
 	})
+	if err != nil {
+		log.Printf("Error editing interaction for error (%v): %v", toPrint, err)
+	}
 }
 
 // ErrorEphemeralResponse [ErrorEphemeral] responds to the interaction with an ephemeral error message.
 func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	embed, toPrint := errorEmbed(i, errorContent...)
+
+	logError(toPrint, i)
 
 	_ = bot.InteractionRespond(i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -118,6 +120,8 @@ func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, er
 
 func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
 	embed, toPrint := errorEmbed(i, errorContent...)
+
+	logError(toPrint, i)
 
 	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
 		Flags:   discordgo.MessageFlagsEphemeral,
@@ -139,7 +143,7 @@ func formatError(errorContent ...any) string {
 		case []string:
 			errors = append(errors, content...)
 		case error:
-			errors = append(errors, fmt.Sprint(content.Error())) // Convert the error to a string
+			errors = append(errors, content.Error())
 		case []any:
 			errors = append(errors, formatError(content...)) // Recursively format the error
 		//case any:
@@ -159,8 +163,6 @@ func formatError(errorContent ...any) string {
 
 func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.MessageEmbed, string) {
 	errorString := formatError(errorContent)
-
-	logError(errorString, i)
 
 	// decode ED4245 to int
 	color, _ := strconv.ParseInt("ED4245", 16, 64)
@@ -204,14 +206,13 @@ func sanitizeToken(errorString *string) *string {
 		return errorString
 	}
 	if Token == nil {
-		logError("WARNING: Token is nil", nil)
+		log.Println("WARNING: Token is nil")
 		return errorString
 	}
 	if strings.Contains(*errorString, *Token) {
 		//log.Println("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\"")
 		//log.Println("Error message:", errorString)
-		logError("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\"", nil)
-		logError(*errorString, nil)
+		log.Printf("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\": %v", *errorString)
 		sanitizedString := strings.ReplaceAll(*errorString, *Token, "[TOKEN]")
 		errorString = &sanitizedString
 	}
@@ -225,8 +226,8 @@ func logError(errorString string, i *discordgo.Interaction) {
 	//	GetBot().p.Send(logger.Message(fmt.Sprintf("Command: %v", i.MessageComponentData().CustomID)))
 	//}
 	log.Printf("ERROR: %v", errorString)
-	byteArr, _ := json.MarshalIndent(i, "", " ")
-	log.Printf("Interaction: %v", string(byteArr))
+	//byteArr, _ := json.MarshalIndent(i, "", " ")
+	//log.Printf("Interaction: %v", string(byteArr))
 	if i == nil || i.Member == nil {
 		log.Printf("WARNING: Member is nil!")
 		return

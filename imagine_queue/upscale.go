@@ -19,17 +19,14 @@ func (q *queueImplementation) processUpscaleImagine() {
 	var err error
 	queue.ImageGenerationRequest, err = q.getPreviousGeneration(queue)
 	if err != nil {
-		log.Printf("Error getting prompt for upscale: %v", err)
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, err)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("error getting prompt for upscale: %w", err))
 		return
 	}
 
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
 	if textToImage == nil {
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction,
-			fmt.Sprintf("TextToImageRequest of type %v is nil", queue.Type),
-		)
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("textToImageRequest of type %v is nil", queue.Type))
 		return
 	}
 
@@ -65,15 +62,14 @@ func (q *queueImplementation) processUpscaleImagine() {
 	generationDone <- true
 	if err != nil {
 		log.Printf("Error processing image upscale: %v\n", err)
-		handlers.ErrorHandler(q.botSession, queue.DiscordInteraction, fmt.Sprint("I'm sorry, but I had a problem upscaling your image. ", err))
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, "I'm sorry, but I had a problem upscaling your image.", err)
 		return
 	}
 
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d", queue.DiscordInteraction.ID, queue.DiscordInteraction.Message.ID, queue.InteractionIndex)
 
-	if err := q.finalUpscaleMessage(queue, resp); err != nil {
-		log.Printf("Error finalizing upscale message: %v\n", err)
-		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, err)
+	if err := q.finalUpscaleMessage(queue, resp, embed); err != nil {
+		handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Errorf("error finalizing upscale message: %w", err))
 		return
 	}
 }
@@ -102,7 +98,7 @@ func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, res
 
 	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
 	if decodeErr != nil {
-		return fmt.Errorf("error decoding image: %v", decodeErr)
+		return fmt.Errorf("error decoding image: %w", decodeErr)
 	}
 	if len(decodedImage) == 0 {
 		return fmt.Errorf("decoded image is empty")
