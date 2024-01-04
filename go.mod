@@ -7,8 +7,10 @@ require (
 	github.com/bwmarrin/discordgo v0.27.1
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
+	github.com/dustin/go-humanize v1.0.1
 	github.com/joho/godotenv v1.5.1
 	github.com/sahilm/fuzzy v0.1.0
+	github.com/shirou/gopsutil v3.21.11+incompatible
 	modernc.org/sqlite v1.20.1
 )
 
@@ -18,7 +20,7 @@ require (
 	github.com/charmbracelet/harmonica v0.2.0 // indirect
 	github.com/charmbracelet/lipgloss v0.9.1 // indirect
 	github.com/containerd/console v1.0.4-0.20230313162750-1ae8d489ac81 // indirect
-	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
@@ -32,6 +34,8 @@ require (
 	github.com/muesli/termenv v0.15.2 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20200410134404-eec4a21b6bb0 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
+	github.com/stretchr/testify v1.8.4 // indirect
+	github.com/yusufpapurcu/wmi v1.2.3 // indirect
 	golang.org/x/crypto v0.13.0 // indirect
 	golang.org/x/image v0.12.0 // indirect
 	golang.org/x/mod v0.8.0 // indirect

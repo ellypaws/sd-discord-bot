@@ -292,6 +292,13 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 				cuda = mem.Cuda.Readable()
 			}
 
+			mem, err = stable_diffusion_api.GetMemory()
+			if err != nil {
+				log.Printf("Error getting memory: %v", err)
+			} else {
+				ram = mem.RAM.Readable()
+			}
+
 			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress, ram, cuda)
 
 			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
