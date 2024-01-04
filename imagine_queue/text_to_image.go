@@ -310,7 +310,11 @@ func (q *queueImplementation) revertModels(config *entities.Config, originalConf
 	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
 		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
 		!ptrStringCompare(config.SDHypernetwork, originalConfig.SDHypernetwork) {
-		log.Printf("Switching back to original models: %v, %v, %v", originalConfig.SDModelCheckpoint, originalConfig.SDVae, originalConfig.SDHypernetwork)
+		log.Printf("Switching back to original models: %v, %v, %v",
+			safeDereference(originalConfig.SDModelCheckpoint),
+			safeDereference(originalConfig.SDVae),
+			safeDereference(originalConfig.SDHypernetwork),
+		)
 		return q.stableDiffusionAPI.UpdateConfiguration(entities.Config{
 			SDModelCheckpoint: originalConfig.SDModelCheckpoint,
 			SDVae:             originalConfig.SDVae,
