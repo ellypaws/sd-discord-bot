@@ -17,15 +17,9 @@ import (
 func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) error {
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
-	config, err := q.stableDiffusionAPI.GetConfig()
-	originalConfig := config
+	config, originalConfig, err := q.switchToModels(queue)
 	if err != nil {
-		return fmt.Errorf("error getting config: %w", err)
-	} else {
-		config, err = q.updateModels(request, queue, config)
-		if err != nil {
-			return fmt.Errorf("error updating models: %w", err)
-		}
+		return fmt.Errorf("error switching to models: %w", err)
 	}
 
 	log.Printf("Processing imagine #%s: %v\n", queue.DiscordInteraction.ID, textToImage.Prompt)
@@ -314,6 +308,21 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 	}
 }
 
+func (q *queueImplementation) switchToModels(queue *entities.QueueItem) (config, originalConfig *entities.Config, err error) {
+	config, err = q.stableDiffusionAPI.GetConfig()
+	originalConfig = config
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting config: %w", err)
+	}
+
+	config, err = q.updateModels(queue, config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error updating models: %w", err)
+	}
+
+	return config, originalConfig, nil
+}
+
 func (q *queueImplementation) revertModels(config *entities.Config, originalConfig *entities.Config) error {
 	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
 		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
@@ -332,7 +341,8 @@ func (q *queueImplementation) revertModels(config *entities.Config, originalConf
 	return nil
 }
 
-func (q *queueImplementation) updateModels(request *entities.ImageGenerationRequest, c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
+func (q *queueImplementation) updateModels(c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
+	request := c.ImageGenerationRequest
 	if !ptrStringCompare(request.Checkpoint, config.SDModelCheckpoint) ||
 		!ptrStringCompare(request.VAE, config.SDVae) ||
 		!ptrStringCompare(request.Hypernetwork, config.SDHypernetwork) {

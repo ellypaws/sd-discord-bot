@@ -30,17 +30,10 @@ func (q *queueImplementation) processUpscaleImagine() {
 		return
 	}
 
-	config, err := q.stableDiffusionAPI.GetConfig()
-	originalConfig := config
+	config, originalConfig, err := q.switchToModels(queue)
 	if err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting config: %v", err))
+		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error switching to models: %w", err))
 		return
-	} else {
-		config, err = q.updateModels(request, queue, config)
-		if err != nil {
-			errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error updating models: %v", err))
-			return
-		}
 	}
 
 	newContent := upscaleMessageContent(queue.DiscordInteraction.Member.User, 0, 0)
