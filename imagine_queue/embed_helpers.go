@@ -115,7 +115,8 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 	if webhook == nil {
 		return errors.New("imageEmbedFromBuffers called with nil webhook")
 	}
-	now := time.Now()
+	now := time.Now().UTC()
+	nowFormatted := now.Format("2006-01-02_15-04-05")
 	if embed == nil {
 		embed = &discordgo.MessageEmbed{
 			Type:      discordgo.EmbedTypeImage,
@@ -165,7 +166,7 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 		if err != nil {
 			return fmt.Errorf("error tiling primary images: %w", err)
 		}
-		imgName := fmt.Sprintf("%v.png", now.Format("2006-01-02-Z15-00"))
+		imgName := fmt.Sprintf("%v.png", nowFormatted)
 		files = append(files, &discordgo.File{
 			Name:   imgName,
 			Reader: bytes.NewReader(primaryTile.Bytes()),
@@ -181,7 +182,7 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 				continue
 			}
 
-			imgName := fmt.Sprintf("%v-%d.png", now.Format("2006-01-02-Z15-00"), i)
+			imgName := fmt.Sprintf("%v-%d.png", nowFormatted, i)
 			files = append(files, &discordgo.File{
 				Name:   imgName,
 				Reader: bytes.NewReader(imgBuf.Bytes()),
