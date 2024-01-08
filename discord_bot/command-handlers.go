@@ -71,7 +71,7 @@ func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption
 //
 // (*discordgo.ApplicationCommandInteractionDataOption).IntValue() actually uses float64 for the interface conversion, so use float64 for integers, numbers, etc.
 // and then convert to the desired type.
-// Only string and float64 are supported for V as tha‘s what the discordgo API returns.
+// Only string and float64 are supported for V as that's what the discordgo API returns.
 // If the field is nil, then we don't assign the value to the field.
 // Instead, we return *V and bool to indicate whether the conversion was successful.
 // This is useful for when we want to convert to a type that is not the same as the field type.
