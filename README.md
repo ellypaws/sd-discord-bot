@@ -79,6 +79,11 @@ This has been written as an interface to allow for more scripts to be added in t
 
 ### Updates
 
+#### 1.3.13 [47c6b90](https://github.com/ellypaws/sd-discord-bot/commit/47c6b90cbe5f10ddc730ba65b00f0f38ad4ed6fa)
+
+* Output memory usage in the embed
+* 埋め込みでメモリ使用量を出力する
+
 #### 1.3.7: [4e4d8f4](https://github.com/ellypaws/sd-discord-bot/commit/4e4d8f4d05caaf14511139069fd99f7920496cb1)
 
 * Added raw json input to send to the API
