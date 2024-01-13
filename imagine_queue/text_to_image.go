@@ -17,15 +17,9 @@ import (
 func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) error {
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
-	config, err := q.stableDiffusionAPI.GetConfig()
-	originalConfig := config
+	config, originalConfig, err := q.switchToModels(queue)
 	if err != nil {
-		return fmt.Errorf("error getting config: %w", err)
-	} else {
-		config, err = q.updateModels(request, queue, config)
-		if err != nil {
-			return fmt.Errorf("error updating models: %w", err)
-		}
+		return fmt.Errorf("error switching to models: %w", err)
 	}
 
 	log.Printf("Processing imagine #%s: %v\n", queue.DiscordInteraction.ID, textToImage.Prompt)
@@ -37,7 +31,7 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 
 	request, err = q.recordToRepository(request, err)
 	if err != nil {
-		return fmt.Errorf("error recording to repository: %v", err)
+		return fmt.Errorf("error recording to repository: %w", err)
 	}
 
 	generationDone := make(chan bool)
@@ -49,7 +43,7 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 		response, err := q.textInference(queue)
 		generationDone <- true
 		if err != nil {
-			return fmt.Errorf("error inferencing generation: %v", err)
+			return fmt.Errorf("error inferencing generation: %w", err)
 		}
 
 		if response == nil {
@@ -67,6 +61,8 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 		if err != nil {
 			return err
 		}
+	default:
+		return fmt.Errorf("unknown queue type: %v", queue.Type)
 	}
 
 	return nil
@@ -136,8 +132,7 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 	}
 
 	if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
-		log.Printf("Error creating image embed: %v\n", err)
-		return err
+		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
@@ -257,7 +252,7 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 		case queue.DiscordInteraction = <-queue.Interrupt:
 			err := q.stableDiffusionAPI.Interrupt()
 			if err != nil {
-				handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
 				return
 			}
 			message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
@@ -268,14 +263,14 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 		case <-generationDone:
 			err := q.revertModels(config, originalConfig)
 			if err != nil {
-				handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
 			}
 			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
 				log.Printf("Error getting current progress: %v", progressErr)
-				handlers.Errors[handlers.ErrorResponse](q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
+				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 				return
 			}
 
@@ -292,6 +287,13 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 				cuda = mem.Cuda.Readable()
 			}
 
+			mem, err = stable_diffusion_api.GetMemory()
+			if err != nil {
+				log.Printf("Error getting memory: %v", err)
+			} else {
+				ram = mem.RAM.Readable()
+			}
+
 			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress, ram, cuda)
 
 			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
@@ -306,11 +308,30 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 	}
 }
 
+func (q *queueImplementation) switchToModels(queue *entities.QueueItem) (config, originalConfig *entities.Config, err error) {
+	config, err = q.stableDiffusionAPI.GetConfig()
+	originalConfig = config
+	if err != nil {
+		return nil, nil, fmt.Errorf("error getting config: %w", err)
+	}
+
+	config, err = q.updateModels(queue, config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error updating models: %w", err)
+	}
+
+	return config, originalConfig, nil
+}
+
 func (q *queueImplementation) revertModels(config *entities.Config, originalConfig *entities.Config) error {
 	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
 		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
 		!ptrStringCompare(config.SDHypernetwork, originalConfig.SDHypernetwork) {
-		log.Printf("Switching back to original models: %v, %v, %v", originalConfig.SDModelCheckpoint, originalConfig.SDVae, originalConfig.SDHypernetwork)
+		log.Printf("Switching back to original models: %v, %v, %v",
+			safeDereference(originalConfig.SDModelCheckpoint),
+			safeDereference(originalConfig.SDVae),
+			safeDereference(originalConfig.SDHypernetwork),
+		)
 		return q.stableDiffusionAPI.UpdateConfiguration(entities.Config{
 			SDModelCheckpoint: originalConfig.SDModelCheckpoint,
 			SDVae:             originalConfig.SDVae,
@@ -320,7 +341,8 @@ func (q *queueImplementation) revertModels(config *entities.Config, originalConf
 	return nil
 }
 
-func (q *queueImplementation) updateModels(request *entities.ImageGenerationRequest, c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
+func (q *queueImplementation) updateModels(c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
+	request := c.ImageGenerationRequest
 	if !ptrStringCompare(request.Checkpoint, config.SDModelCheckpoint) ||
 		!ptrStringCompare(request.VAE, config.SDVae) ||
 		!ptrStringCompare(request.Hypernetwork, config.SDHypernetwork) {
