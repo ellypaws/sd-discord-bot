@@ -79,6 +79,11 @@ This has been written as an interface to allow for more scripts to be added in t
 
 ### Updates
 
+#### 1.3.15 [882de4b](https://github.com/ellypaws/sd-discord-bot/commit/882de4b8ee84435b774b03bc615435b7ef6acf4c)
+
+* Change timestamps to UTC and format `2006-01-02_15-04-05`
+* タイムスタンプをUTCに変更し、`2006-01-02_15-04-05`の形式にフォーマットする
+
 #### 1.3.13 [47c6b90](https://github.com/ellypaws/sd-discord-bot/commit/47c6b90cbe5f10ddc730ba65b00f0f38ad4ed6fa)
 
 * Output memory usage in the embed
