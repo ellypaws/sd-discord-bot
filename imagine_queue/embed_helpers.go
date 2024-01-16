@@ -322,7 +322,12 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *entities.Queue
 	return embed
 }
 
+// rerollVariationComponents returns a buttons with discordgo.MessageComponent with a specified image count.
+// A maximum of 4 buttons will be returned (due to Discord's limit) plus one "Re-roll" or "Delete" button.
+// If disable is true, the Variation and Upscale buttons will be disabled.
 func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageComponent {
+	amount = min(amount, 4)
+
 	var actionsRow []discordgo.ActionsRow
 
 	var firstRow []discordgo.MessageComponent
