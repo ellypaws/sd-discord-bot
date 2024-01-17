@@ -174,7 +174,6 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 		embed.Image = &discordgo.MessageEmbedImage{
 			URL: fmt.Sprintf("attachment://%s", imgName),
 		}
-		embeds = append(embeds, embed)
 	} else {
 		// Create separate embeds for four or fewer images
 		for i, imgBuf := range images {
