@@ -3,7 +3,6 @@ package discord_bot
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"slices"
 	"stable_diffusion_bot/discord_bot/handlers"
@@ -13,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -409,7 +410,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 		var Default bool
 		for i, model := range modelOptions {
 			if model.Default {
-				modelOptions[i].Emoji = discordgo.ComponentEmoji{
+				modelOptions[i].Emoji = &discordgo.ComponentEmoji{
 					Name: "✨",
 				}
 				Default = true
@@ -422,7 +423,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 				Label:   shortenString(*currentModel),
 				Value:   shortenString(*currentModel),
 				Default: true,
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "✨",
 				},
 			}}, modelOptions...)
@@ -440,7 +441,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 				Label:       "None",
 				Value:       "None",
 				Description: "Unset the model",
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "❌",
 				},
 			}}, modelOptions...)

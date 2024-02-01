@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images []*bytes.Buffer, thumbnails []*bytes.Buffer) error {
@@ -240,7 +241,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 			Style:    discordgo.SecondaryButton,
 			Disabled: disable,
 			CustomID: fmt.Sprintf("%v_%d", handlers.VariantButton, i),
-			Emoji: discordgo.ComponentEmoji{
+			Emoji: &discordgo.ComponentEmoji{
 				Name: "♻️",
 			},
 		})
@@ -251,7 +252,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 		Style:    discordgo.PrimaryButton,
 		Disabled: disable,
 		CustomID: string(handlers.RerollButton),
-		Emoji: discordgo.ComponentEmoji{
+		Emoji: &discordgo.ComponentEmoji{
 			Name: "🎲",
 		},
 	})
@@ -269,7 +270,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 			Style:    discordgo.SecondaryButton,
 			Disabled: disable,
 			CustomID: fmt.Sprintf("%v_%d", handlers.UpscaleButton, i),
-			Emoji: discordgo.ComponentEmoji{
+			Emoji: &discordgo.ComponentEmoji{
 				Name: "⬆️",
 			},
 		})
@@ -281,7 +282,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 		Style:    discordgo.DangerButton,
 		Disabled: false,
 		CustomID: string(handlers.DeleteGeneration),
-		Emoji: discordgo.ComponentEmoji{
+		Emoji: &discordgo.ComponentEmoji{
 			Name: "🗑️",
 		},
 	})
