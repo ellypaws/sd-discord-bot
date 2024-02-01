@@ -158,14 +158,13 @@ func (q *queueImplementation) recordSeeds(response *entities.TextToImageResponse
 }
 
 func totalImageCount(request *entities.ImageGenerationRequest) int {
-	const maxImages = 4
 	if request.BatchSize == 0 {
 		log.Printf("Warning: newGeneration.Batchsize == 0")
-		request.BatchSize = between(request.BatchSize, 1, maxImages)
+		request.BatchSize = max(request.BatchSize, 1)
 	}
 	if request.NIter == 0 {
 		log.Printf("Warning: newGeneration.NIter == 0")
-		request.NIter = between(request.NIter, 1, maxImages/request.BatchSize)
+		request.NIter = max(request.NIter, 1)
 	}
 
 	totalImages := request.NIter * request.BatchSize

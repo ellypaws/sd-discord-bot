@@ -57,6 +57,9 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Delete this message",
 				Style:    discordgo.DangerButton,
 				CustomID: string(DeleteButton),
+				Emoji: discordgo.ComponentEmoji{
+					Name: "🗑️",
+				},
 			},
 		},
 	},

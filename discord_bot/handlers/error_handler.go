@@ -30,35 +30,7 @@ var Errors = map[errorEnum]errorResponseType{
 
 // ErrorHandler responds to the interaction with an error message and a deletion button.
 // Deprecated: Use ErrorEdit instead.
-func ErrorHandler(s *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
-	Errors[ErrorResponse](s, i, errorContent...)
-	//var errorString string
-	//
-	//switch content := errorContent.(type) {
-	//case string:
-	//	errorString = content
-	//case error:
-	//	errorString = fmt.Sprint(content) // Convert the error to a string
-	//default:
-	//	errorString = "An unknown error has occurred"
-	//}
-	//components := []discordgo.MessageComponent{
-	//	discordgo.ActionsRow{
-	//		Components: []discordgo.MessageComponent{
-	//			discordgo.Button{
-	//				Label:    "Delete this message",
-	//				Style:    discordgo.DangerButton,
-	//				CustomID: "delete_error_message",
-	//			},
-	//		},
-	//	},
-	//}
-	//
-	//_, _ = s.InteractionResponseEdit(i, &discordgo.WebhookEdit{
-	//	Content:    &errorString,
-	//	Components: &components,
-	//})
-}
+var ErrorHandler = Errors[ErrorResponse]
 
 func CheckAPIAlive(apiHost string) bool {
 	resp, err := http.Get(apiHost)
@@ -191,12 +163,12 @@ func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.Mes
 		)
 	case discordgo.InteractionMessageComponent:
 		toPrint = fmt.Sprintf(
-			"Could not run the [button](https://github.com/ellypaws/sd-discord-bot) `%v` on message https://discord.com/channels/%v/%v/%v",
+			"Could not run the [button](https://github.com/ellypaws/sd-discord-bot) `%v`",
 			i.MessageComponentData().CustomID,
-			i.GuildID,
-			i.ChannelID,
-			i.Message.ID,
 		)
+		if i.Message != nil {
+			toPrint += fmt.Sprintf(" on message https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
+		}
 	}
 	return embed, toPrint
 }

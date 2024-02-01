@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/SpenserCai/sd-webui-discord/utils"
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/composite_renderer"
@@ -13,103 +12,6 @@ import (
 	"strings"
 	"time"
 )
-
-// Deprecated: use imageEmbedFromBuffers instead. Use retrieveImagesFromResponse to get the images
-func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image *entities.MessageAttachment, thumbnail *bytes.Reader) (err error) {
-	if embed == nil {
-		embed = &discordgo.MessageEmbed{
-			Timestamp: time.Now().Format(time.RFC3339),
-		}
-	}
-
-	var files []*discordgo.File
-
-	if thumbnail != nil {
-		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
-			URL: "attachment://thumbnail.png",
-		}
-		files = append(files, &discordgo.File{
-			Name:   "thumbnail.png",
-			Reader: thumbnail,
-		})
-	}
-
-	if image != nil {
-		if image.Image == nil && image.URL != "" {
-			image.Image = new(string)
-			*image.Image, err = utils.GetImageBase64(image.URL)
-			if err != nil {
-				log.Printf("Error getting image base64: %v", err)
-				return err
-			}
-		}
-		embed.Type = discordgo.EmbedTypeImage
-		embed.Image = &discordgo.MessageEmbedImage{
-			URL: fmt.Sprintf("attachment://%v", image.Filename),
-		}
-		imageReader, err := utils.GetImageReaderByBase64(safeDereference(image.Image))
-		if err != nil {
-			log.Printf("Error getting image reader by base64: %v", err)
-			return err
-		}
-
-		files = append(files, &discordgo.File{
-			Name:   image.Filename,
-			Reader: imageReader,
-		})
-	}
-
-	embeds := []*discordgo.MessageEmbed{embed}
-
-	webhook.Embeds = &embeds
-	webhook.Files = files
-	return
-}
-
-// Deprecated: Use imageEmbedFromBuffers instead
-func imageEmbedFromReader(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image *bytes.Reader, thumbnail *bytes.Reader) {
-	if embed == nil {
-		embed = &discordgo.MessageEmbed{
-			Timestamp: time.Now().Format(time.RFC3339),
-		}
-	}
-
-	var files []*discordgo.File
-
-	// move webhook embed image to thumbnail
-	//if thumbnail == nil && len(webhook.Files) > 0 {
-	//	embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
-	//		URL: fmt.Sprintf("attachment://%v", webhook.Files[0].Name),
-	//	}
-	//}
-
-	if thumbnail != nil {
-		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
-			URL: "attachment://thumbnail.png",
-		}
-		files = append(files, &discordgo.File{
-			Name:   "thumbnail.png",
-			Reader: thumbnail,
-		})
-	}
-
-	if image != nil {
-		embed.Type = discordgo.EmbedTypeImage
-		embed.Image = &discordgo.MessageEmbedImage{
-			URL: fmt.Sprintf("attachment://%v", "image.png"),
-		}
-
-		files = append(files, &discordgo.File{
-			Name:   "image.png",
-			Reader: image,
-		})
-	}
-
-	embeds := []*discordgo.MessageEmbed{embed}
-
-	webhook.Embeds = &embeds
-	webhook.Files = files
-}
 
 func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images []*bytes.Buffer, thumbnails []*bytes.Buffer) error {
 	if webhook == nil {
@@ -174,7 +76,6 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 		embed.Image = &discordgo.MessageEmbedImage{
 			URL: fmt.Sprintf("attachment://%s", imgName),
 		}
-		embeds = append(embeds, embed)
 	} else {
 		// Create separate embeds for four or fewer images
 		for i, imgBuf := range images {
@@ -322,7 +223,12 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *entities.Queue
 	return embed
 }
 
+// rerollVariationComponents returns a buttons with discordgo.MessageComponent with a specified image count.
+// A maximum of 4 buttons will be returned (due to Discord's limit) plus one "Re-roll" or "Delete" button.
+// If disable is true, the Variation and Upscale buttons will be disabled.
 func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageComponent {
+	amount = min(amount, 4)
+
 	var actionsRow []discordgo.ActionsRow
 
 	var firstRow []discordgo.MessageComponent
@@ -391,58 +297,4 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 	}
 
 	return &rows
-}
-
-// Deprecated: use imageEmbedFromBuffers instead. Use retrieveImagesFromResponse to get the images
-func imageAttachmentAsThumbnail(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, image *bytes.Reader, thumbnail *entities.MessageAttachment, alreadyAFile bool) (err error) {
-	if embed == nil {
-		embed = &discordgo.MessageEmbed{
-			Timestamp: time.Now().Format(time.RFC3339),
-		}
-	}
-
-	var files []*discordgo.File
-
-	if thumbnail != nil {
-		if thumbnail.Image == nil && thumbnail.URL != "" {
-			thumbnail.Image = new(string)
-			*thumbnail.Image, err = utils.GetImageBase64(thumbnail.URL)
-			if err != nil {
-				log.Printf("Error getting image base64: %v", err)
-				return
-			}
-		}
-		embed.Type = discordgo.EmbedTypeImage
-		embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
-			URL: fmt.Sprintf("attachment://%v", thumbnail.Filename),
-		}
-
-		if !alreadyAFile {
-			thumbnailReader, err := utils.GetImageReaderByBase64(safeDereference(thumbnail.Image))
-			if err != nil {
-				log.Printf("Error getting image reader by base64: %v", err)
-				return err
-			}
-			files = append(files, &discordgo.File{
-				Name:   thumbnail.Filename,
-				Reader: thumbnailReader,
-			})
-		}
-	}
-
-	if image != nil {
-		files = append(files, &discordgo.File{
-			Name:   "primary.png",
-			Reader: image,
-		})
-		embed.Image = &discordgo.MessageEmbedImage{
-			URL: fmt.Sprintf("attachment://%v", "primary.png"),
-		}
-	}
-
-	embeds := []*discordgo.MessageEmbed{embed}
-
-	webhook.Embeds = &embeds
-	webhook.Files = files
-	return
 }
