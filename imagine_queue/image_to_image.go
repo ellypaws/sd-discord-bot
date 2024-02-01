@@ -3,9 +3,10 @@ package imagine_queue
 import (
 	"errors"
 	"fmt"
-	"github.com/SpenserCai/sd-webui-discord/utils"
-	"github.com/bwmarrin/discordgo"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/utils"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 // TODO: Implement separate processing for Img2Img, possibly use github.com/SpenserCai/sd-webui-go/intersvc
@@ -42,7 +43,7 @@ func calculateImg2ImgDimensions(queue *entities.QueueItem, img2img *entities.Ima
 		return errors.New("no attached images found, skipping img2img generation")
 	}
 
-	width, height, err := utils.GetImageSizeFromBase64(safeDereference(queue.Img2ImgItem.Image))
+	width, height, err := utils.GetBase64ImageSize(safeDereference(queue.Img2ImgItem.Image))
 	if err != nil {
 		return err
 	}

@@ -4,9 +4,6 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"github.com/SpenserCai/sd-webui-discord/utils"
-	"github.com/bwmarrin/discordgo"
-	"github.com/sahilm/fuzzy"
 	"io"
 	"log"
 	"net/http"
@@ -15,9 +12,13 @@ import (
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/imagine_queue"
 	"stable_diffusion_bot/stable_diffusion_api"
+	"stable_diffusion_bot/utils"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/sahilm/fuzzy"
 )
 
 var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
@@ -251,7 +252,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 						delete(queue.Attachments, snowflake)
 					}
 
-					image, err := utils.GetImageBase64(attachment.URL)
+					image, err := utils.DownloadImageAsBase64(attachment.URL)
 					if err != nil {
 						log.Printf("Error getting image from URL: %v", err)
 						handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)

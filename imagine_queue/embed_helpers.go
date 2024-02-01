@@ -4,14 +4,15 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/SpenserCai/sd-webui-discord/utils"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 // Deprecated: use imageEmbedFromBuffers instead. Use retrieveImagesFromResponse to get the images
@@ -37,7 +38,7 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 	if image != nil {
 		if image.Image == nil && image.URL != "" {
 			image.Image = new(string)
-			*image.Image, err = utils.GetImageBase64(image.URL)
+			*image.Image, err = utils.DownloadImageAsBase64(image.URL)
 			if err != nil {
 				log.Printf("Error getting image base64: %v", err)
 				return err
@@ -47,7 +48,7 @@ func imageEmbedFromAttachment(webhook *discordgo.WebhookEdit, embed *discordgo.M
 		embed.Image = &discordgo.MessageEmbedImage{
 			URL: fmt.Sprintf("attachment://%v", image.Filename),
 		}
-		imageReader, err := utils.GetImageReaderByBase64(safeDereference(image.Image))
+		imageReader, err := utils.Base64ToByteReader(safeDereference(image.Image))
 		if err != nil {
 			log.Printf("Error getting image reader by base64: %v", err)
 			return err
@@ -406,7 +407,7 @@ func imageAttachmentAsThumbnail(webhook *discordgo.WebhookEdit, embed *discordgo
 	if thumbnail != nil {
 		if thumbnail.Image == nil && thumbnail.URL != "" {
 			thumbnail.Image = new(string)
-			*thumbnail.Image, err = utils.GetImageBase64(thumbnail.URL)
+			*thumbnail.Image, err = utils.DownloadImageAsBase64(thumbnail.URL)
 			if err != nil {
 				log.Printf("Error getting image base64: %v", err)
 				return
@@ -418,7 +419,7 @@ func imageAttachmentAsThumbnail(webhook *discordgo.WebhookEdit, embed *discordgo
 		}
 
 		if !alreadyAFile {
-			thumbnailReader, err := utils.GetImageReaderByBase64(safeDereference(thumbnail.Image))
+			thumbnailReader, err := utils.Base64ToByteReader(safeDereference(thumbnail.Image))
 			if err != nil {
 				log.Printf("Error getting image reader by base64: %v", err)
 				return err
