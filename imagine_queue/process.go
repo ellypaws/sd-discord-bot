@@ -3,9 +3,9 @@ package imagine_queue
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/SpenserCai/sd-webui-discord/utils"
 	"log"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/utils"
 )
 
 func (q *queueImplementation) processCurrentImagine() {
@@ -134,7 +134,7 @@ func initializeControlnet(queue *entities.QueueItem) {
 	default:
 		queue.ControlnetItem.Enabled = false
 	}
-	width, height, err := utils.GetImageSizeFromBase64(safeDereference(controlnetImage))
+	width, height, err := utils.GetBase64ImageSize(safeDereference(controlnetImage))
 	var controlnetResolution int
 	if err != nil {
 		log.Printf("Error getting image size: %v", err)
