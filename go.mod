@@ -3,7 +3,7 @@ module stable_diffusion_bot
 go 1.21
 
 require (
-	github.com/bwmarrin/discordgo v0.27.1
+	github.com/bwmarrin/discordgo v0.26.3
 	github.com/charmbracelet/bubbles v0.16.1
 	github.com/charmbracelet/bubbletea v0.24.2
 	github.com/dustin/go-humanize v1.0.1
