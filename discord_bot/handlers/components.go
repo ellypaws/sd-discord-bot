@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 const (
@@ -57,7 +58,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Delete this message",
 				Style:    discordgo.DangerButton,
 				CustomID: string(DeleteButton),
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
 			},
@@ -69,7 +70,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Delete above",
 				Style:    discordgo.DangerButton,
 				CustomID: string(DeleteAboveButton),
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
 			},
@@ -81,7 +82,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Delete",
 				Style:    discordgo.DangerButton,
 				CustomID: string(DeleteGeneration),
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
 			},
@@ -100,7 +101,7 @@ var Components = map[Component]discordgo.MessageComponent{
 			discordgo.Button{
 				Label: "Read more",
 				Style: discordgo.LinkButton,
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "📜",
 				},
 			},
@@ -108,7 +109,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Delete",
 				Style:    discordgo.DangerButton,
 				CustomID: string(DeleteButton),
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "🗑️",
 				},
 			},
@@ -200,7 +201,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Interrupt",
 				Style:    discordgo.DangerButton,
 				CustomID: string(Interrupt),
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "⚠️",
 				},
 				Disabled: false,
@@ -213,7 +214,7 @@ var Components = map[Component]discordgo.MessageComponent{
 				Label:    "Interrupt",
 				Style:    discordgo.DangerButton,
 				CustomID: string(Interrupt),
-				Emoji: discordgo.ComponentEmoji{
+				Emoji: &discordgo.ComponentEmoji{
 					Name: "⚠️",
 				},
 				Disabled: true,
