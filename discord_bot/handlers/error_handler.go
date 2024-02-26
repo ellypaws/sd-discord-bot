@@ -158,13 +158,15 @@ func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.Mes
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
 		toPrint = fmt.Sprintf(
-			"Could not run the [command](https://github.com/ellypaws/sd-discord-bot) `%v`",
+			"Could not run the [command] `%v`: %v",
 			i.ApplicationCommandData().Name,
+			errorString,
 		)
 	case discordgo.InteractionMessageComponent:
 		toPrint = fmt.Sprintf(
-			"Could not run the [button](https://github.com/ellypaws/sd-discord-bot) `%v`",
+			"Could not run the [button] `%v`: %v",
 			i.MessageComponentData().CustomID,
+			errorString,
 		)
 		if i.Message != nil {
 			toPrint += fmt.Sprintf(" on message https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
