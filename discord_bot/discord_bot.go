@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"sort"
 	"stable_diffusion_bot/discord_bot/handlers"
@@ -34,6 +35,8 @@ type Config struct {
 	ImagineCommand     *Command
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
+
+	LLMConfig *llm.Config
 }
 
 func (b *botImpl) imagineCommandString() Command {
@@ -268,7 +271,7 @@ func (b *botImpl) rebuildMap(
 }
 
 func (b *botImpl) Start() {
-	b.imagineQueue.StartPolling(b.botSession)
+	b.imagineQueue.StartPolling(b.botSession, b.config.LLMConfig)
 
 	err := b.teardown()
 	if err != nil {

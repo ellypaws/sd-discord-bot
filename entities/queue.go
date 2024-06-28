@@ -2,12 +2,17 @@ package entities
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"github.com/ellypaws/inkbunny-sd/llm"
+	"time"
 )
 
 type QueueItem struct {
 	Type ItemType
 
 	*ImageGenerationRequest
+
+	LLMRequest *llm.Request
+	LLMCreated time.Time
 
 	AspectRatio        string
 	InteractionIndex   int

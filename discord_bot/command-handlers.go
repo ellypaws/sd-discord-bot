@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"io"
 	"log"
 	"net/http"
@@ -27,6 +28,7 @@ var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *disc
 	},
 	imagineCommand:         (*botImpl).processImagineCommand,
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
+	llmCommand:             (*botImpl).processLLMCommand,
 	refreshCommand:         (*botImpl).processRefreshCommand,
 	rawCommand:             (*botImpl).processRawCommand,
 }
@@ -362,6 +364,85 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	)
 
 	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, queueString, handlers.Components[handlers.Cancel])
+	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
+		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
+		queue.DiscordInteraction.Message = message
+	}
+}
+
+func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	if b.config.LLMConfig == nil {
+		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "LLM is not enabled.")
+		return
+	}
+
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+
+	optionMap := getOpts(i.ApplicationCommandData())
+
+	prompt, ok := optionMap[promptOption]
+	if !ok {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
+		return
+	}
+
+	var systemPrompt = llm.Message{
+		Role:    llm.SystemRole,
+		Content: imagine_queue.DefaultLLMSystem,
+	}
+	if s, ok := optionMap[systemPromptOption]; ok {
+		systemPrompt.Content = s.StringValue()
+	}
+
+	var maxTokens int64 = 1024
+	if m, ok := optionMap[maxTokensOption]; ok {
+		maxTokens = m.IntValue()
+	}
+
+	queue := &entities.QueueItem{
+		Type: imagine_queue.ItemTypeLLM,
+		LLMRequest: &llm.Request{
+			Messages: []llm.Message{
+				systemPrompt,
+				llm.UserMessage(prompt.StringValue()),
+			},
+			Model:         imagine_queue.LLama3,
+			Temperature:   0.7,
+			MaxTokens:     maxTokens,
+			Stream:        false,
+			StreamChannel: nil,
+		},
+		DiscordInteraction: i.Interaction,
+	}
+
+	position, err := b.imagineQueue.AddImagine(queue)
+	if err != nil {
+		log.Printf("Error adding imagine to queue: %v\n", err)
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+	}
+
+	var snowflake string
+
+	switch {
+	case i.Member != nil:
+		snowflake = i.Member.User.ID
+	case i.User != nil:
+		snowflake = i.User.ID
+	}
+
+	queueString := fmt.Sprintf(
+		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to generate \n```\n%s\n```",
+		position,
+		snowflake,
+		prompt.StringValue(),
+	)
+
+	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(
+		s,
+		i.Interaction,
+		queueString,
+		handlers.Components[handlers.Cancel],
+	)
 	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
 		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
 		queue.DiscordInteraction.Message = message

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/sahilm/fuzzy"
 	"log"
 	"os"
@@ -47,6 +48,8 @@ type queueImplementation struct {
 	defaultSettingsRepo default_settings.Repository
 	botDefaultSettings  *entities.DefaultSettings
 	cancelledItems      map[string]bool
+
+	llmConfig *llm.Config
 }
 
 type Config struct {
@@ -85,6 +88,7 @@ const (
 	ItemTypeVariation
 	ItemTypeImg2Img
 	ItemTypeRaw // raw JSON input
+	ItemTypeLLM
 )
 
 func (q *queueImplementation) DefaultQueueItem() *entities.QueueItem {
@@ -184,8 +188,9 @@ func (q *queueImplementation) AddImagine(queue *entities.QueueItem) (int, error)
 	return linePosition, nil
 }
 
-func (q *queueImplementation) StartPolling(botSession *discordgo.Session) {
+func (q *queueImplementation) StartPolling(botSession *discordgo.Session, llmConfig *llm.Config) {
 	q.botSession = botSession
+	q.llmConfig = llmConfig
 
 	botDefaultSettings, err := q.initializeOrGetBotDefaults()
 	if err != nil {
@@ -252,6 +257,8 @@ func (q *queueImplementation) pullNextInQueue() {
 				go q.processImg2ImgImagine()
 			case ItemTypeUpscale:
 				go q.processUpscaleImagine()
+			case ItemTypeLLM:
+				go q.processLLM()
 			default:
 				errorResponse(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 				q.done()

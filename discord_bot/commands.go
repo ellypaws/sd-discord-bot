@@ -23,6 +23,7 @@ var (
 const (
 	helloCommand   Command = "hello"
 	refreshCommand Command = "refresh"
+	llmCommand     Command = "llm"
 	rawCommand     Command = Command(handlers.JSONInput)
 )
 
@@ -48,6 +49,10 @@ const (
 	batchSizeOption    CommandOption = "batch_size"
 	clipSkipOption     CommandOption = "clip_skip"
 	cfgRescaleOption   CommandOption = "cfg_rescale"
+
+	systemPromptOption CommandOption = "system_prompt"
+	maxTokensOption    CommandOption = "max_tokens"
+	llmModelOption     CommandOption = "model" // TODO: Retrieve /v1/models from endpoint
 
 	img2imgOption   CommandOption = "img2img"
 	denoisingOption CommandOption = "denoising"
@@ -92,6 +97,16 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Name:        string(imagineSettingsCommand),
 		Description: "Change the default settings for the imagine command",
 		Type:        discordgo.ChatApplicationCommand,
+	},
+	llmCommand: {
+		Name:        string(llmCommand),
+		Description: "Ask the bot to generate text using an LLM",
+		Type:        discordgo.ChatApplicationCommand,
+		Options: []*discordgo.ApplicationCommandOption{
+			commandOptions[promptOption],
+			commandOptions[systemPromptOption],
+			commandOptions[maxTokensOption],
+		},
 	},
 	refreshCommand: {
 		Name:        string(refreshCommand),
@@ -213,6 +228,18 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Description:  "The embedding to use",
 		Required:     false,
 		Autocomplete: true,
+	},
+	systemPromptOption: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(systemPromptOption),
+		Description: "The system prompt to generate with",
+		Required:    false,
+	},
+	maxTokensOption: {
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        string(maxTokensOption),
+		Description: "The maximum number of tokens to generate. Use -1 for infinite (default: 1024)",
+		Required:    false,
 	},
 	aspectRatio: {
 		Type:        discordgo.ApplicationCommandOptionString,

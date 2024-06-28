@@ -2,12 +2,13 @@ package imagine_queue
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"stable_diffusion_bot/entities"
 )
 
 type Queue interface {
 	AddImagine(item *entities.QueueItem) (int, error)
-	StartPolling(botSession *discordgo.Session)
+	StartPolling(botSession *discordgo.Session, llmConfig *llm.Config)
 	GetBotDefaultSettings() (*entities.DefaultSettings, error)
 	UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error)
 	UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error)

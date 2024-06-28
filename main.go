@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/joho/godotenv"
 	"log"
+	"net/url"
 	"os"
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
@@ -24,6 +26,8 @@ var (
 	imagineCommand     = flag.String("imagine", "imagine", "Imagine command name. Default is \"imagine\"")
 	removeCommandsFlag = flag.Bool("remove", false, "Delete all commands when bot exits")
 	devModeFlag        = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
+
+	llmHost = flag.String("llm", "", "LLM model to use")
 )
 
 func init() {
@@ -35,7 +39,7 @@ func init() {
 	if botToken == nil || *botToken == "" {
 		tokenEnv := os.Getenv("BOT_TOKEN")
 		if tokenEnv == "YOUR_BOT_TOKEN_HERE" {
-			log.Fatalf("Invalid bot token: %v\n"+
+			log.Fatalf("Invalid bot token from .env file: %v\n"+
 				"Did you edit the .env or run the program with -token ?", tokenEnv)
 		}
 		if tokenEnv != "" {
@@ -74,6 +78,13 @@ func init() {
 		if devModeEnv != "" {
 			devModeFlag = new(bool)
 			*devModeFlag = devModeEnv == "true"
+		}
+	}
+
+	if llmHost == nil || *llmHost == "" {
+		llmHostEnv := os.Getenv("LLM_HOST")
+		if llmHostEnv != "" {
+			llmHost = &llmHostEnv
 		}
 	}
 
@@ -161,6 +172,22 @@ func main() {
 		log.Fatalf("Failed to create imagine queue: %v", err)
 	}
 
+	var llmConfig *llm.Config
+	if llmHost != nil && *llmHost != "" {
+		endpoint, err := url.Parse(*llmHost)
+		if err != nil {
+			log.Fatalf("Failed to parse LLM host: %v", err)
+		}
+		llmConfig = &llm.Config{
+			Host:     *llmHost,
+			APIKey:   "", // TODO: Add API key
+			Endpoint: *endpoint,
+		}
+		log.Printf("LLM host set to %s", llmConfig.Endpoint.String())
+	} else {
+		log.Printf("LLM host is not set, LLM commands will be disabled")
+	}
+
 	bot, err := discord_bot.New(&discord_bot.Config{
 		DevelopmentMode:    devMode,
 		BotToken:           *botToken,
@@ -169,6 +196,7 @@ func main() {
 		ImagineCommand:     (*discord_bot.Command)(imagineCommand),
 		RemoveCommands:     removeCommands,
 		StableDiffusionApi: stableDiffusionAPI,
+		LLMConfig:          llmConfig, // TODO: Move to a proper interface
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)
