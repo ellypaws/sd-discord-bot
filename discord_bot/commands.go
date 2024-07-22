@@ -24,6 +24,7 @@ const (
 	helloCommand   Command = "hello"
 	refreshCommand Command = "refresh"
 	llmCommand     Command = "llm"
+	novelAICommand Command = "novelai"
 	rawCommand     Command = Command(handlers.JSONInput)
 )
 
@@ -53,6 +54,12 @@ const (
 	systemPromptOption CommandOption = "system_prompt"
 	maxTokensOption    CommandOption = "max_tokens"
 	llmModelOption     CommandOption = "model" // TODO: Retrieve /v1/models from endpoint
+
+	novelaiSizeOption     CommandOption = "size"
+	novelaiSamplerOption  CommandOption = "sampler"
+	novelaiUCPresetOption CommandOption = "uc_preset"
+	novelaiQualityOption  CommandOption = "quality"
+	novelaiScheduleOption CommandOption = "schedule"
 
 	img2imgOption   CommandOption = "img2img"
 	denoisingOption CommandOption = "denoising"
@@ -106,6 +113,23 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[promptOption],
 			commandOptions[systemPromptOption],
 			commandOptions[maxTokensOption],
+		},
+	},
+	novelAICommand: {
+		Name:        string(novelAICommand),
+		Description: "Ask the bot to imagine something using NovelAI",
+		Type:        discordgo.ChatApplicationCommand,
+		Options: []*discordgo.ApplicationCommandOption{
+			commandOptions[promptOption],
+			commandOptions[negativeOption],
+			commandOptions[novelaiSizeOption],
+			commandOptions[novelaiSamplerOption],
+			commandOptions[novelaiUCPresetOption],
+			commandOptions[novelaiQualityOption],
+			commandOptions[seedOption],
+			commandOptions[cfgScaleOption],
+			//commandOptions[cfgRescaleOption],
+			commandOptions[novelaiScheduleOption],
 		},
 	},
 	refreshCommand: {
@@ -562,6 +586,157 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Description: "Process the json file without validation. This is set to False by default",
 		Required:    false,
 	},
+
+	novelaiSizeOption: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(novelaiSizeOption),
+		Description: "The size of the image to generate. Default is Normal Square (1024x1024)",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "Small Portrait (512x768)",
+				Value: entities.OptionSmallPortrait,
+			},
+			{
+				Name:  "Small Landscape (768x512)",
+				Value: entities.OptionSmallLandscape,
+			},
+			{
+				Name:  "Small Square (640x640)",
+				Value: entities.OptionSmallSquare,
+			},
+			{
+				Name:  "Normal Portrait (832x1216)",
+				Value: entities.OptionNormalPortrait,
+			},
+			{
+				Name:  "Normal Landscape (1216x832)",
+				Value: entities.OptionNormalLandscape,
+			},
+			{
+				Name:  "Normal Square (1024x1024)",
+				Value: entities.OptionNormalSquare,
+			},
+			//{
+			//	Name:  "Large Portrait (1024x1536)",
+			//	Value: entities.OptionLargePortrait,
+			//},
+			//{
+			//	Name:  "Large Landscape (1536x1024)",
+			//	Value: entities.OptionLargeLandscape,
+			//},
+			//{
+			//	Name:  "Large Square (1472x1472)",
+			//	Value: entities.OptionLargeSquare,
+			//},
+			//{
+			//	Name:  "Wallpaper Portrait (1088x1920)",
+			//	Value: entities.OptionWallpaperPortrait,
+			//},
+			//{
+			//	Name:  "Wallpaper Landscape (1920x1088)",
+			//	Value: entities.OptionWallpaperLandscape,
+			//},
+		},
+	},
+
+	novelaiSamplerOption: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(novelaiSamplerOption),
+		Description: "The method to use for sampling. Default is Euler",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "Default (Euler)",
+				Value: entities.SamplerDefault,
+			},
+			{
+				Name:  "Euler",
+				Value: entities.SamplerEuler,
+			},
+			{
+				Name:  "Euler a",
+				Value: entities.SamplerEulerAncestral,
+			},
+			{
+				Name:  "DPM++ 2S Ancestral",
+				Value: entities.SamplerDPM2SAncestral,
+			},
+			{
+				Name:  "DPM++ 2M",
+				Value: entities.SamplerDPM2M,
+			},
+			{
+				Name:  "DPM++ SDE",
+				Value: entities.SamplerDPMSDE,
+			},
+			{
+				Name:  "DDIM",
+				Value: entities.SamplerDDIM,
+			},
+		},
+	},
+
+	novelaiUCPresetOption: {
+		Type:        discordgo.ApplicationCommandOptionInteger,
+		Name:        string(novelaiUCPresetOption),
+		Description: "The preset to use for Undesired Content",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "Heavy",
+				Value: 0,
+			},
+			{
+				Name:  "Light",
+				Value: 1,
+			},
+			{
+				Name:  "Human Focus",
+				Value: 2,
+			},
+			{
+				Name:  "None",
+				Value: 3,
+			},
+		},
+	},
+
+	novelaiQualityOption: {
+		Type:        discordgo.ApplicationCommandOptionBoolean,
+		Name:        string(novelaiQualityOption),
+		Description: "Tags to increase quality will be prepended to the prompt. Default is true",
+		Required:    false,
+	},
+
+	novelaiScheduleOption: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(novelaiScheduleOption),
+		Description: "The scheduler when sampling. Default is native.",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "Default (Native)",
+				Value: entities.ScheduleDefault,
+			},
+			{
+				Name:  "Native",
+				Value: entities.ScheduleNative,
+			},
+			{
+				Name:  "Karras",
+				Value: entities.ScheduleKarras,
+			},
+			{
+				Name:  "Exponential",
+				Value: entities.ScheduleExponential,
+			},
+			{
+				Name:  "Polyexponential",
+				Value: entities.SchedulePolyexponential,
+			},
+		},
+	},
 }
 
 func controlTypes() []*discordgo.ApplicationCommandOptionChoice {
@@ -679,7 +854,7 @@ func (b *botImpl) addImagineCommand(name string, command *discordgo.ApplicationC
 
 	commands[imagineCommand].Options = imagineOptions()
 
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, commands[imagineCommand])
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.config.GuildID, commands[imagineCommand])
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", name, err)
 
@@ -693,7 +868,7 @@ func (b *botImpl) addImagineCommand(name string, command *discordgo.ApplicationC
 func (b *botImpl) addImagineSettingsCommand(command string) (error, *discordgo.ApplicationCommand) {
 	log.Printf("Adding command '%s'...", command)
 
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.config.GuildID, &discordgo.ApplicationCommand{
 		Name:        string(b.imagineSettingsCommandString()),
 		Description: "Change the default settings for the imagine command",
 	})

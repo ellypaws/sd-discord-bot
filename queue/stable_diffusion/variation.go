@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (q *queueImplementation) processVariation() {
+func (q *SDQueue) processVariation() {
 	defer q.done()
 	c, err := q.currentImagine, error(nil)
 	c.ImageGenerationRequest, err = q.getPreviousGeneration(c)

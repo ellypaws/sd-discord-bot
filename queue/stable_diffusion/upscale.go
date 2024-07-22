@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"bytes"
@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/stable_diffusion_api"
 	"strings"
 	"time"
 )
 
-func (q *queueImplementation) processUpscaleImagine() {
+func (q *SDQueue) processUpscaleImagine() {
 	defer q.done()
 	queue := q.currentImagine
 	var err error
@@ -67,7 +67,7 @@ func (q *queueImplementation) processUpscaleImagine() {
 	}
 }
 
-func (q *queueImplementation) upscale(request *entities.ImageGenerationRequest) (*stable_diffusion_api.UpscaleResponse, error) {
+func (q *SDQueue) upscale(request *entities.ImageGenerationRequest) (*stable_diffusion_api.UpscaleResponse, error) {
 	textToImage := request.TextToImageRequest
 	// Use face segm model if we're upscaling but there's no ADetailer models
 	if textToImage.Scripts.ADetailer == nil {
@@ -86,7 +86,7 @@ func (q *queueImplementation) upscale(request *entities.ImageGenerationRequest) 
 	})
 }
 
-func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, resp *stable_diffusion_api.UpscaleResponse, embed *discordgo.MessageEmbed) error {
+func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion_api.UpscaleResponse, embed *discordgo.MessageEmbed) error {
 	textToImage := queue.ImageGenerationRequest.TextToImageRequest
 
 	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Image)
@@ -138,7 +138,7 @@ func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, res
 		},
 	}
 
-	if err := imageEmbedFromBuffers(webhook, embed, []*bytes.Buffer{bytes.NewBuffer(decodedImage)}, nil); err != nil {
+	if err := ImageEmbedFromBuffers(webhook, embed, []*bytes.Buffer{bytes.NewBuffer(decodedImage)}, nil); err != nil {
 		log.Printf("Error creating image embed: %v\n", err)
 		return err
 	}
@@ -147,7 +147,7 @@ func (q *queueImplementation) finalUpscaleMessage(queue *entities.QueueItem, res
 	return nil
 }
 
-func (q *queueImplementation) updateUpscaleProgress(queue *entities.QueueItem, generationDone chan bool, config, originalConfig *entities.Config) {
+func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config) {
 	lastProgress := float64(0)
 	fetchProgress := float64(0)
 	upscaleProgress := float64(0)

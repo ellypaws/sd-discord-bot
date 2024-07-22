@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/entities"
 	"strings"
 	"time"
 )
@@ -17,7 +16,7 @@ You can use markdown to format your text.
 
 const LLama3 = `lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF/Meta-Llama-3-8B-Instruct-Q8_0.gguf`
 
-func (q *queueImplementation) processLLM() {
+func (q *SDQueue) processLLM() {
 	defer q.done()
 	queue := q.currentImagine
 
@@ -52,7 +51,7 @@ func (q *queueImplementation) processLLM() {
 	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
 }
 
-func showProcessingLLM(queue *entities.QueueItem, q *queueImplementation) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
+func showProcessingLLM(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
 	request := queue.LLMRequest
 
 	content := fmt.Sprintf(
@@ -75,7 +74,7 @@ func showProcessingLLM(queue *entities.QueueItem, q *queueImplementation) (*disc
 	return embed, webhook, nil
 }
 
-func llmResponseEmbed(queue *entities.QueueItem, response *llm.Response, embed *discordgo.MessageEmbed) *discordgo.WebhookEdit {
+func llmResponseEmbed(queue *SDQueueItem, response *llm.Response, embed *discordgo.MessageEmbed) *discordgo.WebhookEdit {
 	timeSince := time.Since(queue.LLMCreated).Round(time.Second).String()
 	if queue.LLMCreated.IsZero() {
 		timeSince = "unknown"
@@ -110,7 +109,7 @@ func attachLLMResponse(response *llm.Response, webhook *discordgo.WebhookEdit) {
 	}
 }
 
-func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, queue *entities.QueueItem, interrupted bool) *discordgo.MessageEmbed {
+func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, queue *SDQueueItem, interrupted bool) *discordgo.MessageEmbed {
 	if queue == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T", queue)
 		return embed

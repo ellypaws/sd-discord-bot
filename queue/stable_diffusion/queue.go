@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"cmp"
@@ -9,15 +9,15 @@ import (
 	"github.com/sahilm/fuzzy"
 	"log"
 	"os"
-	"os/signal"
+	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	p "stable_diffusion_bot/gui/progress"
+	"stable_diffusion_bot/queue"
 	"stable_diffusion_bot/repositories"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
-	"stable_diffusion_bot/stable_diffusion_api"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,6 +25,50 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 )
+
+type SDQueueItem struct {
+	Type ItemType
+
+	*entities.ImageGenerationRequest
+
+	LLMRequest *llm.Request
+	LLMCreated time.Time
+
+	AspectRatio        string
+	InteractionIndex   int
+	DiscordInteraction *discordgo.Interaction
+
+	ADetailerString string // use AppendSegModelByString
+	Attachments     map[string]*entities.MessageAttachment
+
+	Img2ImgItem
+	ControlnetItem
+
+	Raw *entities.TextToImageRaw // raw JSON input
+
+	Interrupt chan *discordgo.Interaction
+}
+
+func (q *SDQueueItem) Interaction() *discordgo.Interaction {
+	return q.DiscordInteraction
+}
+
+type Img2ImgItem struct {
+	*entities.MessageAttachment
+	DenoisingStrength float64
+}
+
+type ControlnetItem struct {
+	*entities.MessageAttachment
+	ControlMode  entities.ControlMode
+	ResizeMode   entities.ResizeMode
+	Type         string
+	Preprocessor string // also called the module in entities.ControlNetParameters
+	Model        string
+	Enabled      bool
+}
+
+type ItemType int
 
 const (
 	botID = "bot"
@@ -37,11 +81,11 @@ const (
 
 var errorResponse = handlers.Errors[handlers.ErrorResponse]
 
-type queueImplementation struct {
+type SDQueue struct {
 	botSession          *discordgo.Session
 	stableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
-	queue               chan *entities.QueueItem
-	currentImagine      *entities.QueueItem
+	queue               chan *SDQueueItem
+	currentImagine      *SDQueueItem
 	mu                  sync.Mutex
 	imageGenerationRepo image_generations.Repository
 	compositeRenderer   composite_renderer.Renderer
@@ -50,6 +94,8 @@ type queueImplementation struct {
 	cancelledItems      map[string]bool
 
 	llmConfig *llm.Config
+
+	stop chan os.Signal
 }
 
 type Config struct {
@@ -58,7 +104,7 @@ type Config struct {
 	DefaultSettingsRepo default_settings.Repository
 }
 
-func New(cfg Config) (Queue, error) {
+func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
 	if cfg.StableDiffusionAPI == nil {
 		return nil, errors.New("missing stable diffusion API")
 	}
@@ -71,10 +117,10 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing default settings repository")
 	}
 
-	return &queueImplementation{
+	return &SDQueue{
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
 		imageGenerationRepo: cfg.ImageGenerationRepo,
-		queue:               make(chan *entities.QueueItem, 100),
+		queue:               make(chan *SDQueueItem, 100),
 		compositeRenderer:   composite_renderer.Compositor(),
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 		cancelledItems:      make(map[string]bool),
@@ -82,16 +128,17 @@ func New(cfg Config) (Queue, error) {
 }
 
 const (
-	ItemTypeImagine entities.ItemType = iota
+	ItemTypeImagine ItemType = iota
 	ItemTypeReroll
 	ItemTypeUpscale
 	ItemTypeVariation
 	ItemTypeImg2Img
-	ItemTypeRaw // raw JSON input
+	ItemTypeRaw // raw JSON
+
 	ItemTypeLLM
 )
 
-func (q *queueImplementation) DefaultQueueItem() *entities.QueueItem {
+func (q *SDQueue) DefaultQueueItem() *SDQueueItem {
 	defaultBatchCount, err := q.defaultBatchCount()
 	if err != nil {
 		log.Printf("Error getting default batch count: %v", err)
@@ -116,7 +163,7 @@ func (q *queueImplementation) DefaultQueueItem() *entities.QueueItem {
 		defaultHeight = 512
 	}
 
-	return &entities.QueueItem{
+	return &SDQueueItem{
 		Type: ItemTypeImagine,
 
 		ImageGenerationRequest: &entities.ImageGenerationRequest{
@@ -141,34 +188,35 @@ func (q *queueImplementation) DefaultQueueItem() *entities.QueueItem {
 			},
 		},
 
-		Img2ImgItem: entities.Img2ImgItem{
+		Img2ImgItem: Img2ImgItem{
 			DenoisingStrength: 0.7,
 		},
-		ControlnetItem: entities.ControlnetItem{
+		ControlnetItem: ControlnetItem{
 			ControlMode: entities.ControlModeBalanced,
 			ResizeMode:  entities.ResizeModeScaleToFit,
 		},
 	}
 }
 
-func (q *queueImplementation) NewQueueItem(options ...func(*entities.QueueItem)) *entities.QueueItem {
-	queue := q.DefaultQueueItem()
+func (q *SDQueue) NewItem(interaction *discordgo.Interaction, options ...func(*SDQueueItem)) *SDQueueItem {
+	item := q.DefaultQueueItem()
+	item.DiscordInteraction = interaction
 
 	for _, option := range options {
-		option(queue)
+		option(item)
 	}
 
-	return queue
+	return item
 }
 
-func WithPrompt(prompt string) func(*entities.QueueItem) {
-	return func(q *entities.QueueItem) {
+func WithPrompt(prompt string) func(*SDQueueItem) {
+	return func(q *SDQueueItem) {
 		q.Prompt = prompt
 	}
 }
 
-func WithCurrentModels(api stable_diffusion_api.StableDiffusionAPI) func(*entities.QueueItem) {
-	return func(q *entities.QueueItem) {
+func WithCurrentModels(api stable_diffusion_api.StableDiffusionAPI) func(*SDQueueItem) {
+	return func(q *SDQueueItem) {
 		config, err := api.GetConfig()
 		if err != nil {
 			log.Printf("Error getting config: %v", err)
@@ -180,7 +228,7 @@ func WithCurrentModels(api stable_diffusion_api.StableDiffusionAPI) func(*entiti
 	}
 }
 
-func (q *queueImplementation) AddImagine(queue *entities.QueueItem) (int, error) {
+func (q *SDQueue) Add(queue *SDQueueItem) (int, error) {
 	q.queue <- queue
 
 	linePosition := len(q.queue)
@@ -188,9 +236,13 @@ func (q *queueImplementation) AddImagine(queue *entities.QueueItem) (int, error)
 	return linePosition, nil
 }
 
-func (q *queueImplementation) StartPolling(botSession *discordgo.Session, llmConfig *llm.Config) {
+func (q *SDQueue) StartPollingWithLLM(botSession *discordgo.Session, config *llm.Config) {
+	q.llmConfig = config
+	q.Start(botSession)
+}
+
+func (q *SDQueue) Start(botSession *discordgo.Session) {
 	q.botSession = botSession
-	q.llmConfig = llmConfig
 
 	botDefaultSettings, err := q.initializeOrGetBotDefaults()
 	if err != nil {
@@ -201,17 +253,12 @@ func (q *queueImplementation) StartPolling(botSession *discordgo.Session, llmCon
 
 	q.botDefaultSettings = botDefaultSettings
 
-	log.Println("Press Ctrl+C to exit")
-
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-
 	var wait bool
 
 Polling:
 	for {
 		select {
-		case <-stop:
+		case <-q.stop:
 			break Polling
 		case <-time.After(1 * time.Second):
 			if q.currentImagine == nil {
@@ -224,10 +271,18 @@ Polling:
 		}
 	}
 
-	log.Printf("Polling stopped...\n")
+	log.Println("Polling stopped for Stable Diffusion")
 }
 
-func (q *queueImplementation) pullNextInQueue() {
+func (q *SDQueue) Stop() {
+	if q.stop == nil {
+		q.stop = make(chan os.Signal)
+	}
+	q.stop <- os.Interrupt
+	close(q.stop)
+}
+
+func (q *SDQueue) pullNextInQueue() {
 	for len(q.queue) > 0 {
 		// Peek at the next item without blocking
 		if q.currentImagine != nil {
@@ -270,14 +325,14 @@ func (q *queueImplementation) pullNextInQueue() {
 	}
 }
 
-func (q *queueImplementation) done() {
+func (q *SDQueue) done() {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	q.currentImagine = nil
 }
 
-func (q *queueImplementation) RemoveFromQueue(messageInteraction *discordgo.MessageInteraction) error {
+func (q *SDQueue) Remove(messageInteraction *discordgo.MessageInteraction) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
@@ -287,7 +342,7 @@ func (q *queueImplementation) RemoveFromQueue(messageInteraction *discordgo.Mess
 	return nil
 }
 
-func (q *queueImplementation) Interrupt(i *discordgo.Interaction) error {
+func (q *SDQueue) Interrupt(i *discordgo.Interaction) error {
 
 	if q.currentImagine == nil {
 		return errors.New("there is no generation currently in progress")
@@ -303,7 +358,7 @@ func (q *queueImplementation) Interrupt(i *discordgo.Interaction) error {
 	return nil
 }
 
-func (q *queueImplementation) fillInBotDefaults(settings *entities.DefaultSettings) (*entities.DefaultSettings, bool) {
+func (q *SDQueue) fillInBotDefaults(settings *entities.DefaultSettings) (*entities.DefaultSettings, bool) {
 	updated := false
 
 	if settings == nil {
@@ -335,7 +390,7 @@ func (q *queueImplementation) fillInBotDefaults(settings *entities.DefaultSettin
 	return settings, updated
 }
 
-func (q *queueImplementation) initializeOrGetBotDefaults() (*entities.DefaultSettings, error) {
+func (q *SDQueue) initializeOrGetBotDefaults() (*entities.DefaultSettings, error) {
 	botDefaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil && !errors.Is(err, &repositories.NotFoundError{}) {
 		return nil, err
@@ -356,7 +411,7 @@ func (q *queueImplementation) initializeOrGetBotDefaults() (*entities.DefaultSet
 	return botDefaultSettings, nil
 }
 
-func (q *queueImplementation) GetBotDefaultSettings() (*entities.DefaultSettings, error) {
+func (q *SDQueue) GetBotDefaultSettings() (*entities.DefaultSettings, error) {
 	if q.botDefaultSettings != nil {
 		return q.botDefaultSettings, nil
 	}
@@ -371,7 +426,7 @@ func (q *queueImplementation) GetBotDefaultSettings() (*entities.DefaultSettings
 	return defaultSettings, nil
 }
 
-func (q *queueImplementation) defaultWidth() (int, error) {
+func (q *SDQueue) defaultWidth() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -380,7 +435,7 @@ func (q *queueImplementation) defaultWidth() (int, error) {
 	return defaultSettings.Width, nil
 }
 
-func (q *queueImplementation) defaultHeight() (int, error) {
+func (q *SDQueue) defaultHeight() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -389,7 +444,7 @@ func (q *queueImplementation) defaultHeight() (int, error) {
 	return defaultSettings.Height, nil
 }
 
-func (q *queueImplementation) defaultBatchCount() (int, error) {
+func (q *SDQueue) defaultBatchCount() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -398,7 +453,7 @@ func (q *queueImplementation) defaultBatchCount() (int, error) {
 	return defaultSettings.BatchCount, nil
 }
 
-func (q *queueImplementation) defaultBatchSize() (int, error) {
+func (q *SDQueue) defaultBatchSize() (int, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return 0, err
@@ -407,7 +462,7 @@ func (q *queueImplementation) defaultBatchSize() (int, error) {
 	return defaultSettings.BatchSize, nil
 }
 
-func (q *queueImplementation) UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error) {
+func (q *SDQueue) UpdateDefaultDimensions(width, height int) (*entities.DefaultSettings, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return nil, err
@@ -428,7 +483,7 @@ func (q *queueImplementation) UpdateDefaultDimensions(width, height int) (*entit
 	return newDefaultSettings, nil
 }
 
-func (q *queueImplementation) UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error) {
+func (q *SDQueue) UpdateDefaultBatch(batchCount, batchSize int) (*entities.DefaultSettings, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return nil, err
@@ -450,7 +505,7 @@ func (q *queueImplementation) UpdateDefaultBatch(batchCount, batchSize int) (*en
 }
 
 // Deprecated: No longer store the SDModelName to DefaultSettings struct, use stable_diffusion_api.GetConfig instead
-func (q *queueImplementation) UpdateModelName(modelName string) (*entities.DefaultSettings, error) {
+func (q *SDQueue) UpdateModelName(modelName string) (*entities.DefaultSettings, error) {
 	defaultSettings, err := q.GetBotDefaultSettings()
 	if err != nil {
 		return nil, err
@@ -521,7 +576,7 @@ func betweenPtr[T cmp.Ordered](value, minimum, maximum T) *T {
 	return &out
 }
 
-func (q *queueImplementation) getPreviousGeneration(queue *entities.QueueItem) (*entities.ImageGenerationRequest, error) {
+func (q *SDQueue) getPreviousGeneration(queue *SDQueueItem) (*entities.ImageGenerationRequest, error) {
 	if queue.DiscordInteraction == nil {
 		return nil, errors.New("interaction is nil")
 	}
@@ -674,7 +729,7 @@ func scaleDimension(dimension int, scale float64) int {
 }
 
 // lookupModel searches through []stable_diffusion_api.Cacheable models to find the model to load
-func (q *queueImplementation) lookupModel(request *entities.ImageGenerationRequest, config *entities.Config, c []stable_diffusion_api.Cacheable) (POST entities.Config) {
+func (q *SDQueue) lookupModel(request *entities.ImageGenerationRequest, config *entities.Config, c []stable_diffusion_api.Cacheable) (POST entities.Config) {
 	for _, c := range c {
 		var toLoad *string
 		var loadedModel *string

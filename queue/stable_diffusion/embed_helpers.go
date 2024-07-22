@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"bytes"
@@ -7,14 +7,13 @@ import (
 	"log"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/entities"
 	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images []*bytes.Buffer, thumbnails []*bytes.Buffer) error {
+func ImageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images []*bytes.Buffer, thumbnails []*bytes.Buffer) error {
 	if webhook == nil {
 		return errors.New("imageEmbedFromBuffers called with nil webhook")
 	}
@@ -110,7 +109,7 @@ func imageEmbedFromBuffers(webhook *discordgo.WebhookEdit, embed *discordgo.Mess
 	return nil
 }
 
-func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *entities.QueueItem, interrupted bool) *discordgo.MessageEmbed {
+func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *SDQueueItem, interrupted bool) *discordgo.MessageEmbed {
 	if queue == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T", queue)
 		return embed

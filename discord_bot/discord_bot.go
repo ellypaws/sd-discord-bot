@@ -6,24 +6,24 @@ import (
 	"fmt"
 	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
+	"os"
+	"os/signal"
 	"sort"
+	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/imagine_queue"
-	"stable_diffusion_bot/stable_diffusion_api"
+	"stable_diffusion_bot/queue"
+	"stable_diffusion_bot/queue/novelai"
+	"stable_diffusion_bot/queue/stable_diffusion"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type botImpl struct {
-	developmentMode    bool
-	botSession         *discordgo.Session
-	guildID            string
-	imagineQueue       imagine_queue.Queue
+	developmentMode bool
+	botSession      *discordgo.Session
+
 	registeredCommands map[Command]*discordgo.ApplicationCommand
-	imagineCommand     *Command
-	removeCommands     bool
-	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 	config             *Config
 }
 
@@ -31,7 +31,8 @@ type Config struct {
 	DevelopmentMode    bool
 	BotToken           string
 	GuildID            string
-	ImagineQueue       imagine_queue.Queue
+	ImagineQueue       queue.Queue[*stable_diffusion.SDQueueItem]
+	NovelAIQueue       queue.Queue[*novelai.NAIQueueItem]
 	ImagineCommand     *Command
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
@@ -93,16 +94,16 @@ func New(cfg *Config) (Bot, error) {
 	bot := &botImpl{
 		developmentMode:    cfg.DevelopmentMode,
 		botSession:         botSession,
-		imagineQueue:       cfg.ImagineQueue,
 		registeredCommands: make(map[Command]*discordgo.ApplicationCommand),
-		imagineCommand:     cfg.ImagineCommand,
-		removeCommands:     cfg.RemoveCommands,
-		StableDiffusionApi: cfg.StableDiffusionApi,
 		config:             cfg,
 	}
 
 	//Read the imagineCommand from the config and remake the maps
 	bot.customImagineCommand()
+
+	if bot.config.NovelAIQueue == nil {
+		delete(commands, novelAICommand)
+	}
 
 	err = bot.registerCommands()
 	if err != nil {
@@ -221,7 +222,7 @@ func (b *botImpl) registerCommands() error {
 			command.Name = sanitized
 		}
 		//b.controlnetTypes()
-		cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, command)
+		cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.config.GuildID, command)
 		if err != nil {
 			return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
 		}
@@ -271,7 +272,25 @@ func (b *botImpl) rebuildMap(
 }
 
 func (b *botImpl) Start() {
-	b.imagineQueue.StartPolling(b.botSession, b.config.LLMConfig)
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+
+	if b.config.ImagineQueue != nil {
+		go b.config.ImagineQueue.Start(b.botSession)
+	}
+	if b.config.NovelAIQueue != nil {
+		go b.config.NovelAIQueue.Start(b.botSession)
+	}
+
+	log.Println("Press Ctrl+C to exit")
+
+	<-stop
+	if b.config.ImagineQueue != nil {
+		b.config.ImagineQueue.Stop()
+	}
+	if b.config.NovelAIQueue != nil {
+		b.config.NovelAIQueue.Stop()
+	}
 
 	err := b.teardown()
 	if err != nil {
@@ -281,13 +300,13 @@ func (b *botImpl) Start() {
 
 func (b *botImpl) teardown() error {
 	// Delete all commands added by the bot
-	if b.removeCommands {
+	if b.config.RemoveCommands {
 		log.Printf("Removing all commands added by bot...")
 
 		for key, v := range b.registeredCommands {
 			log.Printf("Removing command [key:%v], '%v'...", key, v.Name)
 
-			err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.guildID, v.ID)
+			err := b.botSession.ApplicationCommandDelete(b.botSession.State.User.ID, b.config.GuildID, v.ID)
 			if err != nil {
 				log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
 			}
@@ -300,7 +319,7 @@ func (b *botImpl) teardown() error {
 // Deprecated: If we want to dynamically update the controlnet types, we can do it here
 func (b *botImpl) controlnetTypes() {
 	if false {
-		controlnet, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
+		controlnet, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.config.StableDiffusionApi)
 		if err != nil {
 			log.Printf("Error getting controlnet types: %v", err)
 			panic(err)

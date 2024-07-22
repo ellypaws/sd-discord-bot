@@ -8,13 +8,14 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
 	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/queue/novelai"
+	"stable_diffusion_bot/queue/stable_diffusion"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
-	"stable_diffusion_bot/stable_diffusion_api"
 	"strings"
 )
 
@@ -27,7 +28,8 @@ var (
 	removeCommandsFlag = flag.Bool("remove", false, "Delete all commands when bot exits")
 	devModeFlag        = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
 
-	llmHost = flag.String("llm", "", "LLM model to use")
+	llmHost      = flag.String("llm", "", "LLM model to use")
+	novelAIToken = flag.String("novelai", "", "NovelAI API token")
 )
 
 func init() {
@@ -85,6 +87,13 @@ func init() {
 		llmHostEnv := os.Getenv("LLM_HOST")
 		if llmHostEnv != "" {
 			llmHost = &llmHostEnv
+		}
+	}
+
+	if novelAIToken == nil || *novelAIToken == "" {
+		novelAITokenEnv := os.Getenv("NOVELAI_TOKEN")
+		if novelAITokenEnv != "" {
+			novelAIToken = &novelAITokenEnv
 		}
 	}
 
@@ -163,7 +172,7 @@ func main() {
 		log.Fatalf("Failed to create default settings repository: %v", err)
 	}
 
-	imagineQueue, err := imagine_queue.New(imagine_queue.Config{
+	imagineQueue, err := stable_diffusion.New(stable_diffusion.Config{
 		StableDiffusionAPI:  stableDiffusionAPI,
 		ImageGenerationRepo: generationRepo,
 		DefaultSettingsRepo: defaultSettingsRepo,
@@ -193,6 +202,7 @@ func main() {
 		BotToken:           *botToken,
 		GuildID:            *guildID,
 		ImagineQueue:       imagineQueue,
+		NovelAIQueue:       novelai.New(novelAIToken),
 		ImagineCommand:     (*discord_bot.Command)(imagineCommand),
 		RemoveCommands:     removeCommands,
 		StableDiffusionApi: stableDiffusionAPI,

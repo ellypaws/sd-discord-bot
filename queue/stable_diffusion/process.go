@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"stable_diffusion_bot/utils"
 )
 
-func (q *queueImplementation) processCurrentImagine() {
+func (q *SDQueue) processCurrentImagine() {
 	defer q.done()
 	queue := q.currentImagine
 
@@ -44,7 +44,7 @@ func (q *queueImplementation) processCurrentImagine() {
 	}
 }
 
-func calculateDimensions(q *queueImplementation, queue *entities.QueueItem) (err error) {
+func calculateDimensions(q *SDQueue, queue *SDQueueItem) (err error) {
 	textToImage := queue.TextToImageRequest
 	if textToImage.Width == 0 {
 		textToImage.Width, err = q.defaultWidth()
@@ -76,7 +76,7 @@ func calculateDimensions(q *queueImplementation, queue *entities.QueueItem) (err
 }
 
 // fillBlankModels fills in the blank models with the current models from the config
-func fillBlankModels(q *queueImplementation, request *entities.ImageGenerationRequest) {
+func fillBlankModels(q *SDQueue, request *entities.ImageGenerationRequest) {
 	config, err := q.stableDiffusionAPI.GetConfig()
 	if err != nil {
 		log.Printf("Error getting config: %v", err)
@@ -94,7 +94,7 @@ func fillBlankModels(q *queueImplementation, request *entities.ImageGenerationRe
 }
 
 // initializeScripts sets up ADetailer and Controlnet scripts
-func initializeScripts(queue *entities.QueueItem) {
+func initializeScripts(queue *SDQueueItem) {
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
 	if queue.ADetailerString != "" {
@@ -119,7 +119,7 @@ func initializeScripts(queue *entities.QueueItem) {
 	}
 }
 
-func initializeControlnet(queue *entities.QueueItem) {
+func initializeControlnet(queue *SDQueueItem) {
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
 	log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", queue.ControlnetItem.Enabled)

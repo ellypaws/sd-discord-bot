@@ -4,21 +4,23 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"github.com/ellypaws/inkbunny-sd/llm"
 	"io"
 	"log"
 	"net/http"
 	"regexp"
-	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/imagine_queue"
-	"stable_diffusion_bot/stable_diffusion_api"
-	"stable_diffusion_bot/utils"
 	"strconv"
 	"strings"
 	"time"
 
+	"stable_diffusion_bot/api/stable_diffusion_api"
+	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/queue/novelai"
+	"stable_diffusion_bot/queue/stable_diffusion"
+	"stable_diffusion_bot/utils"
+
 	"github.com/bwmarrin/discordgo"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -29,6 +31,7 @@ var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *disc
 	imagineCommand:         (*botImpl).processImagineCommand,
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
 	llmCommand:             (*botImpl).processLLMCommand,
+	novelAICommand:         (*botImpl).processNovelAICommand,
 	refreshCommand:         (*botImpl).processRefreshCommand,
 	rawCommand:             (*botImpl).processRawCommand,
 }
@@ -111,20 +114,18 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 	var position int
 
-	var queue *entities.QueueItem
+	var queue *stable_diffusion.SDQueueItem
 
 	if option, ok := optionMap[promptOption]; !ok {
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
 		return
 	} else {
 		parameters, sanitized := extractKeyValuePairsFromPrompt(option.StringValue())
-		queue = b.imagineQueue.NewQueueItem(imagine_queue.WithPrompt(sanitized))
-
-		queue.Type = imagine_queue.ItemTypeImagine
-		queue.DiscordInteraction = i.Interaction
+		queue = b.config.ImagineQueue.NewItem(i.Interaction, stable_diffusion.WithPrompt(sanitized))
+		queue.Type = stable_diffusion.ItemTypeImagine
 
 		if _, ok := interfaceConvertAuto[string, string](&queue.NegativePrompt, negativeOption, optionMap, parameters); ok {
-			queue.NegativePrompt = strings.ReplaceAll(queue.NegativePrompt, "{DEFAULT}", imagine_queue.DefaultNegative)
+			queue.NegativePrompt = strings.ReplaceAll(queue.NegativePrompt, "{DEFAULT}", stable_diffusion.DefaultNegative)
 		}
 
 		interfaceConvertAuto[string, string](&queue.SamplerName, samplerOption, optionMap, parameters)
@@ -148,7 +149,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		interfaceConvertAuto[string, string](&queue.ADetailerString, adModelOption, optionMap, parameters)
 
-		if config, err := b.StableDiffusionApi.GetConfig(); err != nil {
+		if config, err := b.config.StableDiffusionApi.GetConfig(); err != nil {
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error retrieving config.", err)
 		} else {
 			queue.Checkpoint = config.SDModelCheckpoint
@@ -270,7 +271,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
 				return
 			} else {
-				queue.Type = imagine_queue.ItemTypeImg2Img
+				queue.Type = stable_diffusion.ItemTypeImg2Img
 
 				queue.Img2ImgItem.MessageAttachment = attachment
 
@@ -303,7 +304,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		if _, ok := interfaceConvertAuto[string, string](&queue.ControlnetItem.Type, controlnetType, optionMap, parameters); ok {
 			log.Printf("Controlnet type: %v", queue.ControlnetItem.Type)
-			cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
+			cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.config.StableDiffusionApi)
 			if err != nil {
 				log.Printf("Error retrieving controlnet types cache: %v", err)
 			} else {
@@ -340,7 +341,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		var err error
-		position, err = b.imagineQueue.AddImagine(queue)
+		position, err = b.config.ImagineQueue.Add(queue)
 		if err != nil {
 			log.Printf("Error adding imagine to queue: %v\n", err)
 			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
@@ -388,7 +389,7 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 
 	var systemPrompt = llm.Message{
 		Role:    llm.SystemRole,
-		Content: imagine_queue.DefaultLLMSystem,
+		Content: stable_diffusion.DefaultLLMSystem,
 	}
 	if s, ok := optionMap[systemPromptOption]; ok {
 		systemPrompt.Content = s.StringValue()
@@ -399,14 +400,14 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 		maxTokens = m.IntValue()
 	}
 
-	queue := &entities.QueueItem{
-		Type: imagine_queue.ItemTypeLLM,
+	queue := &stable_diffusion.SDQueueItem{
+		Type: stable_diffusion.ItemTypeLLM,
 		LLMRequest: &llm.Request{
 			Messages: []llm.Message{
 				systemPrompt,
 				llm.UserMessage(prompt.StringValue()),
 			},
-			Model:         imagine_queue.LLama3,
+			Model:         stable_diffusion.LLama3,
 			Temperature:   0.7,
 			MaxTokens:     maxTokens,
 			Stream:        false,
@@ -415,7 +416,7 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 		DiscordInteraction: i.Interaction,
 	}
 
-	position, err := b.imagineQueue.AddImagine(queue)
+	position, err := b.config.ImagineQueue.Add(queue)
 	if err != nil {
 		log.Printf("Error adding imagine to queue: %v\n", err)
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
@@ -474,7 +475,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 
 				input = sanitizeTooltip(input)
 
-				cache, err := b.StableDiffusionApi.SDLorasCache()
+				cache, err := b.config.StableDiffusionApi.SDLorasCache()
 				if err != nil {
 					log.Printf("Error retrieving loras cache: %v", err)
 				}
@@ -591,7 +592,7 @@ func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 		}
 		log.Printf("Autocompleting '%v'", input)
 
-		cache, err := c.GetCache(b.StableDiffusionApi)
+		cache, err := c.GetCache(b.config.StableDiffusionApi)
 		if err != nil {
 			log.Printf("Error retrieving %v cache: %v", opt.Name, err)
 		}
@@ -639,7 +640,7 @@ func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 	// check the Type first
 	optionMap := getOpts(i.ApplicationCommandData())
 
-	cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.StableDiffusionApi)
+	cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.config.StableDiffusionApi)
 	if err != nil {
 		log.Printf("Error retrieving %v cache: %v", opt.Name, err)
 		return
@@ -727,7 +728,7 @@ func sanitizeTooltip(input string) string {
 
 func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
-	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
+	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).GetBotDefaultSettings()
 	if err != nil {
 		log.Printf("error getting default settings for settings command: %v", err)
 
@@ -751,6 +752,111 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 	//if err != nil {
 	//	log.Printf("Error responding to interaction: %v", err)
 	//}
+}
+
+func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+
+	optionMap := getOpts(i.ApplicationCommandData())
+	option, ok := optionMap[promptOption]
+	if !ok {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
+		return
+	}
+
+	item := b.config.NovelAIQueue.NewItem(i.Interaction, novelai.WithPrompt(option.StringValue()))
+	item.Type = novelai.ItemTypeImage
+
+	if option, ok := optionMap[negativeOption]; ok {
+		item.Request.Parameters.NegativePrompt = option.StringValue()
+	}
+
+	if option, ok = optionMap[novelaiSamplerOption]; ok {
+		item.Request.Parameters.Sampler = option.StringValue()
+	}
+
+	if option, ok = optionMap[seedOption]; ok {
+		item.Request.Parameters.Seed = option.IntValue()
+	}
+
+	if option, ok = optionMap[novelaiSizeOption]; ok {
+		preset := entities.GetDimensions(option.StringValue())
+		item.Request.Parameters.ResolutionPreset = &preset
+	}
+
+	if option, ok = optionMap[novelaiUCPresetOption]; ok {
+		value := option.IntValue()
+		item.Request.Parameters.UcPreset = &value
+	}
+
+	if option, ok = optionMap[novelaiQualityOption]; ok {
+		item.Request.Parameters.QualityToggle = option.BoolValue()
+	}
+
+	if option, ok = optionMap[cfgScaleOption]; ok {
+		item.Request.Parameters.Scale = option.FloatValue()
+	}
+
+	if option, ok = optionMap[novelaiScheduleOption]; ok {
+		item.Request.Parameters.NoiseSchedule = option.StringValue()
+	}
+
+	if i.ApplicationCommandData().Resolved != nil {
+		if attachments := i.ApplicationCommandData().Resolved.Attachments; attachments != nil {
+			if item.Attachments == nil {
+				item.Attachments = make(map[string]*entities.MessageAttachment, len(attachments))
+			}
+			for snowflake, attachment := range attachments {
+				item.Attachments[snowflake] = &entities.MessageAttachment{
+					MessageAttachment: *attachment,
+				}
+				log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
+				if !strings.HasPrefix(attachment.ContentType, "image") {
+					log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
+					delete(item.Attachments, snowflake)
+				}
+
+				image, err := utils.DownloadImageAsBase64(attachment.URL)
+				if err != nil {
+					log.Printf("Error getting image from URL: %v", err)
+					handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
+					return
+				}
+				item.Attachments[snowflake].Image = &image
+			}
+		}
+	}
+
+	position, err := b.config.NovelAIQueue.Add(item)
+	if err != nil {
+		log.Printf("Error adding imagine to queue: %v\n", err)
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+	}
+
+	var snowflake string
+
+	switch {
+	case i.Member != nil:
+		snowflake = i.Member.User.ID
+	case i.User != nil:
+		snowflake = i.User.ID
+	}
+
+	queueString := fmt.Sprintf(
+		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
+		position,
+		snowflake,
+		item.Request.Parameters.Prompt,
+	)
+
+	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+		queueString,
+		handlers.Components[handlers.Cancel],
+	)
+	if item.DiscordInteraction != nil && item.DiscordInteraction.Message == nil && message != nil {
+		log.Printf("Setting message ID for interaction %v", item.DiscordInteraction.ID)
+		item.DiscordInteraction.Message = message
+	}
 }
 
 func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
@@ -777,7 +883,7 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 	}
 
 	for _, cache := range toRefresh {
-		newCache, err := b.StableDiffusionApi.RefreshCache(cache)
+		newCache, err := b.config.StableDiffusionApi.RefreshCache(cache)
 		if err != nil || newCache == nil {
 			errors = append(errors, err)
 			content.WriteString(fmt.Sprintf("`%T` cache refresh failed.\n", cache))
@@ -944,7 +1050,7 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 }
 
 func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, params entities.RawParams) error {
-	queue := &entities.QueueItem{
+	queue := &stable_diffusion.SDQueueItem{
 		ImageGenerationRequest: &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
 				CreatedAt: time.Now(),
@@ -952,11 +1058,9 @@ func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, params entities.Ra
 		},
 	}
 	if params.UseDefault {
-		queue = b.imagineQueue.NewQueueItem()
+		queue = b.config.ImagineQueue.NewItem(i.Interaction)
 	}
-
-	queue.Type = imagine_queue.ItemTypeRaw
-	queue.DiscordInteraction = i.Interaction
+	queue.Type = stable_diffusion.ItemTypeRaw
 
 	queue.Raw = &entities.TextToImageRaw{TextToImageRequest: queue.ImageGenerationRequest.TextToImageRequest, RawParams: params}
 
@@ -968,7 +1072,7 @@ func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, params entities.Ra
 
 	queue.ImageGenerationRequest.TextToImageRequest = queue.Raw.TextToImageRequest
 
-	position, err := b.imagineQueue.AddImagine(queue)
+	position, err := b.config.ImagineQueue.Add(queue)
 	if err != nil {
 		return err
 	}

@@ -1,0 +1,58 @@
+package novelai
+
+import (
+	"github.com/bwmarrin/discordgo"
+	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/queue/stable_diffusion"
+	"time"
+)
+
+type ItemType int
+
+const (
+	ItemTypeImage ItemType = iota
+)
+
+type NAIQueueItem struct {
+	Type ItemType
+
+	Request      *entities.NovelAIRequest
+	Attachments  map[string]*entities.MessageAttachment
+	ImageToImage stable_diffusion.Img2ImgItem
+
+	Created            time.Time
+	InteractionIndex   int
+	DiscordInteraction *discordgo.Interaction
+	Interrupt          chan *discordgo.Interaction
+}
+
+func (q *NAIQueueItem) Interaction() *discordgo.Interaction {
+	return q.DiscordInteraction
+}
+
+func (q *NAIQueue) NewItem(interaction *discordgo.Interaction, options ...func(*NAIQueueItem)) *NAIQueueItem {
+	queue := q.DefaultQueueItem()
+	queue.DiscordInteraction = interaction
+
+	for _, option := range options {
+		option(queue)
+	}
+
+	return queue
+}
+
+func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
+	return &NAIQueueItem{
+		Type:         ItemTypeImage,
+		Request:      entities.DefaultNovelAIRequest(),
+		Attachments:  nil,
+		ImageToImage: stable_diffusion.Img2ImgItem{},
+		Interrupt:    nil,
+	}
+}
+
+func WithPrompt(prompt string) func(*NAIQueueItem) {
+	return func(queue *NAIQueueItem) {
+		queue.Request.Parameters.Prompt = prompt
+	}
+}

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log"
 	"slices"
+	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/imagine_queue"
-	"stable_diffusion_bot/stable_diffusion_api"
+	"stable_diffusion_bot/queue/stable_diffusion"
 	"strconv"
 	"strings"
 	"time"
@@ -211,7 +211,7 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 }
 
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	position, queueError := b.imagineQueue.AddImagine(&entities.QueueItem{
+	position, queueError := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
 		ImageGenerationRequest: &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
 				InteractionID: i.Interaction.ID,
@@ -221,7 +221,7 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 			},
 			TextToImageRequest: &entities.TextToImageRequest{},
 		},
-		Type:               imagine_queue.ItemTypeReroll,
+		Type:               stable_diffusion.ItemTypeReroll,
 		DiscordInteraction: i.Interaction,
 	})
 	if queueError != nil {
@@ -240,8 +240,8 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 }
 
 func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) {
-	position, queueError := b.imagineQueue.AddImagine(&entities.QueueItem{
-		Type:               imagine_queue.ItemTypeUpscale,
+	position, queueError := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
+		Type:               stable_diffusion.ItemTypeUpscale,
 		InteractionIndex:   upscaleIndex,
 		DiscordInteraction: i.Interaction,
 	})
@@ -261,7 +261,7 @@ func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.Inter
 }
 
 func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) {
-	position, queueError := b.imagineQueue.AddImagine(&entities.QueueItem{
+	position, queueError := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
 		ImageGenerationRequest: &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
 				InteractionID: i.Interaction.ID,
@@ -272,7 +272,7 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 			},
 			TextToImageRequest: &entities.TextToImageRequest{},
 		},
-		Type:               imagine_queue.ItemTypeVariation,
+		Type:               stable_diffusion.ItemTypeVariation,
 		InteractionIndex:   variationIndex,
 		DiscordInteraction: i.Interaction,
 	})
@@ -293,7 +293,7 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 
 // patch from upstream
 func (b *botImpl) settingsMessageComponents(settings *entities.DefaultSettings) []discordgo.MessageComponent {
-	config, err := b.StableDiffusionApi.GetConfig()
+	config, err := b.config.StableDiffusionApi.GetConfig()
 	if err != nil {
 		log.Printf("Error retrieving config: %v", err)
 	} else {
@@ -348,7 +348,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 	checkpointDropdown := handlers.Components[handler].(discordgo.ActionsRow)
 	var modelOptions []discordgo.SelectMenuOption
 
-	models, err := cache.GetCache(b.StableDiffusionApi)
+	models, err := cache.GetCache(b.config.StableDiffusionApi)
 	if err != nil {
 		fmt.Printf("Failed to retrieve list of models: %v\n", err)
 		return
@@ -454,7 +454,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 }
 
 func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
-	botSettings, err := b.imagineQueue.UpdateDefaultDimensions(width, height)
+	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).UpdateDefaultDimensions(width, height)
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
 
@@ -487,7 +487,7 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 }
 
 func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.InteractionCreate, batchCount, batchSize int) {
-	botSettings, err := b.imagineQueue.UpdateDefaultBatch(batchCount, batchSize)
+	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).UpdateDefaultBatch(batchCount, batchSize)
 	if err != nil {
 		log.Printf("error updating batch settings: %v", err)
 
@@ -544,7 +544,7 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 		i.Interaction.Message.Components,
 	)
 
-	err := b.StableDiffusionApi.UpdateConfiguration(config)
+	err := b.config.StableDiffusionApi.UpdateConfiguration(config)
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
 		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction,
@@ -553,7 +553,7 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 		return
 	}
 
-	botSettings, err := b.imagineQueue.GetBotDefaultSettings()
+	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).GetBotDefaultSettings()
 	if err != nil {
 		log.Printf("error retrieving bot settings: %v", err)
 		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Error retrieving bot settings...")
@@ -583,7 +583,7 @@ func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.Inte
 
 	log.Printf("Removing imagine from queue: %#v", i.Message.Interaction)
 
-	err := b.imagineQueue.RemoveFromQueue(i.Message.Interaction)
+	err := b.config.ImagineQueue.Remove(i.Message.Interaction)
 	if err != nil {
 		log.Printf("Error removing imagine from queue: %v", err)
 		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error removing imagine from queue")
@@ -619,7 +619,7 @@ func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate
 		return
 	}
 
-	err := b.imagineQueue.Interrupt(i.Interaction)
+	err := b.config.ImagineQueue.Interrupt(i.Interaction)
 	if err != nil {
 		log.Printf("Error interrupting generation: %v", err)
 		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, err)

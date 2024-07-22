@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"bytes"
@@ -7,14 +7,14 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/stable_diffusion_api"
 	"strings"
 	"time"
 )
 
-func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) error {
+func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
 	config, originalConfig, err := q.switchToModels(queue)
@@ -68,7 +68,7 @@ func (q *queueImplementation) processImagineGrid(queue *entities.QueueItem) erro
 	return nil
 }
 
-func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
+func showInitialMessage(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
 	request := queue.ImageGenerationRequest
 	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, 0, nil, nil)
 
@@ -90,7 +90,7 @@ func showInitialMessage(queue *entities.QueueItem, q *queueImplementation) (*dis
 	return embed, webhook, nil
 }
 
-func (q *queueImplementation) storeMessageInteraction(queue *entities.QueueItem, message *discordgo.Message) (err error) {
+func (q *SDQueue) storeMessageInteraction(queue *SDQueueItem, message *discordgo.Message) (err error) {
 	request := queue.ImageGenerationRequest
 
 	if queue.DiscordInteraction == nil {
@@ -115,7 +115,7 @@ func (q *queueImplementation) storeMessageInteraction(queue *entities.QueueItem,
 	return nil
 }
 
-func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, response *entities.TextToImageResponse, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
+func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextToImageResponse, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
 	request := queue.ImageGenerationRequest
 	totalImages := totalImageCount(request)
 
@@ -131,7 +131,7 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 		Components: rerollVariationComponents(min(len(imageBuffers), totalImages), queue.Type == ItemTypeImg2Img || (queue.Raw != nil && queue.Raw.Debug)),
 	}
 
-	if err := imageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
+	if err := ImageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
 		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
@@ -139,7 +139,7 @@ func (q *queueImplementation) showFinalMessage(queue *entities.QueueItem, respon
 	return nil
 }
 
-func (q *queueImplementation) recordSeeds(response *entities.TextToImageResponse, request *entities.ImageGenerationRequest, config *entities.Config) {
+func (q *SDQueue) recordSeeds(response *entities.TextToImageResponse, request *entities.ImageGenerationRequest, config *entities.Config) {
 	log.Printf("Seeds: %v Subseeds:%v", response.Seeds, response.Subseeds)
 	for idx := range *response.Seeds {
 		subGeneration := request
@@ -171,7 +171,7 @@ func totalImageCount(request *entities.ImageGenerationRequest) int {
 	return totalImages
 }
 
-func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *entities.QueueItem) (images, thumbnails []*bytes.Buffer) {
+func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *SDQueueItem) (images, thumbnails []*bytes.Buffer) {
 	images = make([]*bytes.Buffer, len(response.Images))
 
 	for idx, image := range response.Images {
@@ -209,7 +209,7 @@ func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *e
 	return images, thumbnails
 }
 
-func (q *queueImplementation) textInference(queue *entities.QueueItem) (response *entities.TextToImageResponse, err error) {
+func (q *SDQueue) textInference(queue *SDQueueItem) (response *entities.TextToImageResponse, err error) {
 	generation := queue.ImageGenerationRequest
 	switch queue.Type {
 	case ItemTypeRaw:
@@ -228,7 +228,7 @@ func (q *queueImplementation) textInference(queue *entities.QueueItem) (response
 	return response, err
 }
 
-func (q *queueImplementation) recordToRepository(request *entities.ImageGenerationRequest, err error) (*entities.ImageGenerationRequest, error) {
+func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest, err error) (*entities.ImageGenerationRequest, error) {
 	var ok bool
 	if request.Prompt, ok = strings.CutSuffix(request.Prompt, "{DEBUG}"); ok {
 		byteArr, _ := request.TextToImageRequest.Marshal()
@@ -244,7 +244,7 @@ func (q *queueImplementation) recordToRepository(request *entities.ImageGenerati
 	return request, nil
 }
 
-func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
+func (q *SDQueue) updateProgressBar(queue *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
 	request := queue.ImageGenerationRequest
 	for {
 		select {
@@ -307,7 +307,7 @@ func (q *queueImplementation) updateProgressBar(queue *entities.QueueItem, gener
 	}
 }
 
-func (q *queueImplementation) switchToModels(queue *entities.QueueItem) (config, originalConfig *entities.Config, err error) {
+func (q *SDQueue) switchToModels(queue *SDQueueItem) (config, originalConfig *entities.Config, err error) {
 	config, err = q.stableDiffusionAPI.GetConfig()
 	originalConfig = config
 	if err != nil {
@@ -322,7 +322,7 @@ func (q *queueImplementation) switchToModels(queue *entities.QueueItem) (config,
 	return config, originalConfig, nil
 }
 
-func (q *queueImplementation) revertModels(config *entities.Config, originalConfig *entities.Config) error {
+func (q *SDQueue) revertModels(config *entities.Config, originalConfig *entities.Config) error {
 	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
 		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
 		!ptrStringCompare(config.SDHypernetwork, originalConfig.SDHypernetwork) {
@@ -340,7 +340,7 @@ func (q *queueImplementation) revertModels(config *entities.Config, originalConf
 	return nil
 }
 
-func (q *queueImplementation) updateModels(c *entities.QueueItem, config *entities.Config) (*entities.Config, error) {
+func (q *SDQueue) updateModels(c *SDQueueItem, config *entities.Config) (*entities.Config, error) {
 	request := c.ImageGenerationRequest
 	if !ptrStringCompare(request.Checkpoint, config.SDModelCheckpoint) ||
 		!ptrStringCompare(request.VAE, config.SDVae) ||

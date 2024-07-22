@@ -1,4 +1,4 @@
-package imagine_queue
+package stable_diffusion
 
 import (
 	"errors"
@@ -11,12 +11,12 @@ import (
 
 // TODO: Implement separate processing for Img2Img, possibly use github.com/SpenserCai/sd-webui-go/intersvc
 // Deprecated: still using processCurrentImagine
-func (q *queueImplementation) processImg2ImgImagine() {
+func (q *SDQueue) processImg2ImgImagine() {
 	//defer q.done()
 	q.processCurrentImagine()
 }
 
-func (q *queueImplementation) imageToImage(generationDone chan bool, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
+func (q *SDQueue) imageToImage(generationDone chan bool, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
 	queue := q.currentImagine
 	img2img := t2iToImg2Img(queue.TextToImageRequest)
 
@@ -38,7 +38,7 @@ func (q *queueImplementation) imageToImage(generationDone chan bool, embed *disc
 	return nil
 }
 
-func calculateImg2ImgDimensions(queue *entities.QueueItem, img2img *entities.ImageToImageRequest) error {
+func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToImageRequest) error {
 	if len(queue.Attachments) == 0 {
 		return errors.New("no attached images found, skipping img2img generation")
 	}

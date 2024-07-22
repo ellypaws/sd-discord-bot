@@ -1,6 +1,6 @@
 module stable_diffusion_bot
 
-go 1.22.3
+go 1.22.5
 
 require (
 	github.com/bwmarrin/discordgo v0.28.1
@@ -23,6 +23,7 @@ require (
 	github.com/charmbracelet/x/term v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/ellypaws/novelai-metadata v0.0.0-20240722195757-4dec45f421c5 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
