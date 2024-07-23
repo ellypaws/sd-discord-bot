@@ -43,7 +43,7 @@ func Unzip(body io.ReadCloser) ([]entities.Image, error) {
 		images[i] = entities.Image{Image: &img}
 
 		bin := new(bytes.Buffer)
-		err = images[i].Encode(bin)
+		err = images[i].ImageBytes(bin)
 		if err != nil {
 			continue
 		}

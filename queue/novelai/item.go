@@ -7,10 +7,12 @@ import (
 	"time"
 )
 
-type ItemType int
+type ItemType string
 
 const (
-	ItemTypeImage ItemType = iota
+	ItemTypeImage        ItemType = "Text to Image"
+	ItemTypeVibeTransfer ItemType = "Vibe Transfer"
+	ItemTypeImg2Img      ItemType = "Image to Image"
 )
 
 type NAIQueueItem struct {

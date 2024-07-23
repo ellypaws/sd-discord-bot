@@ -6,10 +6,12 @@ import (
 	"encoding/base64"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"io"
 	"log"
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
 )
@@ -131,7 +133,7 @@ func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextTo
 		Components: rerollVariationComponents(min(len(imageBuffers), totalImages), queue.Type == ItemTypeImg2Img || (queue.Raw != nil && queue.Raw.Debug)),
 	}
 
-	if err := ImageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
+	if err := utils.EmbedImages(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
 		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
@@ -171,8 +173,8 @@ func totalImageCount(request *entities.ImageGenerationRequest) int {
 	return totalImages
 }
 
-func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *SDQueueItem) (images, thumbnails []*bytes.Buffer) {
-	images = make([]*bytes.Buffer, len(response.Images))
+func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *SDQueueItem) (images, thumbnails []io.Reader) {
+	images = make([]io.Reader, len(response.Images))
 
 	for idx, image := range response.Images {
 		decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)

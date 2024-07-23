@@ -1,9 +1,11 @@
 package composite_renderer
 
-import "bytes"
+import (
+	"io"
+)
 
 type Renderer interface {
-	TileImages(imageBufs []*bytes.Buffer) (*bytes.Buffer, error)
+	TileImages(imageBufs []io.Reader) (io.Reader, error)
 }
 
 // New returns a new Renderer. Set yonsai to true if you have 4 images to render, false if you have n images to render.

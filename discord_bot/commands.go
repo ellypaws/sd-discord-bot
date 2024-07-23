@@ -62,6 +62,11 @@ const (
 	novelaiQualityOption  CommandOption = "quality"
 	novelaiScheduleOption CommandOption = "schedule"
 
+	novelaiVibeTransfer CommandOption = "vibe_transfer"
+	novelaiInformation  CommandOption = "information_extracted"
+	novelaiReference    CommandOption = "reference_strength"
+	novelaiImg2ImgStr   CommandOption = "img2img_strength"
+
 	img2imgOption   CommandOption = "img2img"
 	denoisingOption CommandOption = "denoising"
 
@@ -132,6 +137,11 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[cfgScaleOption],
 			//commandOptions[cfgRescaleOption],
 			commandOptions[novelaiScheduleOption],
+			commandOptions[novelaiVibeTransfer],
+			commandOptions[novelaiInformation],
+			commandOptions[novelaiReference],
+			commandOptions[img2imgOption],
+			commandOptions[novelaiImg2ImgStr],
 		},
 	},
 	refreshCommand: {
@@ -771,6 +781,31 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 				Value: entities.SchedulePolyexponential,
 			},
 		},
+	},
+
+	novelaiVibeTransfer: {
+		Type:        discordgo.ApplicationCommandOptionAttachment,
+		Name:        string(novelaiVibeTransfer),
+		Description: "Attach an image to use as input for vibe transfer",
+		Required:    false,
+	},
+	novelaiInformation: {
+		Type:        discordgo.ApplicationCommandOptionNumber,
+		Name:        string(novelaiInformation),
+		Description: "The amount of information to extract from the image. Default is 1.0",
+		Required:    false,
+	},
+	novelaiReference: {
+		Type:        discordgo.ApplicationCommandOptionNumber,
+		Name:        string(novelaiReference),
+		Description: "The strength of the reference. Default is 0.6",
+		Required:    false,
+	},
+	novelaiImg2ImgStr: {
+		Type:        discordgo.ApplicationCommandOptionNumber,
+		Name:        string(novelaiImg2ImgStr),
+		Description: "The strength of the img2img. Default is 0.7",
+		Required:    false,
 	},
 }
 

@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/ellypaws/novelai-metadata/pkg/meta"
-	"image/png"
+	"io"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/queue/stable_diffusion"
+	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
 )
@@ -55,13 +55,15 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 	}
 
 	switch item.Type {
-	case ItemTypeImage:
+	case ItemTypeImage, ItemTypeVibeTransfer:
 		images, err := q.client.Inference(request)
 		if err != nil {
 			return fmt.Errorf("error generating image: %w", err)
 		}
 
 		err = q.showFinalMessage(item, images, embed, webhook)
+	default:
+		return fmt.Errorf("unknown item type: %s", item.Type)
 	}
 
 	return nil
@@ -105,7 +107,7 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.DeleteGeneration]},
 	}
 
-	if err := stable_diffusion.ImageEmbedFromBuffers(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
+	if err := utils.EmbedImages(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers); err != nil {
 		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
@@ -127,8 +129,8 @@ func getMetadata(response *entities.NovelAIResponse) *meta.Metadata {
 	return nil
 }
 
-func retrieveImagesFromResponse(response *entities.NovelAIResponse, queue *NAIQueueItem) (images []*bytes.Buffer, thumbnails []*bytes.Buffer) {
-	images = make([]*bytes.Buffer, len(response.Images))
+func retrieveImagesFromResponse(response *entities.NovelAIResponse, item *NAIQueueItem) (images []io.Reader, thumbnails []io.Reader) {
+	images = make([]io.Reader, len(response.Images))
 
 	for i, image := range response.Images {
 		if image.Image == nil {
@@ -136,26 +138,33 @@ func retrieveImagesFromResponse(response *entities.NovelAIResponse, queue *NAIQu
 			continue
 		}
 
-		var buf bytes.Buffer
-		err := png.Encode(&buf, *image.Image)
+		reader, err := image.Reader()
 		if err != nil {
 			log.Printf("error encoding image: %s\n", err)
 			continue
 		}
 
-		images[i] = &buf
+		images[i] = reader
 	}
 
-	if queue.ImageToImage.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(*queue.ImageToImage.MessageAttachment.Image)
+	if item.Request.Parameters.VibeTransferImage != nil {
+		reader, err := item.Request.Parameters.VibeTransferImage.Reader()
+		if err != nil {
+			log.Printf("Error decoding image: %v\n", err)
+		}
+		thumbnails = append(thumbnails, reader)
+	}
+
+	if item.ImageToImage.MessageAttachment != nil {
+		decodedBytes, err := base64.StdEncoding.DecodeString(*item.ImageToImage.MessageAttachment.Image)
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
 		thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
 	}
 
-	if len(images) > int(queue.Request.Parameters.ImageCount) {
-		thumbnails = append(thumbnails, images[queue.Request.Parameters.ImageCount])
+	if len(images) > int(item.Request.Parameters.ImageCount) {
+		thumbnails = append(thumbnails, images[item.Request.Parameters.ImageCount])
 	}
 
 	return images, thumbnails
@@ -175,12 +184,8 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		log.Printf("WARNING: generationEmbedDetails called with nil %T, creating...", embed)
 		embed = new(discordgo.MessageEmbed)
 	}
-	switch item.Type {
-	case ItemTypeImage:
-		embed.Title = "Text to Image"
-	default:
-		embed.Title = "Generation"
-	}
+
+	embed.Title = string(item.Type)
 	if interrupted {
 		embed.Title += " (Interrupted)"
 	}
@@ -215,6 +220,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		if metadata.GenerationTime != nil {
 			generationTime = fmt.Sprintf("`%ss`", (*metadata.GenerationTime)[:min(4, len(*metadata.GenerationTime))])
 		}
+
 		prompt := "unknown"
 		if metadata.Description != "" {
 			prompt = metadata.Description
@@ -222,10 +228,22 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		if metadata.Comment != nil && metadata.Comment.Prompt != "" {
 			prompt = metadata.Comment.Prompt
 		}
+
+		model := metadata.Source
+		switch request.Model {
+		case "":
+			break
+		case entities.ModelV3:
+			model = "NAI Diffusion Anime V3"
+		case entities.ModelFurryV3:
+			model = "NAI Diffusion Furry V3"
+		default:
+			model = request.Model
+		}
 		embed.Fields = []*discordgo.MessageEmbedField{
 			{
 				Name:   "Model",
-				Value:  fmt.Sprintf("`%s`", metadata.Source),
+				Value:  fmt.Sprintf("`%s`", model),
 				Inline: false,
 			},
 			{
@@ -250,6 +268,11 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		}
 	} else {
 		embed.Fields = []*discordgo.MessageEmbedField{
+			{
+				Name:   "Model",
+				Value:  fmt.Sprintf("`%s`", request.Model),
+				Inline: false,
+			},
 			{
 				Name:  "Prompt",
 				Value: fmt.Sprintf("```\n%s\n```", request.Parameters.Prompt),

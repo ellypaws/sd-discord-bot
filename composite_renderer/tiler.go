@@ -6,12 +6,13 @@ import (
 	"image"
 	"image/draw"
 	"image/png"
+	"io"
 	"math"
 )
 
 type tilerImpl struct{}
 
-func (r *tilerImpl) TileImages(imageBufs []*bytes.Buffer) (*bytes.Buffer, error) {
+func (r *tilerImpl) TileImages(imageBufs []io.Reader) (io.Reader, error) {
 	numImages := len(imageBufs)
 	if numImages == 0 {
 		return nil, errors.New("no images provided")

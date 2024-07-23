@@ -25,13 +25,13 @@ func (q *NAIQueue) next() {
 				return
 			}
 			switch q.current.Type {
-			case ItemTypeImage:
+			case ItemTypeImage, ItemTypeVibeTransfer:
 				interaction, err := q.processCurrentItem()
 				if err != nil {
 					handlers.Errors[handlers.ErrorResponse](q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
 				}
 			default:
-				handlers.Errors[handlers.ErrorResponse](q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.current.Type))
+				handlers.Errors[handlers.ErrorResponse](q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
 				q.done()
 			}
 		}

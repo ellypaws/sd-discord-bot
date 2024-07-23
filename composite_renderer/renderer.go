@@ -6,13 +6,14 @@ import (
 	"image"
 	"image/draw"
 	"image/png"
+	"io"
 )
 
 // Deprecated: Use tilerImpl instead.
 type rendererImpl struct{}
 
 // Deprecated: Use TileImages instead.
-func (r *rendererImpl) TileImages(imageBufs []*bytes.Buffer) (*bytes.Buffer, error) {
+func (r *rendererImpl) TileImages(imageBufs []io.Reader) (io.Reader, error) {
 	if len(imageBufs) != 4 {
 		return nil, errors.New("invalid number of images")
 	}

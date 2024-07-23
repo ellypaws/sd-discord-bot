@@ -791,6 +791,25 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 	}
 	item.Attachments = attachments
 
+	if option, ok := optionMap[novelaiVibeTransfer]; ok {
+		attachment, ok := item.Attachments[option.Value.(string)]
+		if !ok {
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
+			return
+		}
+
+		item.Type = novelai.ItemTypeVibeTransfer
+		item.Request.Parameters.VibeTransferImage = &entities.Image{Base64: attachment.Image}
+
+		if option, ok := optionMap[novelaiInformation]; ok {
+			item.Request.Parameters.ReferenceInformationExtracted = option.FloatValue()
+		}
+
+		if option, ok := optionMap[novelaiReference]; ok {
+			item.Request.Parameters.ReferenceStrength = option.FloatValue()
+		}
+	}
+
 	position, err := b.config.NovelAIQueue.Add(item)
 	if err != nil {
 		log.Printf("Error adding imagine to queue: %v\n", err)

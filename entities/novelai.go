@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ellypaws/novelai-metadata/pkg/meta"
 	"image"
@@ -59,7 +60,7 @@ type Parameters struct {
 	ExtraNoiseSeed int64    `json:"extra_noise_seed,omitempty"`
 	NoiseSchedule  schedule `json:"noise_schedule,omitempty"`
 
-	Image               Image   `json:"image,omitempty"` // used by Img2Img
+	Img2Img             *Image  `json:"image,omitempty"` // used by Img2Img
 	Noise               float64 `json:"noise,omitempty"`
 	Strength            float64 `json:"strength,omitempty"`
 	ControlnetCondition string  `json:"controlnet_condition,omitempty"`
@@ -70,9 +71,9 @@ type Parameters struct {
 	AddOriginalImage bool   `json:"add_original_image,omitempty"`
 	Mask             string `json:"mask,omitempty"`
 
-	// ReferenceImage is used for Vibe Transfer
-	ReferenceImage                        Image     `json:"reference_image,omitempty"`
-	ReferenceImageMultiple                []Image   `json:"reference_image_multiple,omitempty"`
+	// VibeTransferImage is used for Vibe Transfer
+	VibeTransferImage                     *Image    `json:"reference_image,omitempty"`
+	ReferenceImageMultiple                []*Image  `json:"reference_image_multiple,omitempty"`
 	ReferenceInformationExtracted         float64   `json:"reference_information_extracted,omitempty"`
 	ReferenceInformationExtractedMultiple []float64 `json:"reference_information_extracted_multiple,omitempty"`
 	ReferenceStrength                     float64   `json:"reference_strength,omitempty"`
@@ -88,6 +89,7 @@ type NovelAIResponse struct {
 }
 
 type Image struct {
+	Base64   *string
 	Image    *image.Image
 	Metadata *meta.Metadata
 }
@@ -162,6 +164,10 @@ func DefaultNovelAIRequest() *NovelAIRequest {
 			Sampler:          SamplerDefault,
 			NoiseSchedule:    ScheduleDefault,
 			Seed:             rand.Int63n(4294967295 - 7),
+
+			ReferenceInformationExtracted: 1.0,
+			ReferenceStrength:             0.6,
+			Strength:                      0.7,
 		},
 	}
 }
@@ -195,6 +201,25 @@ func (r *NovelAIRequest) Init() {
 		case 2:
 			r.Parameters.NegativePrompt += HumanFocusNegative
 		}
+	}
+
+	if r.Parameters.VibeTransferImage != nil {
+		ifUnset(&r.Parameters.ReferenceInformationExtracted, 1.0)
+		ifUnset(&r.Parameters.ReferenceStrength, 0.6)
+	}
+
+	if r.Parameters.Img2Img != nil {
+		ifUnset(&r.Parameters.Strength, 0.7)
+	}
+}
+
+func ifUnset[T interface{ ~float64 | int }](a *T, b T) {
+	if a == nil {
+		return
+	}
+
+	if *a == 0 {
+		*a = b
 	}
 }
 
@@ -239,6 +264,9 @@ const (
 )
 
 func (b *Image) UnmarshalJSON(data []byte) error {
+	d := string(bytes.Trim(data, `"`))
+	b.Base64 = &d
+
 	reader := base64.NewDecoder(base64.StdEncoding, bytes.NewReader(data))
 	img, _, err := image.Decode(reader)
 	if err != nil {
@@ -249,29 +277,45 @@ func (b *Image) UnmarshalJSON(data []byte) error {
 }
 
 func (b *Image) MarshalJSON() ([]byte, error) {
-	if b == nil {
-		return nil, nil
+	if b.Base64 != nil {
+		return json.Marshal(b.Base64)
 	}
 	if b.Image == nil {
 		return []byte(`null`), nil
 	}
+
 	buf := new(bytes.Buffer)
-	err := png.Encode(buf, *b.Image)
+	b64Writer := base64.NewEncoder(base64.StdEncoding, buf)
+	err := png.Encode(b64Writer, *b.Image)
 	if err != nil {
 		return nil, err
 	}
 
-	out := new(bytes.Buffer)
-	_, err = base64.NewEncoder(base64.StdEncoding, out).Write(buf.Bytes())
-	if err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
+	return json.Marshal(buf.String())
 }
 
-func (b *Image) Encode(w io.Writer) error {
+func (b *Image) ImageBytes(w io.Writer) error {
+	if b.Image == nil {
+		return errors.New("no image data")
+	}
 	return png.Encode(w, *b.Image)
+}
+
+func (b *Image) Reader() (io.Reader, error) {
+	if b.Base64 != nil {
+		return base64.NewDecoder(base64.StdEncoding, bytes.NewReader([]byte(*b.Base64))), nil
+	}
+
+	if b.Image != nil {
+		buf := new(bytes.Buffer)
+		err := b.ImageBytes(buf)
+		if err != nil {
+			return nil, err
+		}
+		return buf, nil
+	}
+
+	return nil, errors.New("no image data")
 }
 
 const (
