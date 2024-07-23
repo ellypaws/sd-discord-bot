@@ -63,7 +63,10 @@ func (c *Client) POST(bin []byte) ([]entities.Image, error) {
 	if response.StatusCode != http.StatusOK {
 		errorString := "(unknown error)"
 
-		body, _ := io.ReadAll(response.Body)
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("could not read error body: %w", err)
+		}
 		if len(body) > 0 {
 			errorString = fmt.Sprintf("\n```json\n%v\n```", string(body))
 		}

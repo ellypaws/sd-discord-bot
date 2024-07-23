@@ -3,6 +3,7 @@ package novelai
 import (
 	"archive/zip"
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"github.com/ellypaws/novelai-metadata/pkg/meta"
 	"image"
@@ -63,4 +64,21 @@ func Unzip(body io.ReadCloser) ([]entities.Image, error) {
 		images[i].Metadata = data
 	}
 	return images, nil
+}
+
+func GZIP(data []byte) (*bytes.Buffer, error) {
+	compressed := new(bytes.Buffer)
+	zipper := gzip.NewWriter(compressed)
+
+	_, err := zipper.Write(data)
+	if err != nil {
+		return nil, err
+	}
+
+	err = zipper.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return compressed, nil
 }
