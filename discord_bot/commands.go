@@ -604,10 +604,6 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 				Value: entities.ModelFurryV3,
 			},
 			{
-				Name:  "NAI Diffusion Anime V3 (Inpainting)",
-				Value: entities.ModelV3Inp,
-			},
-			{
 				Name:  "(Old) NAI Diffusion Anime V2",
 				Value: entities.ModelV2,
 			},

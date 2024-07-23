@@ -219,14 +219,15 @@ func (r *NovelAIRequest) GetMaxNSamples() uint8 {
 type models = string
 
 const (
-	ModelDefault   models = "nai-diffusion-3"
-	ModelV3        models = "nai-diffusion-3"
-	ModelV3Inp     models = "nai-diffusion-3-inpainting"
-	ModelFurryV3   models = "nai-diffusion-furry-3"
-	ModelFurryV1   models = "nai-diffusion-furry"
-	ModelV1        models = "nai-diffusion"
-	ModelV1Curated models = "safe-diffusion"
-	ModelV2        models = "nai-diffusion-2"
+	ModelDefault    models = "nai-diffusion-3"
+	ModelV3         models = "nai-diffusion-3"
+	ModelV3Inp      models = "nai-diffusion-3-inpainting"
+	ModelFurryV3    models = "nai-diffusion-furry-3"
+	MovelFurryV3Inp models = "nai-diffusion-furry-3-inpainting"
+	ModelFurryV1    models = "nai-diffusion-furry"
+	ModelV1         models = "nai-diffusion"
+	ModelV1Curated  models = "safe-diffusion"
+	ModelV2         models = "nai-diffusion-2"
 )
 
 type actions = string
