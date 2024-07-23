@@ -1,7 +1,6 @@
 package novelai
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -31,7 +30,7 @@ func (c *Client) Inference(request *entities.NovelAIRequest) (*entities.NovelAIR
 		return nil, errors.New("request is nil")
 	}
 
-	bin, err := request.Marshal()
+	bin, err := request.Reader()
 	if err != nil {
 		return nil, err
 	}
@@ -44,8 +43,8 @@ func (c *Client) Inference(request *entities.NovelAIRequest) (*entities.NovelAIR
 	return &entities.NovelAIResponse{Images: response}, nil
 }
 
-func (c *Client) POST(bin []byte) ([]entities.Image, error) {
-	request, err := http.NewRequest(http.MethodPost, c.host.String(), bytes.NewReader(bin))
+func (c *Client) POST(bin io.Reader) ([]entities.Image, error) {
+	request, err := http.NewRequest(http.MethodPost, c.host.String(), bin)
 	if err != nil {
 		return nil, err
 	}

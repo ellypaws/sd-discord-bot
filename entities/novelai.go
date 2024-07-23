@@ -109,7 +109,7 @@ func UnmarshalNovelAIRequest(data []byte) (NovelAIRequest, error) {
 	return r, err
 }
 
-func (r *NovelAIRequest) Marshal() ([]byte, error) {
+func (r *NovelAIRequest) Reader() (io.Reader, error) {
 	r.Init()
 
 	maxSamples := r.GetMaxNSamples()
@@ -145,7 +145,9 @@ func (r *NovelAIRequest) Marshal() ([]byte, error) {
 		return nil, fmt.Errorf("extraNoiseSeed out of range (0-4294967295-7): %d", r.Parameters.ExtraNoiseSeed)
 	}
 
-	return json.Marshal(r)
+	var buf bytes.Buffer
+	err := json.NewEncoder(&buf).Encode(r)
+	return &buf, err
 }
 
 func DefaultNovelAIRequest() *NovelAIRequest {
