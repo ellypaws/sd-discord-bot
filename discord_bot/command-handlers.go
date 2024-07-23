@@ -113,7 +113,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	optionMap := getOpts(i.ApplicationCommandData())
 
 	var position int
-
 	var queue *stable_diffusion.SDQueueItem
 
 	if option, ok := optionMap[promptOption]; !ok {
@@ -240,31 +239,12 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
-		if i.ApplicationCommandData().Resolved != nil {
-			if attachments := i.ApplicationCommandData().Resolved.Attachments; attachments != nil {
-				if queue.Attachments == nil {
-					queue.Attachments = make(map[string]*entities.MessageAttachment, len(attachments))
-				}
-				for snowflake, attachment := range attachments {
-					queue.Attachments[snowflake] = &entities.MessageAttachment{
-						MessageAttachment: *attachment,
-					}
-					log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
-					if !strings.HasPrefix(attachment.ContentType, "image") {
-						log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
-						delete(queue.Attachments, snowflake)
-					}
-
-					image, err := utils.DownloadImageAsBase64(attachment.URL)
-					if err != nil {
-						log.Printf("Error getting image from URL: %v", err)
-						handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
-						return
-					}
-					queue.Attachments[snowflake].Image = &image
-				}
-			}
+		attachments, err := getAttachments(i)
+		if err != nil {
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting attachments.", err)
+			return
 		}
+		queue.Attachments = attachments
 
 		if option, ok := optionMap[img2imgOption]; ok {
 			if attachment, ok := queue.Attachments[option.Value.(string)]; !ok {
@@ -340,7 +320,6 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			}
 		}
 
-		var err error
 		position, err = b.config.ImagineQueue.Add(queue)
 		if err != nil {
 			log.Printf("Error adding imagine to queue: %v\n", err)
@@ -805,31 +784,12 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		item.Request.Parameters.NoiseSchedule = option.StringValue()
 	}
 
-	if i.ApplicationCommandData().Resolved != nil {
-		if attachments := i.ApplicationCommandData().Resolved.Attachments; attachments != nil {
-			if item.Attachments == nil {
-				item.Attachments = make(map[string]*entities.MessageAttachment, len(attachments))
-			}
-			for snowflake, attachment := range attachments {
-				item.Attachments[snowflake] = &entities.MessageAttachment{
-					MessageAttachment: *attachment,
-				}
-				log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
-				if !strings.HasPrefix(attachment.ContentType, "image") {
-					log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
-					delete(item.Attachments, snowflake)
-				}
-
-				image, err := utils.DownloadImageAsBase64(attachment.URL)
-				if err != nil {
-					log.Printf("Error getting image from URL: %v", err)
-					handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting image from URL.", err)
-					return
-				}
-				item.Attachments[snowflake].Image = &image
-			}
-		}
+	attachments, err := getAttachments(i)
+	if err != nil {
+		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting attachments.", err)
+		return
 	}
+	item.Attachments = attachments
 
 	position, err := b.config.NovelAIQueue.Add(item)
 	if err != nil {
@@ -861,6 +821,37 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		log.Printf("Setting message ID for interaction %v", item.DiscordInteraction.ID)
 		item.DiscordInteraction.Message = message
 	}
+}
+
+func getAttachments(i *discordgo.InteractionCreate) (map[string]*entities.MessageAttachment, error) {
+	if i.ApplicationCommandData().Resolved == nil {
+		return nil, nil
+	}
+
+	resolved := i.ApplicationCommandData().Resolved.Attachments
+	if resolved == nil {
+		return nil, nil
+	}
+
+	attachments := make(map[string]*entities.MessageAttachment, len(resolved))
+	for snowflake, attachment := range resolved {
+		attachments[snowflake] = &entities.MessageAttachment{
+			MessageAttachment: *attachment,
+		}
+		log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
+		if !strings.HasPrefix(attachment.ContentType, "image") {
+			log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
+			delete(attachments, snowflake)
+		}
+
+		image, err := utils.DownloadImageAsBase64(attachment.URL)
+		if err != nil {
+			return nil, fmt.Errorf("error getting image from URL: %v", err)
+		}
+		attachments[snowflake].Image = &image
+	}
+
+	return attachments, nil
 }
 
 func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
