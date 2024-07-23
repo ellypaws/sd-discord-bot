@@ -12,7 +12,7 @@ import (
 // EmbedImages modifies the provided webhook to include the provided embed and images.
 // If there are more than four images, they will be tiled into a single image.
 // images and thumbnails are expected to be in bytes and not base64 encoded.
-func EmbedImages(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images, thumbnails []io.Reader) error {
+func EmbedImages(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, images, thumbnails []io.Reader, compositor composite_renderer.Renderer) error {
 	if webhook == nil {
 		return errors.New("imageEmbedFromBuffers called with nil webhook")
 	}
@@ -63,7 +63,10 @@ func EmbedImages(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, 
 	// Process primary images
 	if len(images) > 4 {
 		// Tile images if more than four
-		primaryTile, err := composite_renderer.Compositor().TileImages(images)
+		if compositor == nil {
+			return errors.New("compositor is required for tiling more than four images")
+		}
+		primaryTile, err := compositor.TileImages(images)
 		if err != nil {
 			return fmt.Errorf("error tiling primary images: %w", err)
 		}

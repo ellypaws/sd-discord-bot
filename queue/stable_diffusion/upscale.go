@@ -140,7 +140,7 @@ func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion
 		},
 	}
 
-	if err := utils.EmbedImages(webhook, embed, []io.Reader{bytes.NewBuffer(decodedImage)}, nil); err != nil {
+	if err := utils.EmbedImages(webhook, embed, []io.Reader{bytes.NewBuffer(decodedImage)}, nil, q.compositor); err != nil {
 		log.Printf("Error creating image embed: %v\n", err)
 		return err
 	}

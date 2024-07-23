@@ -88,7 +88,7 @@ type SDQueue struct {
 	currentImagine      *SDQueueItem
 	mu                  sync.Mutex
 	imageGenerationRepo image_generations.Repository
-	compositeRenderer   composite_renderer.Renderer
+	compositor          composite_renderer.Renderer
 	defaultSettingsRepo default_settings.Repository
 	botDefaultSettings  *entities.DefaultSettings
 	cancelledItems      map[string]bool
@@ -121,7 +121,7 @@ func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
 		stableDiffusionAPI:  cfg.StableDiffusionAPI,
 		imageGenerationRepo: cfg.ImageGenerationRepo,
 		queue:               make(chan *SDQueueItem, 100),
-		compositeRenderer:   composite_renderer.Compositor(),
+		compositor:          composite_renderer.Compositor(),
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 		cancelledItems:      make(map[string]bool),
 	}, nil
