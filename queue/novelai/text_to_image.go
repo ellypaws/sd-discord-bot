@@ -245,7 +245,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 			},
 			{
 				Name:  "Prompt",
-				Value: fmt.Sprintf("```n%s\n```", prompt),
+				Value: fmt.Sprintf("```\n%s\n```", prompt),
 			},
 		}
 	} else {
