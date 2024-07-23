@@ -55,6 +55,7 @@ const (
 	maxTokensOption    CommandOption = "max_tokens"
 	llmModelOption     CommandOption = "model" // TODO: Retrieve /v1/models from endpoint
 
+	novelaiModelOption    CommandOption = "model"
 	novelaiSizeOption     CommandOption = "size"
 	novelaiSamplerOption  CommandOption = "sampler"
 	novelaiUCPresetOption CommandOption = "uc_preset"
@@ -122,6 +123,7 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Options: []*discordgo.ApplicationCommandOption{
 			commandOptions[promptOption],
 			commandOptions[negativeOption],
+			commandOptions[novelaiModelOption],
 			commandOptions[novelaiSizeOption],
 			commandOptions[novelaiSamplerOption],
 			commandOptions[novelaiUCPresetOption],
@@ -585,6 +587,43 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Name:        string(unsafeOption),
 		Description: "Process the json file without validation. This is set to False by default",
 		Required:    false,
+	},
+
+	novelaiModelOption: {
+		Type:        discordgo.ApplicationCommandOptionString,
+		Name:        string(novelaiModelOption),
+		Description: "The model to use for NovelAI. Default is V3. Older versions are not recommended.",
+		Required:    false,
+		Choices: []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "NAI Diffusion Anime V3 (Default)",
+				Value: entities.ModelV3,
+			},
+			{
+				Name:  "NAI Diffusion Furry V3",
+				Value: entities.ModelFurryV3,
+			},
+			{
+				Name:  "NAI Diffusion Anime V3 (Inpainting)",
+				Value: entities.ModelV3Inp,
+			},
+			{
+				Name:  "(Old) NAI Diffusion Anime V2",
+				Value: entities.ModelV2,
+			},
+			{
+				Name:  "(Old) NAI Diffusion Anime V1 (Full)",
+				Value: entities.ModelV1,
+			},
+			{
+				Name:  "(Old) NAI Diffusion Anime V1 (Curated)",
+				Value: entities.ModelV1Curated,
+			},
+			{
+				Name:  "(Old) NAI Diffusion Furry",
+				Value: entities.ModelFurryV1,
+			},
+		},
 	},
 
 	novelaiSizeOption: {

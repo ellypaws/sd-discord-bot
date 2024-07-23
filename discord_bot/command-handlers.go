@@ -771,6 +771,10 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		item.Request.Parameters.NegativePrompt = option.StringValue()
 	}
 
+	if option, ok = optionMap[novelaiModelOption]; ok {
+		item.Request.Model = option.StringValue()
+	}
+
 	if option, ok = optionMap[novelaiSamplerOption]; ok {
 		item.Request.Parameters.Sampler = option.StringValue()
 	}
