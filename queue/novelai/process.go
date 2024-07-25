@@ -25,7 +25,7 @@ func (q *NAIQueue) next() {
 				return
 			}
 			switch q.current.Type {
-			case ItemTypeImage, ItemTypeVibeTransfer:
+			case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
 				interaction, err := q.processCurrentItem()
 				if err != nil {
 					handlers.Errors[handlers.ErrorResponse](q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))

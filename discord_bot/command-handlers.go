@@ -810,6 +810,21 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
+	if option, ok := optionMap[img2imgOption]; ok {
+		attachment, ok := item.Attachments[option.Value.(string)]
+		if !ok {
+			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
+			return
+		}
+
+		item.Type = novelai.ItemTypeImg2Img
+		item.Request.Parameters.Img2Img = &entities.Image{Base64: attachment.Image}
+
+		if option, ok := optionMap[novelaiImg2ImgStr]; ok {
+			item.Request.Parameters.Strength = option.FloatValue()
+		}
+	}
+
 	position, err := b.config.NovelAIQueue.Add(item)
 	if err != nil {
 		log.Printf("Error adding imagine to queue: %v\n", err)

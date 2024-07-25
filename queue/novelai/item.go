@@ -3,7 +3,6 @@ package novelai
 import (
 	"github.com/bwmarrin/discordgo"
 	"stable_diffusion_bot/entities"
-	"stable_diffusion_bot/queue/stable_diffusion"
 	"time"
 )
 
@@ -18,9 +17,8 @@ const (
 type NAIQueueItem struct {
 	Type ItemType
 
-	Request      *entities.NovelAIRequest
-	Attachments  map[string]*entities.MessageAttachment
-	ImageToImage stable_diffusion.Img2ImgItem
+	Request     *entities.NovelAIRequest
+	Attachments map[string]*entities.MessageAttachment
 
 	Created            time.Time
 	InteractionIndex   int
@@ -54,11 +52,10 @@ func (q *NAIQueue) NewItem(interaction *discordgo.Interaction, options ...func(*
 
 func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
 	return &NAIQueueItem{
-		Type:         ItemTypeImage,
-		Request:      entities.DefaultNovelAIRequest(),
-		Attachments:  nil,
-		ImageToImage: stable_diffusion.Img2ImgItem{},
-		Interrupt:    nil,
+		Type:        ItemTypeImage,
+		Request:     entities.DefaultNovelAIRequest(),
+		Attachments: nil,
+		Interrupt:   nil,
 	}
 }
 

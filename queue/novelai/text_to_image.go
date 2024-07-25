@@ -55,7 +55,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 	}
 
 	switch item.Type {
-	case ItemTypeImage, ItemTypeVibeTransfer:
+	case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
 		images, err := q.client.Inference(request)
 		if err != nil {
 			return fmt.Errorf("error generating image: %w", err)
@@ -161,12 +161,12 @@ func retrieveImagesFromResponse(response *entities.NovelAIResponse, item *NAIQue
 		thumbnails = append(thumbnails, reader)
 	}
 
-	if item.ImageToImage.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(*item.ImageToImage.MessageAttachment.Image)
+	if item.Request.Parameters.Img2Img != nil {
+		reader, err := item.Request.Parameters.Img2Img.Reader()
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
-		thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
+		thumbnails = append(thumbnails, reader)
 	}
 
 	if len(images) > int(item.Request.Parameters.ImageCount) {
