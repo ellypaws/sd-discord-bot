@@ -1,11 +1,10 @@
 package novelai
 
 import (
-	"bytes"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/ellypaws/novelai-metadata/pkg/meta"
 	"io"
 	"log"
@@ -54,19 +53,21 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 		return err
 	}
 
+	generationDone := make(chan bool)
+	go q.updateProgressBar(item, generationDone)
+
 	switch item.Type {
 	case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
 		images, err := q.client.Inference(request)
+		generationDone <- true
 		if err != nil {
 			return fmt.Errorf("error generating image: %w", err)
 		}
 
-		err = q.showFinalMessage(item, images, embed, webhook)
+		return q.showFinalMessage(item, images, embed, webhook)
 	default:
 		return fmt.Errorf("unknown item type: %s", item.Type)
 	}
-
-	return nil
 }
 
 func (q *NAIQueue) showInitialMessage(queue *NAIQueueItem) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
@@ -89,6 +90,39 @@ func (q *NAIQueue) showInitialMessage(queue *NAIQueueItem) (*discordgo.MessageEm
 	}
 
 	return embed, webhook, nil
+}
+
+func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan bool) {
+	start := time.Now()
+	visual := spinner.Moon.Frames
+	var frame int
+	for {
+		select {
+		case <-generationDone:
+			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, time.Since(start).Round(time.Second).String())
+			return
+		case <-time.After(3 * time.Second):
+			frame = nextFrame(frame, len(visual))
+			if frame >= len(visual) {
+				frame = 0
+			}
+			message := imagineMessageSimple(item.Request, item.user)
+			elapsed := time.Since(start).Round(time.Second).String()
+			progress := fmt.Sprintf("\r%s\n\n%s Time elapsed: %s", message, visual[frame], elapsed)
+			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
+				Content: &progress,
+			})
+			if progressErr != nil {
+				log.Printf("Error editing interaction: %v", progressErr)
+				return
+			}
+			fmt.Printf("\r%s Time elapsed: %s (%s)", visual[frame], elapsed, item.user.Username)
+		}
+	}
+}
+
+func nextFrame(current, length int) int {
+	return (current + 1) % length
 }
 
 func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.NovelAIResponse, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
