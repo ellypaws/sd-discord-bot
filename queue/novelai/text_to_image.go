@@ -71,7 +71,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 
 func (q *NAIQueue) showInitialMessage(queue *NAIQueueItem) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
 	request := queue.Request
-	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User)
+	newContent := imagineMessageSimple(request, queue.user)
 
 	embed := generationEmbedDetails(new(discordgo.MessageEmbed), queue, nil, queue.Interrupt != nil)
 
@@ -97,7 +97,13 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 
 	imageBuffers, thumbnailBuffers := retrieveImagesFromResponse(response, item)
 
-	mention := fmt.Sprintf("<@%v>", item.DiscordInteraction.Member.User.ID)
+	var user *discordgo.User
+	if item.user != nil {
+		user = item.user
+	} else {
+		user = &discordgo.User{ID: "unknown"}
+	}
+	mention := fmt.Sprintf("<@%v>", user.ID)
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
 	embed = generationEmbedDetails(embed, item, getMetadata(response), item.Interrupt != nil)
 
@@ -204,8 +210,14 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		timeSince = time.Since(item.Created).Round(time.Second).String()
 	}
 
+	var user *discordgo.User
+	if item.user != nil {
+		user = item.user
+	} else {
+		user = &discordgo.User{ID: "unknown"}
+	}
 	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` images, `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
-		item.DiscordInteraction.Member.User.ID, request.Parameters.ImageCount, request.Parameters.Steps, timeSince,
+		user.ID, request.Parameters.ImageCount, request.Parameters.Steps, timeSince,
 		request.Parameters.Scale, request.Parameters.Seed, request.Parameters.Sampler)
 
 	// store as "2015-12-31T12:00:00.000Z"
@@ -298,11 +310,15 @@ func imagineMessageSimple(request *entities.NovelAIRequest, user *discordgo.User
 		seedString = "at random(-1)"
 	}
 
+	if user == nil {
+		user = &discordgo.User{ID: "unknown"}
+	}
 	message.WriteString(fmt.Sprintf("<@%s> asked me to imagine", user.ID))
 
 	if message.Len() > 2000 {
 		return message.String()[:2000]
 	}
+
 	return message.String()
 }
 

@@ -26,6 +26,8 @@ type NAIQueueItem struct {
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 	Interrupt          chan *discordgo.Interaction
+
+	user *discordgo.User
 }
 
 func (q *NAIQueueItem) Interaction() *discordgo.Interaction {
@@ -35,6 +37,13 @@ func (q *NAIQueueItem) Interaction() *discordgo.Interaction {
 func (q *NAIQueue) NewItem(interaction *discordgo.Interaction, options ...func(*NAIQueueItem)) *NAIQueueItem {
 	queue := q.DefaultQueueItem()
 	queue.DiscordInteraction = interaction
+
+	if queue.DiscordInteraction.Member != nil {
+		queue.user = queue.DiscordInteraction.Member.User
+	}
+	if queue.DiscordInteraction.User != nil {
+		queue.user = queue.DiscordInteraction.User
+	}
 
 	for _, option := range options {
 		option(queue)
