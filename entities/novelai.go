@@ -97,9 +97,17 @@ type sampler = string
 type schedule = string
 
 const (
+	UCHeavy = iota
+	UCLight
+	UCHumanFocus
+
 	HeavyNegative      = ", lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract]"
 	LightNegative      = ", lowres, jpeg artifacts, worst quality, watermark, blurry, very displeasing"
 	HumanFocusNegative = ", lowres, {bad}, error, fewer, extra, missing, worst quality, jpeg artifacts, bad quality, watermark, unfinished, displeasing, chromatic aberration, signature, extra digits, artistic error, username, scan, [abstract], bad anatomy, bad hands, @_@, mismatched pupils, heart-shaped pupils, glowing eyes"
+
+	HeavyNegativeFurry = ", {{worst quality}}, [displeasing], {unusual pupils}, guide lines, {{unfinished}}, {bad}, url, artist name, {{tall image}}, mosaic, {sketch page}, comic panel, impact (font), [dated], {logo}, ych, {what}, {where is your god now}, {distorted text}, repeated text, {floating head}, {1994}, {widescreen}, absolutely everyone, sequence, {compression artifacts}, hard translated, {cropped}, {commissioner name}, unknown text, high contrast"
+	LightNegativeFurry = ", {worst quality}, guide lines, unfinished, bad, url, tall image, widescreen, compression artifacts, unknown text"
+
 	AdditionalPositive = ", best quality, amazing quality, very aesthetic, absurdres"
 )
 
@@ -195,13 +203,28 @@ func (r *NovelAIRequest) Init() {
 	}
 
 	if r.Parameters.UcPreset != nil {
-		switch *r.Parameters.UcPreset {
-		case 0:
-			r.Parameters.NegativePrompt += HeavyNegative
-		case 1:
-			r.Parameters.NegativePrompt += LightNegative
-		case 2:
-			r.Parameters.NegativePrompt += HumanFocusNegative
+		switch r.Model {
+		case ModelFurryV3, MovelFurryV3Inp:
+			switch *r.Parameters.UcPreset {
+			case UCHeavy:
+				r.Parameters.NegativePrompt += HeavyNegativeFurry
+			case UCLight:
+				r.Parameters.NegativePrompt += LightNegativeFurry
+			case UCHumanFocus:
+			default:
+			}
+		case ModelV3, ModelV3Inp:
+			fallthrough
+		default:
+			switch *r.Parameters.UcPreset {
+			case UCHeavy:
+				r.Parameters.NegativePrompt += HeavyNegative
+			case UCLight:
+				r.Parameters.NegativePrompt += LightNegative
+			case UCHumanFocus:
+				r.Parameters.NegativePrompt += HumanFocusNegative
+			default:
+			}
 		}
 	}
 
