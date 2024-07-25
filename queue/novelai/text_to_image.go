@@ -197,10 +197,13 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 	}
 	embed.Type = discordgo.EmbedTypeImage
 	embed.URL = "https://github.com/ellypaws/sd-discord-bot/"
-	embed.Author = &discordgo.MessageEmbedAuthor{
-		Name:         item.DiscordInteraction.Member.User.Username,
-		IconURL:      item.DiscordInteraction.Member.User.AvatarURL(""),
-		ProxyIconURL: "https://i.keiau.space/data/00144.png",
+
+	if item.user != nil {
+		embed.Author = &discordgo.MessageEmbedAuthor{
+			Name:         item.user.Username,
+			IconURL:      item.user.AvatarURL(""),
+			ProxyIconURL: "https://i.keiau.space/data/00144.png",
+		}
 	}
 
 	var timeSince string
