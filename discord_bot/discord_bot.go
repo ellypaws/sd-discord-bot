@@ -117,12 +117,12 @@ func New(cfg *Config) (Bot, error) {
 
 func (b *botImpl) registerHandlers(session *discordgo.Session) {
 	session.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
-		var h func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate)
+		var handler func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error
 		var ok bool
 		switch i.Type {
 		// commands
 		case discordgo.InteractionApplicationCommand:
-			h, ok = commandHandlers[Command(i.ApplicationCommandData().Name)]
+			handler, ok = commandHandlers[Command(i.ApplicationCommandData().Name)]
 			//If we're using *Command, we have to range through the map to dereference the Command string
 			//for key, command := range commandHandlers {
 			//	if string(*key) == i.ApplicationCommandData().Name {
@@ -133,7 +133,7 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 		// buttons
 		case discordgo.InteractionMessageComponent:
 			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
-			h, ok = componentHandlers[handlers.Component(i.MessageComponentData().CustomID)]
+			handler, ok = componentHandlers[handlers.Component(i.MessageComponentData().CustomID)]
 			//bot.p.Send(logger.Message(fmt.Sprintf(
 			//	"Handler found, executing on message `%v`\nRan by: <@%v>\nUsername: %v",
 			//	i.Message.ID,
@@ -145,24 +145,24 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 			if !ok {
 				switch customID := i.MessageComponentData().CustomID; {
 				case strings.HasPrefix(customID, string(handlers.UpscaleButton)):
-					h, ok = componentHandlers[handlers.UpscaleButton]
+					handler, ok = componentHandlers[handlers.UpscaleButton]
 				case strings.HasPrefix(customID, string(handlers.VariantButton)):
-					h, ok = componentHandlers[handlers.VariantButton]
+					handler, ok = componentHandlers[handlers.VariantButton]
 				default:
 					log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
 				}
 			}
 		// autocomplete
 		case discordgo.InteractionApplicationCommandAutocomplete:
-			h, ok = autocompleteHandlers[Command(i.ApplicationCommandData().Name)]
+			handler, ok = autocompleteHandlers[Command(i.ApplicationCommandData().Name)]
 		// modals
 		case discordgo.InteractionModalSubmit:
-			h, ok = modalHandlers[Command(i.ModalSubmitData().CustomID)]
+			handler, ok = modalHandlers[Command(i.ModalSubmitData().CustomID)]
 		default:
 			log.Printf("Unknown interaction type '%v'", i.Type)
 		}
 
-		if !ok || h == nil {
+		if !ok || handler == nil {
 			var interactionType string = "unknown"
 			var interactionName string = "unknown"
 			switch i.Type {
@@ -191,7 +191,26 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 			return
 		}
 
-		h(b, session, i)
+		err := handler(b, session, i)
+
+		var username string = "unknown"
+		if i.Member != nil {
+			username = i.Member.User.Username
+		}
+		if i.User != nil {
+			username = i.User.Username
+		}
+
+		if err != nil {
+			if errors.Is(err, handlers.ResponseError) {
+				log.Printf("Error responding to interaction for %s: %v", username, err)
+				return
+			}
+			err := handlers.ErrorEdit(session, i.Interaction, err)
+			if err != nil {
+				log.Printf("Error showing error message to user %s: %v", username, err)
+			}
+		}
 	})
 	//currentProgress = len(commandHandlers) + len(componentHandlers) + len(components)
 	//bot.p.Send(load.Goal{
@@ -250,12 +269,7 @@ func (b *botImpl) customImagineCommand() {
 	b.rebuildMap((*botImpl).imagineSettingsCommandString, &imagineSettingsCommand, commands, commandHandlers)
 }
 
-func (b *botImpl) rebuildMap(
-	f func(*botImpl) Command,
-	key *Command,
-	m map[Command]*discordgo.ApplicationCommand,
-	h map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate,
-	)) {
+func (b *botImpl) rebuildMap(f func(*botImpl) Command, key *Command, m map[Command]*discordgo.ApplicationCommand, h map[Command]Handler) {
 	oldKey := *key
 
 	*key = f(b)

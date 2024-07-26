@@ -15,27 +15,25 @@ import (
 	"time"
 )
 
-func (q *SDQueue) processUpscaleImagine() {
+func (q *SDQueue) processUpscaleImagine() error {
 	defer q.done()
 	queue := q.currentImagine
 	var err error
 	queue.ImageGenerationRequest, err = q.getPreviousGeneration(queue)
 	if err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error getting prompt for upscale: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error getting prompt for upscale: %w", err))
+
 	}
 
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
 	if textToImage == nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("textToImageRequest of type %v is nil", queue.Type))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("textToImageRequest of type %v is nil", queue.Type))
 	}
 
 	config, originalConfig, err := q.switchToModels(queue)
 	if err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error switching to models: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error switching to models: %w", err))
 	}
 
 	newContent := upscaleMessageContent(queue.DiscordInteraction.Member.User, 0, 0)
@@ -46,7 +44,7 @@ func (q *SDQueue) processUpscaleImagine() {
 		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	})
 	if err != nil {
-		log.Printf("Error editing interaction: %v", err)
+		return handlers.Wrap(err)
 	}
 
 	generationDone := make(chan bool)
@@ -57,16 +55,16 @@ func (q *SDQueue) processUpscaleImagine() {
 	generationDone <- true
 	if err != nil {
 		log.Printf("Error processing image upscale: %v\n", err)
-		errorResponse(q.botSession, queue.DiscordInteraction, "I'm sorry, but I had a problem upscaling your image.", err)
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, "I'm sorry, but I had a problem upscaling your image.", err)
 	}
 
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d", queue.DiscordInteraction.ID, queue.DiscordInteraction.Message.ID, queue.InteractionIndex)
 
 	if err := q.finalUpscaleMessage(queue, resp, embed); err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error finalizing upscale message: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error finalizing upscale message: %w", err))
 	}
+
+	return nil
 }
 
 func (q *SDQueue) upscale(request *entities.ImageGenerationRequest) (*stable_diffusion_api.UpscaleResponse, error) {
@@ -145,8 +143,8 @@ func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion
 		return err
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
-	return nil
+	_, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	return err
 }
 
 func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config) {
@@ -158,10 +156,13 @@ func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan 
 		case queue.DiscordInteraction = <-queue.Interrupt:
 			err := q.stableDiffusionAPI.Interrupt()
 			if err != nil {
-				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
 				return
 			}
-			message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, "Generation Interrupted", handlers.Components[handlers.DeleteGeneration])
+			message, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, "Generation Interrupted", handlers.Components[handlers.DeleteGeneration])
+			if err != nil {
+				return
+			}
 			if queue.DiscordInteraction.Message == nil && message != nil {
 				log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
 				queue.DiscordInteraction.Message = message
@@ -169,7 +170,8 @@ func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan 
 		case <-generationDone:
 			err := q.revertModels(config, originalConfig)
 			if err != nil {
-				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				return
 			}
 			return
 		case <-time.After(1 * time.Second):

@@ -3,6 +3,7 @@ package discord_bot
 import (
 	"cmp"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -24,9 +25,11 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
-	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) {
-		handlers.Responses[handlers.HelloResponse].(handlers.NewResponseType)(bot, i)
+type Handler = func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error
+
+var commandHandlers = map[Command]Handler{
+	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) error {
+		return handlers.HelloResponse(bot, i)
 	},
 	imagineCommand:         (*botImpl).processImagineCommand,
 	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
@@ -36,11 +39,11 @@ var commandHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *disc
 	rawCommand:             (*botImpl).processRawCommand,
 }
 
-var autocompleteHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+var autocompleteHandlers = map[Command]Handler{
 	imagineCommand: (*botImpl).processImagineAutocomplete,
 }
 
-var modalHandlers = map[Command]func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
+var modalHandlers = map[Command]Handler{
 	rawCommand: (*botImpl).processRawModal,
 }
 
@@ -107,8 +110,10 @@ func interfaceConvertAuto[F any, V string | float64](field *F, option CommandOpt
 	return nil, false
 }
 
-func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
 
 	optionMap := getOpts(i.ApplicationCommandData())
 
@@ -116,8 +121,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	var queue *stable_diffusion.SDQueueItem
 
 	if option, ok := optionMap[promptOption]; !ok {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a prompt.")
 	} else {
 		parameters, sanitized := extractKeyValuePairsFromPrompt(option.StringValue())
 		queue = b.config.ImagineQueue.NewItem(i.Interaction, stable_diffusion.WithPrompt(sanitized))
@@ -149,7 +153,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		interfaceConvertAuto[string, string](&queue.ADetailerString, adModelOption, optionMap, parameters)
 
 		if config, err := b.config.StableDiffusionApi.GetConfig(); err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error retrieving config.", err)
+			_ = handlers.ErrorEdit(s, i.Interaction, "Error retrieving config.", err)
 		} else {
 			queue.Checkpoint = config.SDModelCheckpoint
 			queue.VAE = config.SDVae
@@ -241,15 +245,13 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		attachments, err := getAttachments(i)
 		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting attachments.", err)
-			return
+			return handlers.ErrorEdit(s, i.Interaction, "Error getting attachments.", err)
 		}
 		queue.Attachments = attachments
 
 		if option, ok := optionMap[img2imgOption]; ok {
 			if attachment, ok := queue.Attachments[option.Value.(string)]; !ok {
-				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
-				return
+				return handlers.ErrorEdit(s, i.Interaction, "You need to provide an image to img2img.")
 			} else {
 				queue.Type = stable_diffusion.ItemTypeImg2Img
 
@@ -266,8 +268,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			if attachment, ok := queue.Attachments[option.Value.(string)]; ok {
 				queue.ControlnetItem.MessageAttachment = attachment
 			} else {
-				handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to controlnet.")
-				return
+				return handlers.ErrorEdit(s, i.Interaction, "You need to provide an image to controlnet.")
 			}
 			queue.ControlnetItem.Enabled = true
 		}
@@ -322,8 +323,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 		position, err = b.config.ImagineQueue.Add(queue)
 		if err != nil {
-			log.Printf("Error adding imagine to queue: %v\n", err)
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+			return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 		}
 	}
 
@@ -343,27 +343,32 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		queue.Prompt,
 	)
 
-	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, queueString, handlers.Components[handlers.Cancel])
+	message, err := handlers.EditInteractionResponse(s, i.Interaction, queueString, handlers.Components[handlers.Cancel])
+	if err != nil {
+		return err
+	}
 	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
 		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
 		queue.DiscordInteraction.Message = message
 	}
+
+	return nil
 }
 
-func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if b.config.LLMConfig == nil {
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "LLM is not enabled.")
-		return
+		return handlers.ErrorEphemeral(s, i.Interaction, "LLM is not enabled.")
 	}
 
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
 
 	optionMap := getOpts(i.ApplicationCommandData())
 
 	prompt, ok := optionMap[promptOption]
 	if !ok {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a prompt.")
 	}
 
 	var systemPrompt = llm.Message{
@@ -397,8 +402,7 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 
 	position, err := b.config.ImagineQueue.Add(queue)
 	if err != nil {
-		log.Printf("Error adding imagine to queue: %v\n", err)
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+		return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 	}
 
 	var snowflake string
@@ -417,16 +421,16 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 		prompt.StringValue(),
 	)
 
-	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(
-		s,
-		i.Interaction,
-		queueString,
-		handlers.Components[handlers.Cancel],
-	)
+	message, err := handlers.EditInteractionResponse(s, i.Interaction, queueString, handlers.Components[handlers.Cancel])
+	if err != nil {
+		return err
+	}
 	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
 		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
 		queue.DiscordInteraction.Message = message
 	}
+
+	return nil
 }
 
 func between[T cmp.Ordered](value, minimum, maximum T) T {
@@ -435,7 +439,7 @@ func between[T cmp.Ordered](value, minimum, maximum T) T {
 
 var weightRegex = regexp.MustCompile(`.+\\|\.(?:safetensors|ckpt|pth?)|(:[\d.]+$)`)
 
-func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	data := i.ApplicationCommandData()
 	log.Printf("running autocomplete handler")
 	for optionIndex, opt := range data.Options {
@@ -513,11 +517,6 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					Name:  tooltip,
 					Value: input,
 				})
-
-				//choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-				//	Name:  input,
-				//	Value: input,
-				//})
 			} else {
 				choices = []*discordgo.ApplicationCommandOptionChoice{
 					{
@@ -533,33 +532,39 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 					choices[i].Name = choice.Name[:100]
 				}
 			}
-			_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+
+			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionApplicationCommandAutocompleteResult,
 				Data: &discordgo.InteractionResponseData{
 					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
 				},
 			})
+			if err != nil {
+				return handlers.Wrap(err)
+			}
 		default:
 			switch CommandOption(opt.Name) {
 			case checkpointOption:
-				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
+				return b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
 			case vaeOption:
-				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.VAECache)
+				return b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.VAECache)
 			case hypernetworkOption:
-				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.HypernetworkCache)
+				return b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.HypernetworkCache)
 			case embeddingOption:
-				b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.EmbeddingCache)
+				return b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.EmbeddingCache)
 			case controlnetPreprocessor:
-				b.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModulesCache)
+				return b.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModulesCache)
 			case controlnetModel:
-				b.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModelsCache)
+				return b.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModelsCache)
 			}
 		}
 		break
 	}
+
+	return nil
 }
 
-func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) {
+func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) error {
 	log.Printf("Focused option (%v): %v", index, opt.Name)
 	input = opt.StringValue()
 
@@ -567,18 +572,15 @@ func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 
 	if input != "" {
 		if c == nil {
-			log.Printf("Cacheable interface is nil")
+			return errors.New("cacheable interface is nil")
 		}
 		log.Printf("Autocompleting '%v'", input)
 
 		cache, err := c.GetCache(b.config.StableDiffusionApi)
 		if err != nil {
-			log.Printf("Error retrieving %v cache: %v", opt.Name, err)
+			return fmt.Errorf("error retrieving %v cache: %w", opt.Name, err)
 		}
 		results := fuzzy.FindFrom(input, cache)
-		//log.Printf("Finding from %v: %v", input, cache)
-		//log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
-		//log.Printf("Results: %v", results)
 
 		for index, result := range results {
 			// Match against String() method according to fuzzy docs
@@ -605,15 +607,21 @@ func (b *botImpl) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 			choices[i].Name = choice.Name[:100]
 		}
 	}
-	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+
+	if len(choices) == 0 {
+		return nil
+	}
+
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
 		Data: &discordgo.InteractionResponseData{
 			Choices: choices[:min(25, len(choices))],
 		},
 	})
+	return handlers.Wrap(err)
 }
 
-func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) {
+func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) error {
 	input = opt.StringValue()
 
 	// check the Type first
@@ -621,12 +629,11 @@ func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 
 	cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.config.StableDiffusionApi)
 	if err != nil {
-		log.Printf("Error retrieving %v cache: %v", opt.Name, err)
-		return
+		return fmt.Errorf("error retrieving %s cache: %w", opt.Name, err)
 	}
 	controlnets := cache.(*stable_diffusion_api.ControlnetTypes)
 
-	log.Printf("Focused option (%v): %v", index, opt.Name)
+	log.Printf("Focused option (%d): %s", index, opt.Name)
 
 	var toSearch []string
 	var controlType = "All"
@@ -649,7 +656,7 @@ func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 	var choices []*discordgo.ApplicationCommandOptionChoice
 	if input != "" {
 		if len(toSearch) == 0 {
-			log.Printf("No controlnet types found for %v", opt.Name)
+			return fmt.Errorf("no controlnet types found for %v", opt.Name)
 		}
 		log.Printf("Autocompleting '%v'", input)
 
@@ -679,12 +686,22 @@ func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 		}
 	}
 
-	_ = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	if len(choices) == 0 {
+		choices = []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  fmt.Sprintf("Type the %[1]v name. You can also attempt to fuzzy match the %[1]v.", opt.Name),
+				Value: "placeholder",
+			},
+		}
+	}
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
 		Data: &discordgo.InteractionResponseData{
 			Choices: choices[:min(25, len(choices))],
 		},
 	})
+	return handlers.Wrap(err)
 }
 
 func sanitizeTooltip(input string) string {
@@ -705,21 +722,23 @@ func sanitizeTooltip(input string) string {
 	return input
 }
 
-func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
+
 	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).GetBotDefaultSettings()
 	if err != nil {
-		log.Printf("error getting default settings for settings command: %v", err)
-
-		return
+		return fmt.Errorf("error getting default settings for settings command: %w", err)
 	}
 
 	messageComponents := b.settingsMessageComponents(botSettings)
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+	_, err = handlers.EditInteractionResponse(s, i.Interaction,
 		"Choose default settings for the imagine command:",
 		messageComponents,
 	)
+	return err
 	//err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 	//	Type: discordgo.InteractionResponseChannelMessageWithSource,
 	//	Data: &discordgo.InteractionResponseData{
@@ -733,14 +752,15 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 	//}
 }
 
-func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
 
 	optionMap := getOpts(i.ApplicationCommandData())
 	option, ok := optionMap[promptOption]
 	if !ok {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a prompt.")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a prompt.")
 	}
 
 	item := b.config.NovelAIQueue.NewItem(i.Interaction, novelai.WithPrompt(option.StringValue()))
@@ -794,16 +814,14 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 
 	attachments, err := getAttachments(i)
 	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error getting attachments.", err)
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "Error getting attachments.", err)
 	}
 	item.Attachments = attachments
 
 	if option, ok := optionMap[novelaiVibeTransfer]; ok {
 		attachment, ok := item.Attachments[option.Value.(string)]
 		if !ok {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
-			return
+			return handlers.ErrorEdit(s, i.Interaction, "You need to provide an image to img2img.")
 		}
 
 		item.Type = novelai.ItemTypeVibeTransfer
@@ -821,8 +839,7 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 	if option, ok := optionMap[img2imgOption]; ok {
 		attachment, ok := item.Attachments[option.Value.(string)]
 		if !ok {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide an image to img2img.")
-			return
+			return handlers.ErrorEdit(s, i.Interaction, "You need to provide an image to img2img.")
 		}
 
 		item.Type = novelai.ItemTypeImg2Img
@@ -836,8 +853,7 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 
 	position, err := b.config.NovelAIQueue.Add(item)
 	if err != nil {
-		log.Printf("Error adding imagine to queue: %v\n", err)
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+		return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 	}
 
 	var snowflake string
@@ -856,14 +872,20 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		item.Request.Parameters.Prompt,
 	)
 
-	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+	message, err := handlers.EditInteractionResponse(s, i.Interaction,
 		queueString,
 		handlers.Components[handlers.Cancel],
 	)
+	if err != nil {
+		return err
+	}
+
 	if item.DiscordInteraction != nil && item.DiscordInteraction.Message == nil && message != nil {
 		log.Printf("Setting message ID for interaction %v", item.DiscordInteraction.ID)
 		item.DiscordInteraction.Message = message
 	}
+
+	return nil
 }
 
 func getAttachments(i *discordgo.InteractionCreate) (map[string]*entities.MessageAttachment, error) {
@@ -897,8 +919,10 @@ func getAttachments(i *discordgo.InteractionCreate) (map[string]*entities.Messag
 	return attachments, nil
 }
 
-func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
 
 	var errors []error
 	var content = strings.Builder{}
@@ -928,19 +952,22 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 			continue
 		}
 		content.WriteString(fmt.Sprintf("`%T` cache refreshed. %v items loaded.\n", newCache, newCache.Len()))
-		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, content.String())
+		_, err = handlers.EditInteractionResponse(s, i.Interaction, content.String())
+		if err != nil {
+			return err
+		}
 	}
 
 	if errors != nil {
-		log.Printf("Error refreshing cache: %v", errors)
-		handlers.Errors[handlers.ErrorFollowup](s, i.Interaction, "Error refreshing cache.", errors)
+		return handlers.ErrorFollowup(s, i.Interaction, "Error refreshing cache.", errors)
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, content.String())
+	_, err := handlers.EditInteractionResponse(s, i.Interaction, content.String())
+	return err
 }
 
 // processRawCommand responds with a Modal to receive a json blob from the user to pass to the api
-func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	optionMap := getOpts(i.ApplicationCommandData())
 
 	params := entities.RawParams{
@@ -955,8 +982,11 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 		params.Unsafe = option.BoolValue()
 	}
 
-	interactionBytes, _ := json.Marshal(i.Interaction)
-	log.Printf("Interaction: %v", string(interactionBytes))
+	if interactionBytes, err := json.Marshal(i.Interaction); err != nil {
+		log.Printf("Error marshalling interaction: %v", err)
+	} else {
+		log.Printf("Interaction: %v", string(interactionBytes))
+	}
 
 	var snowflake string
 	if option, ok := optionMap[jsonFile]; !ok {
@@ -983,51 +1013,51 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 				log.Printf("Error marshalling interaction response data: %v", err)
 			}
 			log.Printf("Raw JSON: %v", string(byteArr))
+			return handlers.Wrap(err)
 		}
-		return
+
+		return nil
 	} else {
 		snowflake = option.Value.(string)
 	}
 
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
 	attachments := i.ApplicationCommandData().Resolved.Attachments
 	if attachments == nil {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON file.")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a JSON file.")
 	}
 
 	for snowflake, attachment := range attachments {
 		log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
 		if !strings.HasPrefix(attachment.ContentType, "application/json") {
 			log.Printf("Attachment[%v] is not a json file, removing from queue.", snowflake)
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON file.")
-			return
+			return handlers.ErrorEdit(s, i.Interaction, "You need to provide a JSON file.")
 		}
 	}
 
 	attachment, ok := attachments[snowflake]
 	if !ok {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON file.")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a JSON file.")
 	}
 
 	// download attachment url using http and convert to []byte
 	resp, err := http.Get(attachment.URL)
 	if err != nil {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error downloading attachment.", err)
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "Error downloading attachment.", err)
 	}
 	defer resp.Body.Close()
 	if params.Blob, err = io.ReadAll(resp.Body); err != nil {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error reading attachment.", err)
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "Error reading attachment.", err)
 	}
 
 	params.Debug = strings.Contains(attachment.Filename, "DEBUG")
 	if err := b.jsonToQueue(i, params); err != nil {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 	}
+
+	return nil
 }
 
 var modalDefault = make(map[string]entities.RawParams)
@@ -1057,15 +1087,16 @@ func getModalData(data discordgo.ModalSubmitInteractionData) map[handlers.Compon
 	return options
 }
 
-func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.InteractionCreate) {
-	handlers.Responses[handlers.ThinkResponse].(handlers.NewResponseType)(s, i)
+func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	if err := handlers.ThinkResponse(s, i); err != nil {
+		return err
+	}
 
 	modalData := getModalData(i.ModalSubmitData())
 
 	var params entities.RawParams
 	if message, err := b.botSession.InteractionResponse(i.Interaction); err != nil {
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error retrieving modal data.", err)
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "Error retrieving modal data.", err)
 	} else {
 		if p, ok := modalDefault[message.Interaction.ID]; ok {
 			params = p
@@ -1076,15 +1107,16 @@ func (b *botImpl) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 	if data, ok := modalData[handlers.JSONInput]; !ok || data == nil || data.Value == "" {
 		log.Printf("modalData: %#v\n", modalData)
 		log.Printf("i.ModalSubmitData(): %#v\n", i.ModalSubmitData())
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You need to provide a JSON blob.")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a JSON blob.")
 	} else {
 		params.Debug = strings.Contains(data.Value, "{DEBUG}")
 		params.Blob = []byte(strings.ReplaceAll(data.Value, "{DEBUG}", ""))
 		if err := b.jsonToQueue(i, params); err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error adding imagine to queue.", err)
+			return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 		}
 	}
+
+	return nil
 }
 
 func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, params entities.RawParams) error {
@@ -1114,8 +1146,8 @@ func (b *botImpl) jsonToQueue(i *discordgo.InteractionCreate, params entities.Ra
 	if err != nil {
 		return err
 	}
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(b.botSession, i.Interaction,
+	_, err = handlers.EditInteractionResponse(b.botSession, i.Interaction,
 		fmt.Sprintf("I'm dreaming something up for you. You are currently #%d in line. Defaults: %v", position, params.UseDefault),
 	)
-	return nil
+	return err
 }

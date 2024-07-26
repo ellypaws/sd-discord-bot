@@ -11,9 +11,9 @@ import (
 
 // TODO: Implement separate processing for Img2Img, possibly use github.com/SpenserCai/sd-webui-go/intersvc
 // Deprecated: still using processCurrentImagine
-func (q *SDQueue) processImg2ImgImagine() {
+func (q *SDQueue) processImg2ImgImagine() error {
 	//defer q.done()
-	q.processCurrentImagine()
+	return q.processCurrentImagine()
 }
 
 func (q *SDQueue) imageToImage(generationDone chan bool, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {

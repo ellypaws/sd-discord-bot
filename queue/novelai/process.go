@@ -6,36 +6,40 @@ import (
 	"stable_diffusion_bot/discord_bot/handlers"
 )
 
-func (q *NAIQueue) next() {
+func (q *NAIQueue) next() error {
 	for len(q.queue) > 0 {
 		if q.current != nil {
 			log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
-			return
+			return fmt.Errorf("currentImagine is not nil")
 		}
 		select {
 		case q.current = <-q.queue:
 			if q.current.DiscordInteraction == nil {
 				log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.current)
-				return
 			}
+
 			if i := q.current.DiscordInteraction; i != nil && q.cancelled[q.current.DiscordInteraction.ID] {
 				// If the item is cancelled, skip it
 				delete(q.cancelled, i.ID)
 				q.done()
-				return
+				return nil
 			}
 			switch q.current.Type {
 			case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
 				interaction, err := q.processCurrentItem()
 				if err != nil {
-					handlers.Errors[handlers.ErrorResponse](q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
+					if interaction == nil {
+						return err
+					}
+					return handlers.ErrorEdit(q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
 				}
 			default:
-				handlers.Errors[handlers.ErrorResponse](q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
 				q.done()
+				return handlers.ErrorEdit(q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
 			}
 		}
 	}
+	return nil
 }
 
 func (q *NAIQueue) done() {

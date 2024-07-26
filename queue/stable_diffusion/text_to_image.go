@@ -82,9 +82,12 @@ func showInitialMessage(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed
 		Embeds:     &[]*discordgo.MessageEmbed{embed},
 	}
 
-	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
+	message, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	err := q.storeMessageInteraction(queue, message)
+	err = q.storeMessageInteraction(queue, message)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error retrieving message interaction: %v", err)
 	}
@@ -137,8 +140,8 @@ func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextTo
 		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
-	return nil
+	_, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	return err
 }
 
 func (q *SDQueue) recordSeeds(response *entities.TextToImageResponse, request *entities.ImageGenerationRequest, config *entities.Config) {
@@ -253,10 +256,13 @@ func (q *SDQueue) updateProgressBar(queue *SDQueueItem, generationDone chan bool
 		case queue.DiscordInteraction = <-queue.Interrupt:
 			err := q.stableDiffusionAPI.Interrupt()
 			if err != nil {
-				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
 				return
 			}
-			message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
+			message, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
+			if err != nil {
+				return
+			}
 			if queue.DiscordInteraction.Message == nil && message != nil {
 				log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
 				queue.DiscordInteraction.Message = message
@@ -264,14 +270,15 @@ func (q *SDQueue) updateProgressBar(queue *SDQueueItem, generationDone chan bool
 		case <-generationDone:
 			err := q.revertModels(config, originalConfig)
 			if err != nil {
-				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+				return
 			}
 			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
 				log.Printf("Error getting current progress: %v", progressErr)
-				errorResponse(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
+				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 				return
 			}
 
@@ -347,16 +354,19 @@ func (q *SDQueue) updateModels(c *SDQueueItem, config *entities.Config) (*entiti
 	if !ptrStringCompare(request.Checkpoint, config.SDModelCheckpoint) ||
 		!ptrStringCompare(request.VAE, config.SDVae) ||
 		!ptrStringCompare(request.Hypernetwork, config.SDHypernetwork) {
-		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction,
+		_, err := handlers.EditInteractionResponse(q.botSession, c.DiscordInteraction,
 			fmt.Sprintf("Changing models to: \n**Checkpoint**: `%v` -> `%v`\n**VAE**: `%v` -> `%v`\n**Hypernetwork**: `%v` -> `%v`",
 				safeDereference(config.SDModelCheckpoint), safeDereference(request.Checkpoint),
 				safeDereference(config.SDVae), safeDereference(request.VAE),
 				safeDereference(config.SDHypernetwork), safeDereference(request.Hypernetwork),
 			),
 			handlers.Components[handlers.CancelDisabled])
+		if err != nil {
+			return nil, err
+		}
 
 		// Insert code to update the configuration here
-		err := q.stableDiffusionAPI.UpdateConfiguration(
+		err = q.stableDiffusionAPI.UpdateConfiguration(
 			q.lookupModel(request, config,
 				[]stable_diffusion_api.Cacheable{
 					stable_diffusion_api.CheckpointCache,
@@ -364,13 +374,11 @@ func (q *SDQueue) updateModels(c *SDQueueItem, config *entities.Config) (*entiti
 					stable_diffusion_api.HypernetworkCache,
 				}))
 		if err != nil {
-			log.Printf("Error updating configuration: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("error updating configuration: %w", err)
 		}
 		config, err = q.stableDiffusionAPI.GetConfig()
 		if err != nil {
-			log.Printf("Error getting config: %v", err)
-			return nil, err
+			return nil, fmt.Errorf("error getting config: %w", err)
 		}
 		request.Checkpoint = config.SDModelCheckpoint
 		request.VAE = config.SDVae

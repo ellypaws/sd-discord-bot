@@ -79,8 +79,6 @@ const (
 	initializedBatchSize  = 1
 )
 
-var errorResponse = handlers.Errors[handlers.ErrorResponse]
-
 type SDQueue struct {
 	botSession          *discordgo.Session
 	stableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
@@ -229,6 +227,10 @@ func WithCurrentModels(api stable_diffusion_api.StableDiffusionAPI) func(*SDQueu
 }
 
 func (q *SDQueue) Add(queue *SDQueueItem) (int, error) {
+	if len(q.queue) == cap(q.queue) {
+		return -1, errors.New("queue is full")
+	}
+
 	q.queue <- queue
 
 	linePosition := len(q.queue)
@@ -253,7 +255,7 @@ func (q *SDQueue) Start(botSession *discordgo.Session) {
 
 	q.botDefaultSettings = botDefaultSettings
 
-	var wait bool
+	var once bool
 
 Polling:
 	for {
@@ -262,11 +264,13 @@ Polling:
 			break Polling
 		case <-time.After(1 * time.Second):
 			if q.currentImagine == nil {
-				q.pullNextInQueue()
-				wait = false
-			} else if !wait {
+				if err := q.pullNextInQueue(); err != nil {
+					log.Printf("Error processing next item: %v", err)
+				}
+				once = false
+			} else if !once {
 				log.Printf("Waiting for current imagine to finish...\n")
-				wait = true
+				once = true
 			}
 		}
 	}
@@ -282,47 +286,57 @@ func (q *SDQueue) Stop() {
 	close(q.stop)
 }
 
-func (q *SDQueue) pullNextInQueue() {
+func (q *SDQueue) pullNextInQueue() error {
 	for len(q.queue) > 0 {
 		// Peek at the next item without blocking
 		if q.currentImagine != nil {
 			log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
-			return // Already processing an item
+			return errors.New("currentImagine is not nil")
 		}
+
+		var err error
 		select {
 		case q.currentImagine = <-q.queue:
 			if q.currentImagine.DiscordInteraction == nil {
 				// If the interaction is nil, we can't respond. Make sure to set the implementation before adding to the queue.
 				// Example: queue.DiscordInteraction = i.Interaction
 				log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.currentImagine)
-				return
 			}
 			if interaction := q.currentImagine.DiscordInteraction; interaction != nil && q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
 				// If the item is cancelled, skip it
 				delete(q.cancelledItems, interaction.ID)
 				q.done()
-				return
+				return nil
 			}
 			switch q.currentImagine.Type {
 			case ItemTypeImagine, ItemTypeRaw:
-				go q.processCurrentImagine()
+				err = q.processCurrentImagine()
 			case ItemTypeReroll, ItemTypeVariation:
-				go q.processVariation()
+				err = q.processVariation()
 			case ItemTypeImg2Img:
-				go q.processImg2ImgImagine()
+				err = q.processImg2ImgImagine()
 			case ItemTypeUpscale:
-				go q.processUpscaleImagine()
+				err = q.processUpscaleImagine()
 			case ItemTypeLLM:
-				go q.processLLM()
+				err = q.processLLM()
 			default:
-				errorResponse(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 				q.done()
+				return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 			}
 		default:
 			log.Printf("WARNING: we're trying to pull the next item in the queue, but the queue is empty")
-			return // Queue is empty
+			return nil // Queue is empty
+		}
+
+		if err != nil {
+			if q.currentImagine.DiscordInteraction == nil {
+				return err
+			}
+			return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("error processing current item: %w", err))
 		}
 	}
+
+	return nil
 }
 
 func (q *SDQueue) done() {
@@ -343,7 +357,6 @@ func (q *SDQueue) Remove(messageInteraction *discordgo.MessageInteraction) error
 }
 
 func (q *SDQueue) Interrupt(i *discordgo.Interaction) error {
-
 	if q.currentImagine == nil {
 		return errors.New("there is no generation currently in progress")
 	}

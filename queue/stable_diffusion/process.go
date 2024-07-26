@@ -8,28 +8,25 @@ import (
 	"stable_diffusion_bot/utils"
 )
 
-func (q *SDQueue) processCurrentImagine() {
+func (q *SDQueue) processCurrentImagine() error {
 	defer q.done()
 	queue := q.currentImagine
 
 	request, err := queue.ImageGenerationRequest, error(nil)
 	if request == nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type))
-		return
+		return fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type)
 	}
 
 	textToImage := request.TextToImageRequest
 	if textToImage == nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type))
-		return
+		return fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type)
 	}
 
 	// only set width and height if it is not a raw json request
 	if queue.Type != ItemTypeRaw || (queue.Type == ItemTypeRaw && queue.Raw != nil && queue.Raw.Unsafe) {
 		err = calculateDimensions(q, queue)
 		if err != nil {
-			errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error calculating dimensions: %w", err))
-			return
+			return fmt.Errorf("error calculating dimensions: %w", err)
 		}
 	}
 
@@ -39,9 +36,10 @@ func (q *SDQueue) processCurrentImagine() {
 
 	err = q.processImagineGrid(queue)
 	if err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
-		return
+		return fmt.Errorf("error processing imagine grid: %w", err)
 	}
+
+	return nil
 }
 
 func calculateDimensions(q *SDQueue, queue *SDQueueItem) (err error) {

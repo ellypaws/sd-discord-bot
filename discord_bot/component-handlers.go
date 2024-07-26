@@ -2,6 +2,7 @@ package discord_bot
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -16,16 +17,21 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate){
-	handlers.DeleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+// TODO: Verify we're using the correct response function such as ErrorEdit or ErrorEphemeral.
+// The former is used when we want to edit the original message, the latter acts as the initial response to an interaction.
+var componentHandlers = map[handlers.Component]Handler{
+	handlers.DeleteButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
-			handlers.ErrorEphemeralResponse(s, i.Interaction, err)
+			return handlers.ErrorEphemeral(s, i.Interaction, err)
 		}
+		return nil
 	},
 
-	handlers.DeleteGeneration: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
-		handlers.Responses[handlers.EphemeralThink].(handlers.NewResponseType)(s, i)
+	handlers.DeleteGeneration: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
+		if err := handlers.EphemeralThink(s, i); err != nil {
+			return err
+		}
 
 		var originalInteractionUser string
 
@@ -38,46 +44,46 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 			log.Printf("WARN: Using mentions to determine original interaction user")
 			originalInteractionUser = i.Message.Mentions[0].ID
 		default:
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Unable to determine original interaction user")
+			err := handlers.ErrorEdit(s, i.Interaction, "Unable to determine original interaction user")
+			if err != nil {
+				return err
+			}
 			log.Printf("Unable to determine original interaction user: %#v", i)
 			byteArr, _ := json.MarshalIndent(i, "", "  ")
 			log.Printf("Interaction: %v", string(byteArr))
-			return
+			return nil
 		}
 
 		if i.Member.User.ID != originalInteractionUser {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "You can only delete your own generations")
-			return
+			return handlers.ErrorEdit(s, i.Interaction, "You can only delete your own generations")
 		}
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
 		if err != nil {
-			handlers.Errors[handlers.ErrorResponse](s, i.Interaction, fmt.Errorf("error deleting message: %w", err))
-			return
+			return handlers.ErrorEdit(s, i.Interaction, fmt.Errorf("error deleting message: %w", err))
 		}
 
-		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction, "Generation deleted")
+		_, err = handlers.EditInteractionResponse(s, i.Interaction, "Generation deleted")
+		return err
 	},
 
-	handlers.DeleteAboveButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
-		// delete the original interaction response
+	handlers.DeleteAboveButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		msg, err := s.InteractionResponse(i.Interaction)
-		if i == nil || err != nil {
-			handlers.ErrorEphemeralResponse(s, i.Interaction, fmt.Errorf("failed to retrieve interaction response: %v, %v", i, err))
-			return
+		if err != nil {
+			return handlers.ErrorEphemeral(s, i.Interaction, fmt.Errorf("failed to retrieve interaction response: %v, %v", i, err))
 		}
 
 		err = s.ChannelMessageDelete(i.ChannelID, msg.ID)
 
 		if err != nil {
-			handlers.ErrorEphemeralResponse(s, i.Interaction, err)
+			return handlers.ErrorEphemeral(s, i.Interaction, err)
 		}
+
+		return nil
 	},
 
-	handlers.DimensionSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.DimensionSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if len(i.MessageComponentData().Values) == 0 {
-			log.Printf("No values for imagine dimension setting menu")
-
-			return
+			return errors.New("no values for imagine dimension setting menu")
 		}
 
 		sizes := strings.Split(i.MessageComponentData().Values[0], "_")
@@ -87,39 +93,31 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 
 		widthInt, err := strconv.Atoi(width)
 		if err != nil {
-			log.Printf("Error parsing width: %v", err)
-
-			return
+			return fmt.Errorf("error parsing width: %w", err)
 		}
 
 		heightInt, err := strconv.Atoi(height)
 		if err != nil {
-			log.Printf("Error parsing height: %v", err)
-
-			return
+			return fmt.Errorf("error parsing height: %w", err)
 		}
 
-		bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
+		return bot.processImagineDimensionSetting(s, i, widthInt, heightInt)
 	},
 
 	handlers.CheckpointSelect:   (*botImpl).processImagineModelSetting,
 	handlers.VAESelect:          (*botImpl).processImagineModelSetting,
 	handlers.HypernetworkSelect: (*botImpl).processImagineModelSetting,
 
-	handlers.BatchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.BatchCountSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if len(i.MessageComponentData().Values) == 0 {
-			log.Printf("No values for imagine batch count setting menu")
-
-			return
+			return errors.New("no values for imagine batch count setting menu")
 		}
 
 		batchCount := i.MessageComponentData().Values[0]
 
 		batchCountInt, err := strconv.Atoi(batchCount)
 		if err != nil {
-			log.Printf("Error parsing batch count: %v", err)
-
-			return
+			return handlers.ErrorEphemeral(s, i.Interaction, "error parsing batch count", err)
 		}
 
 		var batchSizeInt int
@@ -133,28 +131,22 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		case 4:
 			batchSizeInt = 1
 		default:
-			log.Printf("Unknown batch count: %v", batchCountInt)
-
-			return
+			return fmt.Errorf("unknown batch count: %v", batchCountInt)
 		}
 
-		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
+		return bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
-	handlers.BatchSizeSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.BatchSizeSelect: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		if len(i.MessageComponentData().Values) == 0 {
-			log.Printf("No values for imagine batch count setting menu")
-
-			return
+			return errors.New("no values for imagine batch count setting menu")
 		}
 
 		batchSize := i.MessageComponentData().Values[0]
 
 		batchSizeInt, err := strconv.Atoi(batchSize)
 		if err != nil {
-			log.Printf("Error parsing batch count: %v", err)
-
-			return
+			return handlers.ErrorEphemeral(s, i.Interaction, "error parsing batch size", err)
 		}
 
 		var batchCountInt int
@@ -168,49 +160,43 @@ var componentHandlers = map[handlers.Component]func(bot *botImpl, s *discordgo.S
 		case 4:
 			batchCountInt = 1
 		default:
-			log.Printf("Unknown batch size: %v", batchSizeInt)
-
-			return
+			return handlers.ErrorEphemeral(s, i.Interaction, fmt.Errorf("unknown batch size: %v", batchSizeInt))
 		}
 
-		bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
+		return bot.processImagineBatchSetting(s, i, batchCountInt, batchSizeInt)
 	},
 
 	handlers.RerollButton: (*botImpl).processImagineReroll,
 
-	handlers.UpscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.UpscaleButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		customID := i.MessageComponentData().CustomID
 		interactionIndex := strings.TrimPrefix(customID, string(handlers.UpscaleButton+"_"))
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
 		if err != nil {
-			log.Printf("Error parsing interaction index: %v", err)
-
-			return
+			return handlers.ErrorEphemeral(s, i.Interaction, "error parsing interaction index", err)
 		}
 
-		bot.processImagineUpscale(s, i, interactionIndexInt)
+		return bot.processImagineUpscale(s, i, interactionIndexInt)
 	},
 
-	handlers.VariantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) {
+	handlers.VariantButton: func(bot *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 		customID := i.MessageComponentData().CustomID
 		interactionIndex := strings.TrimPrefix(customID, "imagine_variation_")
 
 		interactionIndexInt, err := strconv.Atoi(interactionIndex)
 		if err != nil {
-			log.Printf("Error parsing interaction index: %v", err)
-
-			return
+			return handlers.ErrorEphemeral(s, i.Interaction, "error parsing interaction index", err)
 		}
 
-		bot.processImagineVariation(s, i, interactionIndexInt)
+		return bot.processImagineVariation(s, i, interactionIndexInt)
 	},
 
 	handlers.Cancel:    (*botImpl).removeImagineFromQueue, // Cancel button is used when still in queue
 	handlers.Interrupt: (*botImpl).interrupt,              // Interrupt button is used when currently generating, using the api.Interrupt() method
 }
 
-func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	position, queueError := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
 		ImageGenerationRequest: &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
@@ -225,7 +211,7 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 		DiscordInteraction: i.Interaction,
 	})
 	if queueError != nil {
-		log.Printf("Error adding imagine to queue: %v\n", queueError)
+		return handlers.ErrorEphemeral(s, i.Interaction, "Error adding imagine to queue", queueError)
 	}
 
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -235,32 +221,31 @@ func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 		},
 	})
 	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
+		return handlers.Wrap(err)
 	}
+
+	return nil
 }
 
-func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) {
-	position, queueError := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
+func (b *botImpl) processImagineUpscale(s *discordgo.Session, i *discordgo.InteractionCreate, upscaleIndex int) error {
+	position, err := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
 		Type:               stable_diffusion.ItemTypeUpscale,
 		InteractionIndex:   upscaleIndex,
 		DiscordInteraction: i.Interaction,
 	})
-	if queueError != nil {
-		log.Printf("Error adding imagine to queue: %v\n", queueError)
+	if err != nil {
+		return handlers.ErrorEphemeral(s, i.Interaction, "Error adding imagine to queue", err)
 	}
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	return handlers.Wrap(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf("I'm upscaling that for you... You are currently #%d in line.", position),
 		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
+	}))
 }
 
-func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) {
+func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.InteractionCreate, variationIndex int) error {
 	position, queueError := b.config.ImagineQueue.Add(&stable_diffusion.SDQueueItem{
 		ImageGenerationRequest: &entities.ImageGenerationRequest{
 			GenerationInfo: entities.GenerationInfo{
@@ -277,18 +262,15 @@ func (b *botImpl) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 		DiscordInteraction: i.Interaction,
 	})
 	if queueError != nil {
-		log.Printf("Error adding imagine to queue: %v\n", queueError)
+		return handlers.ErrorEphemeral(s, i.Interaction, "Error adding imagine to queue")
 	}
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	return handlers.Wrap(s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf("I'm imagining more variations for you... You are currently #%d in line.", position),
 		},
-	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
+	}))
 }
 
 // patch from upstream
@@ -453,7 +435,7 @@ func populateOption(b *botImpl, handler handlers.Component, cache stable_diffusi
 	}
 }
 
-func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) {
+func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) error {
 	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).UpdateDefaultDimensions(width, height)
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
@@ -465,10 +447,10 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 			},
 		})
 		if err != nil {
-			log.Printf("Error responding to interaction: %v", err)
+			return handlers.Wrap(err)
 		}
 
-		return
+		return nil
 	}
 
 	messageComponents := b.settingsMessageComponents(botSettings)
@@ -480,13 +462,10 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 			Components: messageComponents,
 		},
 	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-		return
-	}
+	return handlers.Wrap(err)
 }
 
-func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.InteractionCreate, batchCount, batchSize int) {
+func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.InteractionCreate, batchCount, batchSize int) error {
 	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).UpdateDefaultBatch(batchCount, batchSize)
 	if err != nil {
 		log.Printf("error updating batch settings: %v", err)
@@ -498,10 +477,10 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 			},
 		})
 		if err != nil {
-			log.Printf("Error responding to interaction: %v", err)
+			return handlers.Wrap(err)
 		}
 
-		return
+		return nil
 	}
 
 	messageComponents := b.settingsMessageComponents(botSettings)
@@ -513,15 +492,12 @@ func (b *botImpl) processImagineBatchSetting(s *discordgo.Session, i *discordgo.
 			Components: messageComponents,
 		},
 	})
-	if err != nil {
-		log.Printf("Error responding to interaction: %v", err)
-	}
+	return handlers.Wrap(err)
 }
 
-func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if len(i.MessageComponentData().Values) == 0 {
-		log.Printf("No values for %v", i.MessageComponentData().CustomID)
-		return
+		return fmt.Errorf("no values for %v", i.MessageComponentData().CustomID)
 	}
 	newModelName := i.MessageComponentData().Values[0]
 
@@ -539,46 +515,50 @@ func (b *botImpl) processImagineModelSetting(s *discordgo.Session, i *discordgo.
 		modelType = "hypernetwork"
 	}
 
-	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction,
+	err := handlers.UpdateFromComponent(s, i.Interaction,
 		fmt.Sprintf("Updating [**%v**] model to `%v`...", modelType, newModelName),
 		i.Interaction.Message.Components,
 	)
+	if err != nil {
+		return err
+	}
 
-	err := b.config.StableDiffusionApi.UpdateConfiguration(config)
+	err = b.config.StableDiffusionApi.UpdateConfiguration(config)
 	if err != nil {
 		log.Printf("error updating sd model name settings: %v", err)
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction,
+		return handlers.ErrorEphemeral(s, i.Interaction,
 			fmt.Sprintf("Error updating [%v] model name settings...", modelType))
-
-		return
 	}
 
 	botSettings, err := b.config.ImagineQueue.(*stable_diffusion.SDQueue).GetBotDefaultSettings()
 	if err != nil {
 		log.Printf("error retrieving bot settings: %v", err)
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Error retrieving bot settings...")
-		return
+		return handlers.ErrorEphemeral(s, i.Interaction, "Error retrieving bot settings...")
 	}
 
 	newComponents := b.settingsMessageComponents(botSettings)
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+	_, err = handlers.EditInteractionResponse(s, i.Interaction,
 		fmt.Sprintf("Updated [**%v**] model to `%v`", modelType, newModelName),
 		newComponents,
 	)
+	if err != nil {
+		return err
+	}
 
 	time.AfterFunc(5*time.Second, func() {
-		handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(s, i.Interaction,
+		_, _ = handlers.EditInteractionResponse(s, i.Interaction,
 			"Choose default settings for the imagine command:",
 			newComponents,
 		)
 	})
+
+	return nil
 }
 
 // check if the user using the cancel button is the same user that started the generation, then remove it from the queue
-func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if i.Member.User.ID != i.Message.Interaction.User.ID {
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "You can only cancel your own generations")
-		return
+		return handlers.ErrorEphemeral(s, i.Interaction, "You can only cancel your own generations")
 	}
 
 	log.Printf("Removing imagine from queue: %#v", i.Message.Interaction)
@@ -586,19 +566,17 @@ func (b *botImpl) removeImagineFromQueue(s *discordgo.Session, i *discordgo.Inte
 	err := b.config.ImagineQueue.Remove(i.Message.Interaction)
 	if err != nil {
 		log.Printf("Error removing imagine from queue: %v", err)
-		handlers.Errors[handlers.ErrorResponse](s, i.Interaction, "Error removing imagine from queue")
-		return
+		return handlers.ErrorEdit(s, i.Interaction, "Error removing imagine from queue")
 	}
 	log.Printf("Removed imagine from queue: %#v", i.Message.Interaction)
 
-	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction, "Generation cancelled", handlers.Components[handlers.DeleteButton])
+	return handlers.UpdateFromComponent(s, i.Interaction, "Generation cancelled", handlers.Components[handlers.DeleteButton])
 }
 
 // check if the user using the interrupt button is the same user that started the generation
-func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if i.Member == nil {
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Member not found")
-		return
+		return handlers.ErrorEphemeral(s, i.Interaction, "Member not found")
 	}
 
 	var mentionedIDs []string
@@ -608,23 +586,20 @@ func (b *botImpl) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate
 	}
 
 	if len(mentionedIDs) == 0 {
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, "Could not determine who started the generation as there are no detected mentions")
-		return
+		return handlers.ErrorEphemeral(s, i.Interaction, "Could not determine who started the generation as there are no detected mentions")
 	}
 
 	if !slices.Contains(mentionedIDs, i.Member.User.ID) {
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction,
+		return handlers.ErrorEphemeral(s, i.Interaction,
 			// strings.Join with <@ID> and newlines.
 			fmt.Sprintf("You can only interrupt your own generations.\nValid users: <@%v>", strings.Join(mentionedIDs, ">\n<@")))
-		return
 	}
 
 	err := b.config.ImagineQueue.Interrupt(i.Interaction)
 	if err != nil {
 		log.Printf("Error interrupting generation: %v", err)
-		handlers.Errors[handlers.ErrorEphemeral](s, i.Interaction, err)
-		return
+		return handlers.ErrorEphemeral(s, i.Interaction, err)
 	}
 
-	handlers.Responses[handlers.UpdateFromComponent].(handlers.MsgResponseType)(s, i.Interaction, "Generation interrupted", handlers.Components[handlers.InterruptDisabled])
+	return handlers.UpdateFromComponent(s, i.Interaction, "Generation interrupted", handlers.Components[handlers.InterruptDisabled])
 }

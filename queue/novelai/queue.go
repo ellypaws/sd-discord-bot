@@ -51,7 +51,9 @@ Polling:
 			break Polling
 		case <-time.After(1 * time.Second):
 			if q.current == nil {
-				q.next()
+				if err := q.next(); err != nil {
+					log.Printf("Error processing next item: %v", err)
+				}
 				once = true
 			} else if once {
 				log.Printf("Waiting for current NovelAI to finish...")

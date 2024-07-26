@@ -82,9 +82,12 @@ func (q *NAIQueue) showInitialMessage(queue *NAIQueueItem) (*discordgo.MessageEm
 		Embeds:     &[]*discordgo.MessageEmbed{embed},
 	}
 
-	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
+	message, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	err := q.storeMessageInteraction(queue, message)
+	err = q.storeMessageInteraction(queue, message)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error retrieving message interaction: %v", err)
 	}
@@ -98,10 +101,12 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 	var frame int
 	for {
 		select {
+		case item.DiscordInteraction = <-item.Interrupt:
+			break
 		case <-generationDone:
 			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, time.Since(start).Round(time.Second).String())
 			return
-		case <-time.After(3 * time.Second):
+		case <-time.After(1 * time.Second):
 			frame = nextFrame(frame, len(visual))
 			if frame >= len(visual) {
 				frame = 0
@@ -117,6 +122,9 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 				return
 			}
 			fmt.Printf("\r%s Time elapsed: %s (%s)", visual[frame], elapsed, item.user.Username)
+		case <-time.After(5 * time.Minute):
+			log.Printf("Generation #%s has been running for 5 minutes, interrupting", item.DiscordInteraction.ID)
+			break
 		}
 	}
 }
@@ -151,8 +159,8 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, item.DiscordInteraction, webhook)
-	return nil
+	_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
+	return err
 }
 
 func getMetadata(response *entities.NovelAIResponse) *meta.Metadata {

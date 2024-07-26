@@ -16,30 +16,26 @@ You can use markdown to format your text.
 
 const LLama3 = `lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF/Meta-Llama-3-8B-Instruct-Q8_0.gguf`
 
-func (q *SDQueue) processLLM() {
+func (q *SDQueue) processLLM() error {
 	defer q.done()
 	queue := q.currentImagine
 
-	request, err := queue.LLMRequest, error(nil)
+	request := queue.LLMRequest
 	if request == nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("LLM request of type %v is nil", queue.Type))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("LLM request of type %v is nil", queue.Type))
 	}
 
 	embed, webhook, err := showProcessingLLM(queue, q)
 	if err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error showing processing LLM: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error showing processing LLM: %w", err))
 	}
 
 	response, err := q.llmConfig.Infer(request)
 	if err != nil {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing LLM request: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing LLM request: %w", err))
 	}
 	if len(response.Choices) == 0 {
-		errorResponse(q.botSession, queue.DiscordInteraction, fmt.Errorf("LLM response was invalid"))
-		return
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("LLM response was invalid"))
 	}
 
 	webhook = llmResponseEmbed(queue, &response, embed)
@@ -48,7 +44,8 @@ func (q *SDQueue) processLLM() {
 		attachLLMResponse(&response, webhook)
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, queue.DiscordInteraction, webhook)
+	_, err = handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	return err
 }
 
 func showProcessingLLM(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
@@ -65,11 +62,10 @@ func showProcessingLLM(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed,
 		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	}
 
-	handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(
-		q.botSession,
-		queue.DiscordInteraction,
-		webhook,
-	)
+	_, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	return embed, webhook, nil
 }

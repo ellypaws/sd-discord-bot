@@ -6,24 +6,25 @@ import (
 	"time"
 )
 
-func (q *SDQueue) processVariation() {
+func (q *SDQueue) processVariation() error {
 	defer q.done()
 	c, err := q.currentImagine, error(nil)
 	c.ImageGenerationRequest, err = q.getPreviousGeneration(c)
 	request := c.ImageGenerationRequest
 	if err != nil {
-		errorResponse(q.botSession, c.DiscordInteraction, fmt.Errorf("error getting prompt for reroll: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, c.DiscordInteraction, fmt.Errorf("error getting prompt for reroll: %w", err))
 	}
 
-	message := handlers.Responses[handlers.EditInteractionResponse].(handlers.MsgReturnType)(q.botSession, c.DiscordInteraction, "Found previous generation...")
+	message, err := handlers.EditInteractionResponse(q.botSession, c.DiscordInteraction, "Found previous generation...")
+	if err != nil {
+		return err
+	}
 	// store the new message to record the correct message ID in the database
 	c.DiscordInteraction.Message = message
 
 	err = q.storeMessageInteraction(c, message)
 	if err != nil {
-		errorResponse(q.botSession, c.DiscordInteraction, fmt.Errorf("error storing message interaction: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, c.DiscordInteraction, fmt.Errorf("error storing message interaction: %w", err))
 	}
 
 	// for variations, we need random subseeds
@@ -45,7 +46,8 @@ func (q *SDQueue) processVariation() {
 
 	err = q.processImagineGrid(c)
 	if err != nil {
-		errorResponse(q.botSession, c.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
-		return
+		return handlers.ErrorEdit(q.botSession, c.DiscordInteraction, fmt.Errorf("error processing imagine grid: %w", err))
 	}
+
+	return nil
 }

@@ -5,32 +5,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 )
 
 var Token *string
-
-const (
-	ErrorResponse          errorEnum = iota // errorResponseType Respond with an error message and a deletion button.
-	ErrorFollowup                           // errorResponseType Respond with an error message as a followup message with a deletion button.
-	ErrorEphemeral                          // errorResponseType Respond with an ephemeral error message and a deletion button.
-	ErrorFollowupEphemeral                  // errorResponseType Respond with an ephemeral error message as a followup message with a deletion button.
-)
-
-type errorResponseType MsgResponseType
-type errorEnum int
-
-var Errors = map[errorEnum]errorResponseType{
-	ErrorResponse:          errorResponseType(ErrorEdit),
-	ErrorFollowup:          errorResponseType(errorFollowup),
-	ErrorEphemeral:         errorResponseType(ErrorEphemeralResponse),
-	ErrorFollowupEphemeral: errorResponseType(errorEphemeralFollowup),
-}
-
-// ErrorHandler responds to the interaction with an error message and a deletion button.
-// Deprecated: Use ErrorEdit instead.
-var ErrorHandler = Errors[ErrorResponse]
 
 func CheckAPIAlive(apiHost string) bool {
 	resp, err := http.Get(apiHost)
@@ -42,21 +20,22 @@ func CheckAPIAlive(apiHost string) bool {
 
 const DeadAPI = "API is not running"
 
-// errorFollowup [ErrorFollowup] sends an error message as a followup message with a deletion button.
-func errorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
+// ErrorFollowup sends an error message as a followup message with a deletion button.
+func ErrorFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) error {
 	embed, toPrint := errorEmbed(i, errorContent...)
 
 	logError(toPrint, i)
 
-	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
+	_, err := bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
 		Content:    *sanitizeToken(&toPrint),
 		Components: []discordgo.MessageComponent{Components[DeleteButton]},
 		Embeds:     embed,
 	})
+	return Wrap(err)
 }
 
-// ErrorEdit [ErrorResponse] responds to the interaction with an error message and a deletion button.
-func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
+// ErrorEdit [ErrorEdit] responds to the interaction with an error message and a deletion button.
+func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) error {
 	embed, toPrint := errorEmbed(i, errorContent...)
 
 	logError(toPrint, i)
@@ -66,18 +45,16 @@ func ErrorEdit(bot *discordgo.Session, i *discordgo.Interaction, errorContent ..
 		Components: &[]discordgo.MessageComponent{Components[DeleteButton]},
 		Embeds:     &embed,
 	})
-	if err != nil {
-		log.Printf("Error editing interaction for error (%v): %v", toPrint, err)
-	}
+	return Wrap(err)
 }
 
-// ErrorEphemeralResponse [ErrorEphemeral] responds to the interaction with an ephemeral error message.
-func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
+// ErrorEphemeral [ErrorEphemeral] responds to the interaction with an ephemeral error message.
+func ErrorEphemeral(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) error {
 	embed, toPrint := errorEmbed(i, errorContent...)
 
 	logError(toPrint, i)
 
-	_ = bot.InteractionRespond(i, &discordgo.InteractionResponse{
+	return Wrap(bot.InteractionRespond(i, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
 			// Note: this isn't documented, but you can use that if you want to.
@@ -87,19 +64,20 @@ func ErrorEphemeralResponse(bot *discordgo.Session, i *discordgo.Interaction, er
 			Content: toPrint,
 			Embeds:  embed,
 		},
-	})
+	}))
 }
 
-func errorEphemeralFollowup(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) {
+func ErrorFollowupEphemeral(bot *discordgo.Session, i *discordgo.Interaction, errorContent ...any) error {
 	embed, toPrint := errorEmbed(i, errorContent...)
 
 	logError(toPrint, i)
 
-	_, _ = bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
+	_, err := bot.FollowupMessageCreate(i, true, &discordgo.WebhookParams{
 		Flags:   discordgo.MessageFlagsEphemeral,
 		Content: *sanitizeToken(&toPrint),
 		Embeds:  embed,
 	})
+	return Wrap(err)
 }
 
 func formatError(errorContent ...any) string {
@@ -187,28 +165,34 @@ func sanitizeToken(errorString *string) *string {
 		//log.Println("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\"")
 		//log.Println("Error message:", errorString)
 		log.Printf("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\": %v", *errorString)
-		sanitizedString := strings.ReplaceAll(*errorString, *Token, "[TOKEN]")
+		sanitizedString := strings.ReplaceAll(*errorString, *Token, "[...]")
 		errorString = &sanitizedString
 	}
 	return errorString
 }
 
 func logError(errorString string, i *discordgo.Interaction) {
-	//GetBot().p.Send(logger.Message(fmt.Sprintf("WARNING: A command failed to execute: %v", errorString)))
-	//if i.Type == discordgo.InteractionMessageComponent {
-	//	//log.Printf("Command: %v", i.MessageComponentData().CustomID)
-	//	GetBot().p.Send(logger.Message(fmt.Sprintf("Command: %v", i.MessageComponentData().CustomID)))
-	//}
-	log.Printf("ERROR: %v", errorString)
-	//byteArr, _ := json.MarshalIndent(i, "", " ")
-	//log.Printf("Interaction: %v", string(byteArr))
-	if i == nil || i.Member == nil {
-		log.Printf("WARNING: Member is nil!")
+	if i == nil {
+		log.Printf("WARNING: Interaction is nil!")
 		return
 	}
-	log.Printf("User: %v", i.Member.User.Username)
-	//if i.Type == discordgo.InteractionMessageComponent {
-	//	//log.Printf("Link: https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
-	//	GetBot().p.Send(logger.Message(fmt.Sprintf("Link: https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
-	//}
+
+	if i.Type == discordgo.InteractionMessageComponent {
+		log.Printf("Command: %v", i.MessageComponentData().CustomID)
+	}
+
+	log.Printf("ERROR: %v", errorString)
+	var user *discordgo.User
+	if i.Member != nil {
+		user = i.Member.User
+	}
+	if i.User != nil {
+		user = i.User
+	}
+	if user != nil {
+		log.Printf("User: %s", user.Username)
+	}
+	if i.Type == discordgo.InteractionMessageComponent {
+		log.Printf("Link: https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
+	}
 }
