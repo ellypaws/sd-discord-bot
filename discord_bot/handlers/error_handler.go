@@ -153,26 +153,26 @@ func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.Mes
 		},
 	}
 
-	var toPrint string
+	var toPrint strings.Builder
+	// Could not run the [command] `command` on message https://discord.com/channels/123456789012345678/1234567890123456789/1234567890123456789
+	toPrint.Grow(192)
 
 	switch i.Type {
 	case discordgo.InteractionApplicationCommand:
-		toPrint = fmt.Sprintf(
-			"Could not run the [command] `%v`: %v",
+		toPrint.WriteString(fmt.Sprintf(
+			"Could not run the [command] `%v`",
 			i.ApplicationCommandData().Name,
-			errorString,
-		)
+		))
 	case discordgo.InteractionMessageComponent:
-		toPrint = fmt.Sprintf(
-			"Could not run the [button] `%v`: %v",
+		toPrint.WriteString(fmt.Sprintf(
+			"Could not run the [button] `%v`",
 			i.MessageComponentData().CustomID,
-			errorString,
-		)
+		))
 		if i.Message != nil {
-			toPrint += fmt.Sprintf(" on message https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
+			toPrint.WriteString(fmt.Sprintf(" on message https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID))
 		}
 	}
-	return embed, toPrint
+	return embed, toPrint.String()
 }
 
 func sanitizeToken(errorString *string) *string {
