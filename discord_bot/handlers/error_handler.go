@@ -136,8 +136,8 @@ func formatError(errorContent ...any) string {
 func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.MessageEmbed, string) {
 	errorString := formatError(errorContent)
 
-	// decode ED4245 to int
-	color, _ := strconv.ParseInt("ED4245", 16, 64)
+	// decode ED4245 to int = 15548997
+	//color, _ := strconv.ParseInt("ED4245", 16, 64)
 
 	embed := []*discordgo.MessageEmbed{
 		{
@@ -149,7 +149,7 @@ func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.Mes
 					Inline: false,
 				},
 			},
-			Color: int(color),
+			Color: 15548997,
 		},
 	}
 

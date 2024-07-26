@@ -746,7 +746,7 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 	item := b.config.NovelAIQueue.NewItem(i.Interaction, novelai.WithPrompt(option.StringValue()))
 	item.Type = novelai.ItemTypeImage
 
-	if option, ok := optionMap[negativeOption]; ok {
+	if option, ok = optionMap[negativeOption]; ok {
 		item.Request.Parameters.NegativePrompt = option.StringValue()
 	}
 
