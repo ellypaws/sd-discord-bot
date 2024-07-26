@@ -167,7 +167,7 @@ func DefaultNovelAIRequest() *NovelAIRequest {
 			ResolutionPreset: &ResolutionNormalSquare,
 			Steps:            28,
 			Scale:            7.0,
-			Smea:             true,
+			Smea:             false,
 			QualityToggle:    true,
 			UcPreset:         &uc,
 			ImageCount:       1,
