@@ -818,6 +818,7 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		item.Type = novelai.ItemTypeImg2Img
+		item.Request.Action = entities.ActionImg2Img
 		item.Request.Parameters.Img2Img = &entities.Image{Base64: attachment.Image}
 
 		if option, ok := optionMap[novelaiImg2ImgStr]; ok {
