@@ -767,6 +767,14 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		item.Request.Parameters.ResolutionPreset = &preset
 	}
 
+	if option, ok = optionMap[novelaiSMEAOption]; ok {
+		item.Request.Parameters.Smea = option.BoolValue()
+	}
+
+	if option, ok = optionMap[novelaiSMEADynOption]; ok {
+		item.Request.Parameters.SmeaDyn = option.BoolValue()
+	}
+
 	if option, ok = optionMap[novelaiUCPresetOption]; ok {
 		value := option.IntValue()
 		item.Request.Parameters.UcPreset = &value

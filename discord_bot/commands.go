@@ -61,6 +61,8 @@ const (
 	novelaiUCPresetOption CommandOption = "uc_preset"
 	novelaiQualityOption  CommandOption = "quality"
 	novelaiScheduleOption CommandOption = "schedule"
+	novelaiSMEAOption     CommandOption = "smea"
+	novelaiSMEADynOption  CommandOption = "smea_dyn"
 
 	novelaiVibeTransfer CommandOption = "vibe_transfer"
 	novelaiInformation  CommandOption = "information_extracted"
@@ -142,6 +144,8 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[novelaiReference],
 			commandOptions[img2imgOption],
 			commandOptions[novelaiImg2ImgStr],
+			commandOptions[novelaiSMEAOption],
+			commandOptions[novelaiSMEADynOption],
 		},
 	},
 	refreshCommand: {
@@ -781,6 +785,20 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 				Value: entities.SchedulePolyexponential,
 			},
 		},
+	},
+
+	novelaiSMEAOption: {
+		Type:        discordgo.ApplicationCommandOptionBoolean,
+		Name:        string(novelaiSMEAOption),
+		Description: "Smea versions of samplers are modified to perform better at high resolutions. Default is off",
+		Required:    false,
+	},
+
+	novelaiSMEADynOption: {
+		Type:        discordgo.ApplicationCommandOptionBoolean,
+		Name:        string(novelaiSMEADynOption),
+		Description: "Dyn variants of Smea often lead to more varied output, but may fail at very high resolutions.",
+		Required:    false,
 	},
 
 	novelaiVibeTransfer: {
