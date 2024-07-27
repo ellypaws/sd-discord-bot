@@ -163,17 +163,8 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 	return err
 }
 
+// Deprecated: reading meta.Metadata is expensive
 func getMetadata(response *entities.NovelAIResponse) *meta.Metadata {
-	if response == nil {
-		return nil
-	}
-
-	for _, image := range response.Images {
-		if image.Metadata != nil {
-			return image.Metadata
-		}
-	}
-
 	return nil
 }
 
