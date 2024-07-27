@@ -55,6 +55,7 @@ func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
 		Type:        ItemTypeImage,
 		Request:     entities.DefaultNovelAIRequest(),
 		Attachments: nil,
+		Created:     time.Now(),
 		Interrupt:   nil,
 	}
 }
