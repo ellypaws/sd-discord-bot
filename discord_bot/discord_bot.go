@@ -226,6 +226,12 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 func (b *botImpl) registerCommands() error {
 	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(commands))
 	for key, command := range commands {
+		if command.Name == llmCommand && b.config.LLMConfig == nil {
+			continue
+		}
+		if command.Name == novelAICommand && b.config.NovelAIQueue == nil {
+			continue
+		}
 		if command.Name == "" {
 			// clean the key because it might be a description of some sort
 			// only get the first word, and clean to only alphanumeric characters or -
