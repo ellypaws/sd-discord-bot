@@ -3,20 +3,23 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/ellypaws/inkbunny-sd/llm"
-	"github.com/joho/godotenv"
 	"log"
 	"net/url"
 	"os"
+
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/queue/llm"
 	"stable_diffusion_bot/queue/novelai"
 	"stable_diffusion_bot/queue/stable_diffusion"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
 	"strings"
+
+	openai "github.com/ellypaws/inkbunny-sd/llm"
+	"github.com/joho/godotenv"
 )
 
 // Bot parameters
@@ -181,13 +184,13 @@ func main() {
 		log.Fatalf("Failed to create imagine queue: %v", err)
 	}
 
-	var llmConfig *llm.Config
+	var llmConfig *openai.Config
 	if llmHost != nil && *llmHost != "" {
 		endpoint, err := url.Parse(*llmHost)
 		if err != nil {
 			log.Fatalf("Failed to parse LLM host: %v", err)
 		}
-		llmConfig = &llm.Config{
+		llmConfig = &openai.Config{
 			Host:     *llmHost,
 			APIKey:   "", // TODO: Add API key
 			Endpoint: *endpoint,
@@ -203,10 +206,10 @@ func main() {
 		GuildID:            *guildID,
 		ImagineQueue:       imagineQueue,
 		NovelAIQueue:       novelai.New(novelAIToken),
+		LLMQueue:           llm.New(llmConfig),
 		ImagineCommand:     imagineCommand,
 		RemoveCommands:     removeCommands,
 		StableDiffusionApi: stableDiffusionAPI,
-		LLMConfig:          llmConfig, // TODO: Move to a proper interface
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)
