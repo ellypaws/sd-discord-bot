@@ -248,10 +248,8 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		}
 	}
 
-	var timeSince string
-	if item.Created.IsZero() {
-		timeSince = "unknown"
-	} else {
+	timeSince := "unknown"
+	if !item.Created.IsZero() {
 		timeSince = time.Since(item.Created).Round(time.Second).String()
 	}
 
@@ -261,7 +259,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 	} else {
 		user = &discordgo.User{ID: "unknown"}
 	}
-	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` images, `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
+	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` images, `%v` steps in `%s`, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
 		user.ID, request.Parameters.ImageCount, request.Parameters.Steps, timeSince,
 		request.Parameters.Scale, request.Parameters.Seed, request.Parameters.Sampler)
 

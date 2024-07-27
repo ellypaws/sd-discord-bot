@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
-	"github.com/ellypaws/novelai-metadata/pkg/meta"
 	"image"
 	"io"
 	"stable_diffusion_bot/entities"
@@ -47,21 +46,21 @@ func Unzip(body io.ReadCloser) ([]entities.Image, error) {
 		if err != nil {
 			continue
 		}
-		data, err := meta.ExtractMetadata(bin)
-		if err != nil {
-			continue
-		}
-
-		valid, err := meta.IsNovelAI(*data)
-		if err != nil {
-			return nil, err
-		}
-
-		if !valid {
-			continue
-		}
-
-		images[i].Metadata = data
+		//data, err := meta.ExtractMetadata(img)
+		//if err != nil {
+		//	continue
+		//}
+		//
+		//valid, err := data.IsNovelAI()
+		//if err != nil {
+		//	return nil, err
+		//}
+		//
+		//if !valid {
+		//	continue
+		//}
+		//
+		//images[i].Metadata = data
 	}
 	return images, nil
 }
