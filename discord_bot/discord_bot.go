@@ -41,8 +41,8 @@ type Config struct {
 }
 
 func (b *botImpl) imagineCommandString() Command {
-	if b.developmentMode && !strings.HasPrefix(string(imagineCommand), "dev_") {
-		imagineCommand = Command(fmt.Sprintf("dev_%v", strings.TrimPrefix(string(*b.config.ImagineCommand), "dev_")))
+	if b.developmentMode && !strings.HasPrefix(imagineCommand, "dev_") {
+		imagineCommand = fmt.Sprintf("dev_%v", strings.TrimPrefix(*b.config.ImagineCommand, "dev_"))
 		return imagineCommand
 	}
 
@@ -50,12 +50,12 @@ func (b *botImpl) imagineCommandString() Command {
 }
 
 func (b *botImpl) imagineSettingsCommandString() Command {
-	if b.developmentMode && !strings.HasPrefix(string(imagineSettingsCommand), "dev_") {
-		imagineSettingsCommand = Command(fmt.Sprintf("dev_%v_settings", strings.TrimPrefix(string(*b.config.ImagineCommand), "dev_")))
+	if b.developmentMode && !strings.HasPrefix(imagineSettingsCommand, "dev_") {
+		imagineSettingsCommand = fmt.Sprintf("dev_%v_settings", strings.TrimPrefix(*b.config.ImagineCommand, "dev_"))
 		return imagineSettingsCommand
 	}
 
-	return Command(fmt.Sprintf("%v_settings", *b.config.ImagineCommand))
+	return fmt.Sprintf("%v_settings", *b.config.ImagineCommand)
 }
 
 func New(cfg *Config) (Bot, error) {
@@ -122,7 +122,7 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 		switch i.Type {
 		// commands
 		case discordgo.InteractionApplicationCommand:
-			handler, ok = commandHandlers[Command(i.ApplicationCommandData().Name)]
+			handler, ok = commandHandlers[i.ApplicationCommandData().Name]
 			//If we're using *Command, we have to range through the map to dereference the Command string
 			//for key, command := range commandHandlers {
 			//	if string(*key) == i.ApplicationCommandData().Name {
@@ -154,10 +154,10 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 			}
 		// autocomplete
 		case discordgo.InteractionApplicationCommandAutocomplete:
-			handler, ok = autocompleteHandlers[Command(i.ApplicationCommandData().Name)]
+			handler, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
 		// modals
 		case discordgo.InteractionModalSubmit:
-			handler, ok = modalHandlers[Command(i.ModalSubmitData().CustomID)]
+			handler, ok = modalHandlers[i.ModalSubmitData().CustomID]
 		default:
 			log.Printf("Unknown interaction type '%v'", i.Type)
 		}
@@ -229,10 +229,10 @@ func (b *botImpl) registerCommands() error {
 		if command.Name == "" {
 			// clean the key because it might be a description of some sort
 			// only get the first word, and clean to only alphanumeric characters or -
-			sanitized := strings.ReplaceAll(string(key), " ", "-")
+			sanitized := strings.ReplaceAll(key, " ", "-")
 			sanitized = strings.ToLower(sanitized)
 
-			// remove all non valid characters
+			// remove all non-valid characters
 			for _, c := range sanitized {
 				if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
 					sanitized = strings.ReplaceAll(sanitized, string(c), "")
@@ -279,7 +279,7 @@ func (b *botImpl) rebuildMap(f func(*botImpl) Command, key *Command, m map[Comma
 	log.Printf("Rebuilding map for '%v' to '%v'", oldKey, *key)
 
 	m[*key] = m[oldKey]
-	m[*key].Name = string(*key)
+	m[*key].Name = *key
 	h[*key] = h[oldKey]
 	delete(m, oldKey)
 	delete(h, oldKey)

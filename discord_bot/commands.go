@@ -10,8 +10,8 @@ import (
 )
 
 type (
-	Command       string
-	CommandOption string
+	Command       = string
+	CommandOption = string
 )
 
 var (
@@ -95,7 +95,7 @@ const (
 
 var commands = map[Command]*discordgo.ApplicationCommand{
 	helloCommand: {
-		Name: string(helloCommand),
+		Name: helloCommand,
 		// All commands and options must have a description
 		// Commands/options without description will fail the registration
 		// of the command.
@@ -103,18 +103,18 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Type:        discordgo.ChatApplicationCommand,
 	},
 	imagineCommand: {
-		Name:        string(imagineCommand),
+		Name:        imagineCommand,
 		Description: "Ask the bot to imagine something",
 		Options:     imagineOptions(),
 		Type:        discordgo.ChatApplicationCommand,
 	},
 	imagineSettingsCommand: {
-		Name:        string(imagineSettingsCommand),
+		Name:        imagineSettingsCommand,
 		Description: "Change the default settings for the imagine command",
 		Type:        discordgo.ChatApplicationCommand,
 	},
 	llmCommand: {
-		Name:        string(llmCommand),
+		Name:        llmCommand,
 		Description: "Ask the bot to generate text using an LLM",
 		Type:        discordgo.ChatApplicationCommand,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -124,7 +124,7 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		},
 	},
 	novelAICommand: {
-		Name:        string(novelAICommand),
+		Name:        novelAICommand,
 		Description: "Ask the bot to imagine something using NovelAI",
 		Type:        discordgo.ChatApplicationCommand,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -149,7 +149,7 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		},
 	},
 	refreshCommand: {
-		Name:        string(refreshCommand),
+		Name:        refreshCommand,
 		Description: "Refresh the loaded models from the API",
 		Options: []*discordgo.ApplicationCommandOption{
 			commandOptions[refreshLoraOption],
@@ -159,7 +159,7 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		},
 	},
 	rawCommand: {
-		Name:        string(rawCommand),
+		Name:        rawCommand,
 		Description: "Send a raw json request to the API. ",
 		Type:        discordgo.ChatApplicationCommand,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -220,70 +220,70 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	promptOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(promptOption),
+		Name:        promptOption,
 		Description: "The text prompt to imagine",
 		Required:    true,
 	},
 	negativeOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(negativeOption),
+		Name:        negativeOption,
 		Description: "Negative prompt",
 		Required:    false,
 	},
 	stepOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        string(stepOption),
+		Name:        stepOption,
 		Description: "Number of iterations to sample with. Default is 20",
 		Required:    false,
 	},
 	seedOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        string(seedOption),
+		Name:        seedOption,
 		Description: "Seed to use for sampling. Default is random (-1)",
 	},
 	checkpointOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(checkpointOption),
+		Name:         checkpointOption,
 		Description:  "The checkpoint to change to when generating. Sets for the next person.",
 		Required:     false,
 		Autocomplete: true,
 	},
 	vaeOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(vaeOption),
+		Name:         vaeOption,
 		Description:  "The vae to use",
 		Required:     false,
 		Autocomplete: true,
 	},
 	hypernetworkOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(hypernetworkOption),
+		Name:         hypernetworkOption,
 		Description:  "The hypernetwork to use",
 		Required:     false,
 		Autocomplete: true,
 	},
 	embeddingOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(embeddingOption),
+		Name:         embeddingOption,
 		Description:  "The embedding to use",
 		Required:     false,
 		Autocomplete: true,
 	},
 	systemPromptOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(systemPromptOption),
+		Name:        systemPromptOption,
 		Description: "The system prompt to generate with",
 		Required:    false,
 	},
 	maxTokensOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        string(maxTokensOption),
+		Name:        maxTokensOption,
 		Description: "The maximum number of tokens to generate. Use -1 for infinite (default: 1024)",
 		Required:    false,
 	},
 	aspectRatio: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(aspectRatio),
+		Name:        aspectRatio,
 		Description: "The aspect ratio to use. Default is 1:1 (note: you can specify your own aspect ratio)",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -319,14 +319,14 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	loraOption: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(loraOption),
+		Name:         loraOption,
 		Description:  "The lora(s) to apply",
 		Required:     false,
 		Autocomplete: true,
 	},
 	samplerOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(samplerOption),
+		Name:        samplerOption,
 		Description: "sampler",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -366,7 +366,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	batchCountOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        string(batchCountOption),
+		Name:        batchCountOption,
 		Description: "Number of batches to generate. Default is 1 and max is 4",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -390,7 +390,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	batchSizeOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        string(batchSizeOption),
+		Name:        batchSizeOption,
 		Description: "Number of batches to generate. Default and max is 4",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -414,7 +414,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	hiresFixOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(hiresFixOption),
+		Name:        hiresFixOption,
 		Description: "use hires.fix or not. default=No for better performance",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -430,7 +430,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	hiresFixSize: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(hiresFixSize),
+		Name:        hiresFixSize,
 		Description: "upscale multiplier for hires.fix. default=2",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -446,13 +446,13 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	cfgScaleOption: {
 		Type:        discordgo.ApplicationCommandOptionNumber,
-		Name:        string(cfgScaleOption),
+		Name:        cfgScaleOption,
 		Description: "value for cfg. default=7.0",
 		Required:    false,
 	},
 	restoreFacesOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(restoreFacesOption),
+		Name:        restoreFacesOption,
 		Description: "Use Codeformer to restore faces",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -468,7 +468,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	adModelOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(adModelOption),
+		Name:        adModelOption,
 		Description: "The model to use for adetailer",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -488,50 +488,50 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	refreshLoraOption: {
 		Type:        discordgo.ApplicationCommandOptionSubCommand,
-		Name:        strings.TrimPrefix(string(refreshLoraOption), "refresh_"),
+		Name:        strings.TrimPrefix(refreshLoraOption, "refresh_"),
 		Description: "Refresh the lora models from the API.",
 	},
 	refreshCheckpoint: {
 		Type:        discordgo.ApplicationCommandOptionSubCommand,
-		Name:        strings.TrimPrefix(string(refreshCheckpoint), "refresh_"),
+		Name:        strings.TrimPrefix(refreshCheckpoint, "refresh_"),
 		Description: "Refresh the checkpoint models from the API.",
 	},
 	refreshVAEOption: {
 		Type:        discordgo.ApplicationCommandOptionSubCommand,
-		Name:        strings.TrimPrefix(string(refreshVAEOption), "refresh_"),
+		Name:        strings.TrimPrefix(refreshVAEOption, "refresh_"),
 		Description: "Refresh the vae models from the API.",
 	},
 	refreshAllOption: {
 		Type:        discordgo.ApplicationCommandOptionSubCommand,
-		Name:        strings.TrimPrefix(string(refreshAllOption), "refresh_"),
+		Name:        strings.TrimPrefix(refreshAllOption, "refresh_"),
 		Description: "Refresh all models from the API.",
 	},
 	img2imgOption: {
 		Type:        discordgo.ApplicationCommandOptionAttachment,
-		Name:        string(img2imgOption),
+		Name:        img2imgOption,
 		Description: "Attach an image to use as input for img2img",
 	},
 	denoisingOption: {
 		Type:        discordgo.ApplicationCommandOptionNumber,
-		Name:        string(denoisingOption),
+		Name:        denoisingOption,
 		Description: "Denoising level for img2img. Default is 0.7",
 	},
 	controlnetImage: {
 		Type:        discordgo.ApplicationCommandOptionAttachment,
-		Name:        string(controlnetImage),
+		Name:        controlnetImage,
 		Description: "The image to use for controlnet. Img2img is used if not specified",
 		Required:    false,
 	},
 	controlnetType: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(controlnetType),
+		Name:        controlnetType,
 		Description: "The type of controlnet to use. Default is All",
 		Required:    false,
 		Choices:     controlTypes(),
 	},
 	controlnetControlMode: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(controlnetControlMode),
+		Name:        controlnetControlMode,
 		Description: "The control mode to use for controlnet. Defaults to Balanced",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -551,7 +551,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	controlnetResizeMode: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(controlnetResizeMode),
+		Name:        controlnetResizeMode,
 		Description: "The resize mode to use for controlnet. Defaults to Scale to Fit (Inner Fit)",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -571,14 +571,14 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 	},
 	controlnetPreprocessor: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(controlnetPreprocessor),
+		Name:         controlnetPreprocessor,
 		Description:  "The preprocessor to use for controlnet. Set the type to see the available modules. Defaults to None",
 		Required:     false,
 		Autocomplete: true,
 	},
 	controlnetModel: {
 		Type:         discordgo.ApplicationCommandOptionString,
-		Name:         string(controlnetModel),
+		Name:         controlnetModel,
 		Description:  "The model to use for controlnet. Set the type to see the available models. Defaults to None",
 		Required:     false,
 		Autocomplete: true,
@@ -586,26 +586,26 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 	jsonFile: {
 		Type:        discordgo.ApplicationCommandOptionAttachment,
-		Name:        string(jsonFile),
+		Name:        jsonFile,
 		Description: "The json file to use for the raw command. If not specified, a modal will be opened to paste the json",
 		Required:    false,
 	},
 	useDefaults: {
 		Type:        discordgo.ApplicationCommandOptionBoolean,
-		Name:        string(useDefaults),
+		Name:        useDefaults,
 		Description: "Use the default values for the raw command. This is set to True by default",
 		Required:    false,
 	},
 	unsafeOption: {
 		Type:        discordgo.ApplicationCommandOptionBoolean,
-		Name:        string(unsafeOption),
+		Name:        unsafeOption,
 		Description: "Process the json file without validation. This is set to False by default",
 		Required:    false,
 	},
 
 	novelaiModelOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(novelaiModelOption),
+		Name:        novelaiModelOption,
 		Description: "The model to use for NovelAI. Default is V3. Older versions are not recommended.",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -638,7 +638,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 	novelaiSizeOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(novelaiSizeOption),
+		Name:        novelaiSizeOption,
 		Description: "The size of the image to generate. Default is Normal Square (1024x1024)",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -691,7 +691,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 	novelaiSamplerOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(novelaiSamplerOption),
+		Name:        novelaiSamplerOption,
 		Description: "The method to use for sampling. Default is Euler",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -728,7 +728,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 	novelaiUCPresetOption: {
 		Type:        discordgo.ApplicationCommandOptionInteger,
-		Name:        string(novelaiUCPresetOption),
+		Name:        novelaiUCPresetOption,
 		Description: "The preset to use for Undesired Content",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -753,14 +753,14 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 	novelaiQualityOption: {
 		Type:        discordgo.ApplicationCommandOptionBoolean,
-		Name:        string(novelaiQualityOption),
+		Name:        novelaiQualityOption,
 		Description: "Tags to increase quality will be prepended to the prompt. Default is true",
 		Required:    false,
 	},
 
 	novelaiScheduleOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
-		Name:        string(novelaiScheduleOption),
+		Name:        novelaiScheduleOption,
 		Description: "The scheduler when sampling. Default is native.",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -789,39 +789,39 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 	novelaiSMEAOption: {
 		Type:        discordgo.ApplicationCommandOptionBoolean,
-		Name:        string(novelaiSMEAOption),
+		Name:        novelaiSMEAOption,
 		Description: "Smea versions of samplers are modified to perform better at high resolutions. Default is off",
 		Required:    false,
 	},
 
 	novelaiSMEADynOption: {
 		Type:        discordgo.ApplicationCommandOptionBoolean,
-		Name:        string(novelaiSMEADynOption),
+		Name:        novelaiSMEADynOption,
 		Description: "Dyn variants of Smea often lead to more varied output, but may fail at very high resolutions.",
 		Required:    false,
 	},
 
 	novelaiVibeTransfer: {
 		Type:        discordgo.ApplicationCommandOptionAttachment,
-		Name:        string(novelaiVibeTransfer),
+		Name:        novelaiVibeTransfer,
 		Description: "Attach an image to use as input for vibe transfer",
 		Required:    false,
 	},
 	novelaiInformation: {
 		Type:        discordgo.ApplicationCommandOptionNumber,
-		Name:        string(novelaiInformation),
+		Name:        novelaiInformation,
 		Description: "The amount of information to extract from the image. Default is 1.0",
 		Required:    false,
 	},
 	novelaiReference: {
 		Type:        discordgo.ApplicationCommandOptionNumber,
-		Name:        string(novelaiReference),
+		Name:        novelaiReference,
 		Description: "The strength of the reference. Default is 0.6",
 		Required:    false,
 	},
 	novelaiImg2ImgStr: {
 		Type:        discordgo.ApplicationCommandOptionNumber,
-		Name:        string(novelaiImg2ImgStr),
+		Name:        novelaiImg2ImgStr,
 		Description: "The strength of the img2img. Default is 0.7",
 		Required:    false,
 	},
@@ -829,7 +829,7 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 
 func controlTypes() []*discordgo.ApplicationCommandOptionChoice {
 	// ControlType is an alias for string
-	type ControlType string
+	type ControlType = string
 
 	// Constants for different control types
 	const (
@@ -879,8 +879,8 @@ func controlTypes() []*discordgo.ApplicationCommandOptionChoice {
 	var choices []*discordgo.ApplicationCommandOptionChoice
 	for _, controlType := range ControlTypes {
 		choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-			Name:  string(controlType),
-			Value: string(controlType),
+			Name:  controlType,
+			Value: controlType,
 		})
 		if len(choices) >= 25 {
 			break

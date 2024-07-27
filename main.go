@@ -203,7 +203,7 @@ func main() {
 		GuildID:            *guildID,
 		ImagineQueue:       imagineQueue,
 		NovelAIQueue:       novelai.New(novelAIToken),
-		ImagineCommand:     (*discord_bot.Command)(imagineCommand),
+		ImagineCommand:     imagineCommand,
 		RemoveCommands:     removeCommands,
 		StableDiffusionApi: stableDiffusionAPI,
 		LLMConfig:          llmConfig, // TODO: Move to a proper interface

@@ -51,7 +51,7 @@ func getOpts(data discordgo.ApplicationCommandInteractionData) map[CommandOption
 	options := data.Options
 	optionMap := make(map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, len(options))
 	for _, opt := range options {
-		optionMap[CommandOption(opt.Name)] = opt
+		optionMap[opt.Name] = opt
 	}
 	return optionMap
 }
@@ -64,7 +64,7 @@ func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption
 	sanitized = keyValue.ReplaceAllString(prompt, "")
 	sanitized = strings.TrimSpace(sanitized)
 	for _, match := range keyValue.FindAllStringSubmatch(prompt, -1) {
-		parameters[CommandOption(match[1])] = match[2]
+		parameters[match[1]] = match[2]
 	}
 	return
 }
@@ -172,7 +172,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		for i := 0; i < extraLoras+1; i++ {
 			loraKey := loraOption
 			if i != 0 {
-				loraKey += CommandOption(fmt.Sprintf("%d", i+1))
+				loraKey += fmt.Sprintf("%d", i+1)
 			}
 
 			if option, ok := optionMap[loraKey]; ok {
@@ -448,7 +448,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 		}
 		input := opt.StringValue()
 		switch {
-		case strings.HasPrefix(opt.Name, string(loraOption)):
+		case strings.HasPrefix(opt.Name, loraOption):
 			log.Printf("Focused option (%v): %v", optionIndex, opt.Name)
 
 			var choices []*discordgo.ApplicationCommandOptionChoice
@@ -543,7 +543,7 @@ func (b *botImpl) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 				return handlers.Wrap(err)
 			}
 		default:
-			switch CommandOption(opt.Name) {
+			switch opt.Name {
 			case checkpointOption:
 				return b.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
 			case vaeOption:
@@ -924,12 +924,12 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 		return err
 	}
 
-	var errors []error
+	var errs []error
 	var content = strings.Builder{}
 
 	var toRefresh []stable_diffusion_api.Cacheable
 
-	switch CommandOption("refresh_" + i.ApplicationCommandData().Options[0].Name) {
+	switch "refresh_" + i.ApplicationCommandData().Options[0].Name {
 	case refreshLoraOption:
 		toRefresh = []stable_diffusion_api.Cacheable{stable_diffusion_api.LoraCache}
 	case refreshCheckpoint:
@@ -947,7 +947,7 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 	for _, cache := range toRefresh {
 		newCache, err := b.config.StableDiffusionApi.RefreshCache(cache)
 		if err != nil || newCache == nil {
-			errors = append(errors, err)
+			errs = append(errs, err)
 			content.WriteString(fmt.Sprintf("`%T` cache refresh failed.\n", cache))
 			continue
 		}
@@ -958,8 +958,8 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
-	if errors != nil {
-		return handlers.ErrorFollowup(s, i.Interaction, "Error refreshing cache.", errors)
+	if errs != nil {
+		return handlers.ErrorFollowup(s, i.Interaction, "Error refreshing cache.", errs)
 	}
 
 	_, err := handlers.EditInteractionResponse(s, i.Interaction, content.String())
@@ -996,7 +996,7 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 		interactionResponse := discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseModal,
 			Data: &discordgo.InteractionResponseData{
-				CustomID: string(rawCommand),
+				CustomID: rawCommand,
 				Title:    "Raw JSON",
 				Components: []discordgo.MessageComponent{
 					handlers.Components[handlers.JSONInput],
