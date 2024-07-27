@@ -869,7 +869,7 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
 		position,
 		snowflake,
-		item.Request.Parameters.Prompt,
+		item.Request.Input,
 	)
 
 	message, err := handlers.EditInteractionResponse(s, i.Interaction,

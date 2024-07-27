@@ -62,6 +62,6 @@ func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
 
 func WithPrompt(prompt string) func(*NAIQueueItem) {
 	return func(queue *NAIQueueItem) {
-		queue.Request.Parameters.Prompt = prompt
+		queue.Request.Input = prompt
 	}
 }

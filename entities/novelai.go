@@ -24,6 +24,7 @@ type NovelAIRequest struct {
 }
 
 type Parameters struct {
+	// Deprecated: Use NovelAIRequest.Input instead.
 	Prompt         string `json:"prompt"`
 	NegativePrompt string `json:"negative_prompt,omitempty"`
 
@@ -189,17 +190,17 @@ func (r *NovelAIRequest) Init() {
 		r.Parameters.ResolutionPreset = nil
 	}
 
+	if r.Input == "" {
+		r.Input = r.Parameters.Prompt
+		r.Parameters.Prompt = ""
+	}
+
 	if r.Parameters.QualityToggle {
-		r.Parameters.Prompt += AdditionalPositive
+		r.Input += AdditionalPositive
 	}
 
 	if r.Parameters.Seed <= 0 {
 		r.Parameters.Seed = rand.Int63n(4294967295 - 7)
-	}
-
-	if r.Input == "" {
-		r.Input = r.Parameters.Prompt
-		r.Parameters.Prompt = ""
 	}
 
 	if r.Parameters.UcPreset != nil {

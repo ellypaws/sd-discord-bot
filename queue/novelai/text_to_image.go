@@ -330,7 +330,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 			},
 			{
 				Name:  "Prompt",
-				Value: fmt.Sprintf("```\n%s\n```", request.Parameters.Prompt),
+				Value: fmt.Sprintf("```\n%s\n```", request.Input),
 			},
 		}
 	}
