@@ -70,11 +70,11 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 	}
 }
 
-func (q *NAIQueue) showInitialMessage(queue *NAIQueueItem) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
-	request := queue.Request
-	newContent := imagineMessageSimple(request, queue.user)
+func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
+	request := item.Request
+	newContent := imagineMessageSimple(request, item.user)
 
-	embed := generationEmbedDetails(new(discordgo.MessageEmbed), queue, nil, queue.Interrupt != nil)
+	embed := generationEmbedDetails(new(discordgo.MessageEmbed), item, nil, item.Interrupt != nil)
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
@@ -82,12 +82,12 @@ func (q *NAIQueue) showInitialMessage(queue *NAIQueueItem) (*discordgo.MessageEm
 		Embeds:     &[]*discordgo.MessageEmbed{embed},
 	}
 
-	message, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	message, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	err = q.storeMessageInteraction(queue, message)
+	err = q.storeMessageInteraction(item, message)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error retrieving message interaction: %v", err)
 	}
@@ -366,26 +366,26 @@ func imagineMessageSimple(request *entities.NovelAIRequest, user *discordgo.User
 }
 
 // storeMessageInteraction stores the message interaction in the database to keep track of the message ID to recreate the message
-func (q *NAIQueue) storeMessageInteraction(queue *NAIQueueItem, message *discordgo.Message) (err error) {
-	//request := queue.Request
+func (q *NAIQueue) storeMessageInteraction(item *NAIQueueItem, message *discordgo.Message) (err error) {
+	//request := item.Request
 	//
-	//if queue.DiscordInteraction == nil {
-	//	return fmt.Errorf("queue.DiscordInteraction is nil")
+	//if item.DiscordInteraction == nil {
+	//	return fmt.Errorf("item.DiscordInteraction is nil")
 	//}
 	//
 	//if message == nil {
-	//	message, err = q.botSession.InteractionResponse(queue.DiscordInteraction)
+	//	message, err = q.botSession.InteractionResponse(item.DiscordInteraction)
 	//	if err != nil {
 	//		return err
 	//	}
 	//}
 	//
 	//// store message ID in c.DiscordInteraction.Message
-	//queue.DiscordInteraction.Message = message
+	//item.DiscordInteraction.Message = message
 	//
-	//request.InteractionID = queue.DiscordInteraction.ID
-	//request.MessageID = queue.DiscordInteraction.Message.ID
-	//request.MemberID = queue.DiscordInteraction.Member.User.ID
+	//request.InteractionID = item.DiscordInteraction.ID
+	//request.MessageID = item.DiscordInteraction.Message.ID
+	//request.MemberID = item.DiscordInteraction.Member.User.ID
 	//request.SortOrder = 0
 	//request.Processed = true
 	return nil

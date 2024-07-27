@@ -33,21 +33,21 @@ func (q *NAIQueueItem) Interaction() *discordgo.Interaction {
 }
 
 func (q *NAIQueue) NewItem(interaction *discordgo.Interaction, options ...func(*NAIQueueItem)) *NAIQueueItem {
-	queue := q.DefaultQueueItem()
-	queue.DiscordInteraction = interaction
+	item := q.DefaultQueueItem()
+	item.DiscordInteraction = interaction
 
-	if queue.DiscordInteraction.Member != nil {
-		queue.user = queue.DiscordInteraction.Member.User
+	if item.DiscordInteraction.Member != nil {
+		item.user = item.DiscordInteraction.Member.User
 	}
-	if queue.DiscordInteraction.User != nil {
-		queue.user = queue.DiscordInteraction.User
+	if item.DiscordInteraction.User != nil {
+		item.user = item.DiscordInteraction.User
 	}
 
 	for _, option := range options {
-		option(queue)
+		option(item)
 	}
 
-	return queue
+	return item
 }
 
 func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
@@ -61,7 +61,7 @@ func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
 }
 
 func WithPrompt(prompt string) func(*NAIQueueItem) {
-	return func(queue *NAIQueueItem) {
-		queue.Request.Input = prompt
+	return func(item *NAIQueueItem) {
+		item.Request.Input = prompt
 	}
 }
