@@ -1,4 +1,4 @@
-package stable_diffusion
+package llm
 
 import (
 	"fmt"
@@ -16,53 +16,53 @@ You can use markdown to format your text.
 
 const LLama3 = `lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF/Meta-Llama-3-8B-Instruct-Q8_0.gguf`
 
-func (q *SDQueue) processLLM() error {
+func (q *LLMQueue) processLLM() error {
 	defer q.done()
-	queue := q.currentImagine
+	item := q.current
 
-	request := queue.LLMRequest
+	request := item.Request
 	if request == nil {
-		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("LLM request of type %v is nil", queue.Type))
+		return handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Errorf("LLM request of type %v is nil", item.Type))
 	}
 
-	embed, webhook, err := showProcessingLLM(queue, q)
+	embed, webhook, err := showProcessingLLM(item, q)
 	if err != nil {
-		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error showing processing LLM: %w", err))
+		return handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Errorf("error showing processing LLM: %w", err))
 	}
 
-	response, err := q.llmConfig.Infer(request)
+	response, err := q.host.Infer(request)
 	if err != nil {
-		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error processing LLM request: %w", err))
+		return handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Errorf("error processing LLM request: %w", err))
 	}
 	if len(response.Choices) == 0 {
-		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("LLM response was invalid"))
+		return handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Errorf("LLM response was invalid"))
 	}
 
-	webhook = llmResponseEmbed(queue, &response, embed)
+	webhook = llmResponseEmbed(item, &response, embed)
 
 	if len(response.Choices[0].Message.Content) > 900 {
 		attachLLMResponse(&response, webhook)
 	}
 
-	_, err = handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	_, err = handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
 	return err
 }
 
-func showProcessingLLM(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
-	request := queue.LLMRequest
+func showProcessingLLM(item *LLMItem, q *LLMQueue) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
+	request := item.Request
 
 	content := fmt.Sprintf(
 		"Processing LLM request for <@%s>",
-		queue.DiscordInteraction.Member.User.ID,
+		item.DiscordInteraction.Member.User.ID,
 	)
-	embed := llmEmbed(new(discordgo.MessageEmbed), request, queue, queue.Interrupt != nil)
+	embed := llmEmbed(new(discordgo.MessageEmbed), request, item, item.Interrupt != nil)
 
 	webhook := &discordgo.WebhookEdit{
 		Content: &content,
 		Embeds:  &[]*discordgo.MessageEmbed{embed},
 	}
 
-	_, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, webhook)
+	_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,12 +70,12 @@ func showProcessingLLM(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed,
 	return embed, webhook, nil
 }
 
-func llmResponseEmbed(queue *SDQueueItem, response *llm.Response, embed *discordgo.MessageEmbed) *discordgo.WebhookEdit {
-	timeSince := time.Since(queue.LLMCreated).Round(time.Second).String()
-	if queue.LLMCreated.IsZero() {
+func llmResponseEmbed(item *LLMItem, response *llm.Response, embed *discordgo.MessageEmbed) *discordgo.WebhookEdit {
+	timeSince := time.Since(item.Created).Round(time.Second).String()
+	if item.Created.IsZero() {
 		timeSince = "unknown"
 	}
-	mention := fmt.Sprintf("<@%s> generated in %s", queue.DiscordInteraction.Member.User.ID, timeSince)
+	mention := fmt.Sprintf("<@%s> generated in %s", item.DiscordInteraction.Member.User.ID, timeSince)
 	message := response.Choices[0].Message.Content
 	if len(message) > 900 {
 		message = fmt.Sprintf("%s ...\n<truncated, see file>", message[:900])
@@ -105,37 +105,37 @@ func attachLLMResponse(response *llm.Response, webhook *discordgo.WebhookEdit) {
 	}
 }
 
-func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, queue *SDQueueItem, interrupted bool) *discordgo.MessageEmbed {
-	if queue == nil {
-		log.Printf("WARNING: generationEmbedDetails called with nil %T", queue)
+func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, item *LLMItem, interrupted bool) *discordgo.MessageEmbed {
+	if item == nil {
+		log.Printf("WARNING: generationEmbedDetails called with nil %T", item)
 		return embed
 	}
 	if request == nil {
-		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", request, queue)
+		log.Printf("WARNING: generationEmbedDetails called with nil %T or %T", request, item)
 		return embed
 	}
 	if embed == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T, creating...", embed)
 		embed = &discordgo.MessageEmbed{}
 	}
-	embed.Title = "LLM Instruct"
+	embed.Title = item.Type
 	if interrupted {
 		embed.Title += " (Interrupted)"
 	}
 	embed.Type = discordgo.EmbedTypeArticle
 	embed.URL = "https://github.com/ellypaws/sd-discord-bot/"
 	embed.Author = &discordgo.MessageEmbedAuthor{
-		Name:         queue.DiscordInteraction.Member.User.Username,
-		IconURL:      queue.DiscordInteraction.Member.User.AvatarURL(""),
+		Name:         item.DiscordInteraction.Member.User.Username,
+		IconURL:      item.DiscordInteraction.Member.User.AvatarURL(""),
 		ProxyIconURL: "https://i.keiau.space/data/00144.png",
 	}
 
-	if queue.LLMCreated.IsZero() {
-		queue.LLMCreated = time.Now()
+	if item.Created.IsZero() {
+		item.Created = time.Now()
 	}
 
 	embed.Description = fmt.Sprintf("<@%s> asked me to process `%d` tokens",
-		queue.DiscordInteraction.Member.User.ID, request.MaxTokens)
+		item.DiscordInteraction.Member.User.ID, request.MaxTokens)
 
 	embed.Timestamp = time.Now().Format(time.RFC3339)
 	embed.Footer = &discordgo.MessageEmbedFooter{

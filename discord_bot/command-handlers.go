@@ -16,12 +16,12 @@ import (
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/queue/llm"
 	"stable_diffusion_bot/queue/novelai"
 	"stable_diffusion_bot/queue/stable_diffusion"
 	"stable_diffusion_bot/utils"
 
 	"github.com/bwmarrin/discordgo"
-	"github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/sahilm/fuzzy"
 )
 
@@ -356,7 +356,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 }
 
 func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	if b.config.LLMConfig == nil {
+	if b.config.LLMQueue == nil {
 		return handlers.ErrorEphemeral(s, i.Interaction, "LLM is not enabled.")
 	}
 
@@ -371,36 +371,21 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a prompt.")
 	}
 
-	var systemPrompt = llm.Message{
-		Role:    llm.SystemRole,
-		Content: stable_diffusion.DefaultLLMSystem,
+	item := b.config.LLMQueue.NewItem(i.Interaction, llm.WithPrompt(prompt.StringValue()))
+
+	if len(item.Request.Messages) < 2 {
+		return handlers.ErrorEdit(s, i.Interaction, errors.New("unexpected error: LLM request messages is less than 2"))
 	}
+
 	if s, ok := optionMap[systemPromptOption]; ok {
-		systemPrompt.Content = s.StringValue()
+		item.Request.Messages[0].Content = s.StringValue()
 	}
 
-	var maxTokens int64 = 1024
 	if m, ok := optionMap[maxTokensOption]; ok {
-		maxTokens = m.IntValue()
+		item.Request.MaxTokens = m.IntValue()
 	}
 
-	queue := &stable_diffusion.SDQueueItem{
-		Type: stable_diffusion.ItemTypeLLM,
-		LLMRequest: &llm.Request{
-			Messages: []llm.Message{
-				systemPrompt,
-				llm.UserMessage(prompt.StringValue()),
-			},
-			Model:         stable_diffusion.LLama3,
-			Temperature:   0.7,
-			MaxTokens:     maxTokens,
-			Stream:        false,
-			StreamChannel: nil,
-		},
-		DiscordInteraction: i.Interaction,
-	}
-
-	position, err := b.config.ImagineQueue.Add(queue)
+	position, err := b.config.LLMQueue.Add(item)
 	if err != nil {
 		return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 	}
@@ -425,9 +410,9 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 	if err != nil {
 		return err
 	}
-	if queue.DiscordInteraction != nil && queue.DiscordInteraction.Message == nil && message != nil {
-		log.Printf("Setting message ID for interaction %v", queue.DiscordInteraction.ID)
-		queue.DiscordInteraction.Message = message
+	if item.DiscordInteraction != nil && item.DiscordInteraction.Message == nil && message != nil {
+		log.Printf("Setting message ID for interaction %v", item.DiscordInteraction.ID)
+		item.DiscordInteraction.Message = message
 	}
 
 	return nil

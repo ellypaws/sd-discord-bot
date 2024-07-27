@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-type ItemType string
+type ItemType = string
 
 const (
 	ItemTypeImage        ItemType = "Text to Image"

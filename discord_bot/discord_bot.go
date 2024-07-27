@@ -4,17 +4,18 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
-	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
+
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/queue"
+	"stable_diffusion_bot/queue/llm"
 	"stable_diffusion_bot/queue/novelai"
 	"stable_diffusion_bot/queue/stable_diffusion"
-	"strings"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -33,11 +34,10 @@ type Config struct {
 	GuildID            string
 	ImagineQueue       queue.Queue[*stable_diffusion.SDQueueItem]
 	NovelAIQueue       queue.Queue[*novelai.NAIQueueItem]
+	LLMQueue           queue.Queue[*llm.LLMItem]
 	ImagineCommand     *Command
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
-
-	LLMConfig *llm.Config
 }
 
 func (b *botImpl) imagineCommandString() Command {
@@ -226,7 +226,7 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 func (b *botImpl) registerCommands() error {
 	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(commands))
 	for key, command := range commands {
-		if command.Name == llmCommand && b.config.LLMConfig == nil {
+		if command.Name == llmCommand && b.config.LLMQueue == nil {
 			continue
 		}
 		if command.Name == novelAICommand && b.config.NovelAIQueue == nil {
@@ -301,6 +301,9 @@ func (b *botImpl) Start() {
 	if b.config.NovelAIQueue != nil {
 		go b.config.NovelAIQueue.Start(b.botSession)
 	}
+	if b.config.LLMQueue != nil {
+		go b.config.LLMQueue.Start(b.botSession)
+	}
 
 	log.Println("Press Ctrl+C to exit")
 
@@ -310,6 +313,9 @@ func (b *botImpl) Start() {
 	}
 	if b.config.NovelAIQueue != nil {
 		b.config.NovelAIQueue.Stop()
+	}
+	if b.config.LLMQueue != nil {
+		b.config.LLMQueue.Stop()
 	}
 
 	err := b.teardown()

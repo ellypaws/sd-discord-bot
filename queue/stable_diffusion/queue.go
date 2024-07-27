@@ -132,8 +132,6 @@ const (
 	ItemTypeVariation
 	ItemTypeImg2Img
 	ItemTypeRaw // raw JSON
-
-	ItemTypeLLM
 )
 
 func (q *SDQueue) DefaultQueueItem() *SDQueueItem {
@@ -317,8 +315,6 @@ func (q *SDQueue) pullNextInQueue() error {
 				err = q.processImg2ImgImagine()
 			case ItemTypeUpscale:
 				err = q.processUpscaleImagine()
-			case ItemTypeLLM:
-				err = q.processLLM()
 			default:
 				q.done()
 				return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))

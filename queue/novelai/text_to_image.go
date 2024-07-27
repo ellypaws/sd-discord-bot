@@ -209,7 +209,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		embed = new(discordgo.MessageEmbed)
 	}
 
-	embed.Title = string(item.Type)
+	embed.Title = item.Type
 	if interrupted {
 		embed.Title += " (Interrupted)"
 	}
