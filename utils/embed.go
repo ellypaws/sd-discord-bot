@@ -39,7 +39,7 @@ func EmbedImages(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, 
 	}
 
 	if len(thumbnails) > 0 {
-		thumbnailTile, err := composite_renderer.Compositor().TileImages(thumbnails)
+		thumbnailTile, err := compositor.TileImages(thumbnails)
 		if err != nil {
 			return fmt.Errorf("error tiling thumbnails: %w", err)
 		}
