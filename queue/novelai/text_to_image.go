@@ -178,23 +178,6 @@ func getMetadata(response *entities.NovelAIResponse) *meta.Metadata {
 }
 
 func retrieveImagesFromResponse(response *entities.NovelAIResponse, item *NAIQueueItem) (images []io.Reader, thumbnails []io.Reader) {
-	images = make([]io.Reader, len(response.Images))
-
-	for i, image := range response.Images {
-		if image.Image == nil {
-			log.Printf("error: image is nil at index %d\n", i)
-			continue
-		}
-
-		reader, err := image.Reader()
-		if err != nil {
-			log.Printf("error encoding image: %s\n", err)
-			continue
-		}
-
-		images[i] = reader
-	}
-
 	if item.Request.Parameters.VibeTransferImage != nil {
 		reader, err := item.Request.Parameters.VibeTransferImage.Reader()
 		if err != nil {
@@ -211,11 +194,13 @@ func retrieveImagesFromResponse(response *entities.NovelAIResponse, item *NAIQue
 		thumbnails = append(thumbnails, reader)
 	}
 
-	if len(images) > int(item.Request.Parameters.ImageCount) {
-		thumbnails = append(thumbnails, images[item.Request.Parameters.ImageCount])
+	// if there are more images than requested, move the rest to thumbnails
+	if len(response.Images) > int(item.Request.Parameters.ImageCount) {
+		thumbnails = append(thumbnails, response.Images[item.Request.Parameters.ImageCount:]...)
+		response.Images = response.Images[:item.Request.Parameters.ImageCount]
 	}
 
-	return images, thumbnails
+	return response.Images, thumbnails
 }
 
 func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, metadata *meta.Metadata, interrupted bool) *discordgo.MessageEmbed {

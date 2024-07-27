@@ -5,12 +5,22 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
-	"image"
 	"io"
-	"stable_diffusion_bot/entities"
 )
 
-func Unzip(body io.ReadCloser) ([]entities.Image, error) {
+type CloseAfterRead struct {
+	Reader io.ReadCloser
+}
+
+func (c *CloseAfterRead) Read(p []byte) (int, error) {
+	n, err := c.Reader.Read(p)
+	if err == io.EOF {
+		c.Reader.Close()
+	}
+	return n, err
+}
+
+func Unzip(body io.ReadCloser) ([]io.Reader, error) {
 	bin, err := io.ReadAll(body)
 	if err != nil {
 		return nil, err
@@ -26,26 +36,13 @@ func Unzip(body io.ReadCloser) ([]entities.Image, error) {
 		return nil, errors.New("zip file is empty")
 	}
 
-	images := make([]entities.Image, len(zipReader.File))
+	images := make([]io.Reader, len(zipReader.File))
 	for i, file := range zipReader.File {
 		reader, err := file.Open()
 		if err != nil {
 			return nil, err
 		}
-		defer reader.Close()
-
-		img, _, err := image.Decode(reader)
-		if err != nil {
-			return nil, err
-		}
-
-		images[i] = entities.Image{Image: &img}
-
-		bin := new(bytes.Buffer)
-		err = images[i].ImageBytes(bin)
-		if err != nil {
-			continue
-		}
+		images[i] = &CloseAfterRead{Reader: reader}
 		//data, err := meta.ExtractMetadata(img)
 		//if err != nil {
 		//	continue

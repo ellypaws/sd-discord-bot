@@ -43,7 +43,7 @@ func (c *Client) Inference(request *entities.NovelAIRequest) (*entities.NovelAIR
 	return &entities.NovelAIResponse{Images: response}, nil
 }
 
-func (c *Client) POST(bin io.Reader) ([]entities.Image, error) {
+func (c *Client) POST(bin io.Reader) ([]io.Reader, error) {
 	request, err := http.NewRequest(http.MethodPost, c.host.String(), bin)
 	if err != nil {
 		return nil, err

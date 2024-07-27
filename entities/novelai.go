@@ -86,7 +86,7 @@ type Parameters struct {
 }
 
 type NovelAIResponse struct {
-	Images []Image `json:"images"`
+	Images []io.Reader `json:"images"`
 }
 
 type Image struct {
@@ -327,6 +327,7 @@ func (b *Image) ImageBytes(w io.Writer) error {
 	return png.Encode(w, *b.Image)
 }
 
+// Deprecated: directly use the io.ReadCloser from (*zip.File).Open
 func (b *Image) Reader() (io.Reader, error) {
 	if b.Base64 != nil {
 		return base64.NewDecoder(base64.StdEncoding, bytes.NewReader([]byte(*b.Base64))), nil
