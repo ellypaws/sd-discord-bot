@@ -78,7 +78,7 @@ func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmb
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
-		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.Interrupt]},
+		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.InterruptDisabled]},
 		Embeds:     &[]*discordgo.MessageEmbed{embed},
 	}
 
