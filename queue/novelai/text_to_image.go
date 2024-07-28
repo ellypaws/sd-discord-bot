@@ -99,6 +99,8 @@ func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmb
 func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan bool) {
 	start := time.Now()
 	visual := spinner.Moon.Frames
+	message := imagineMessageSimple(item.Request, item.user)
+
 	var frame int
 	for {
 		select {
@@ -106,7 +108,8 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 			break
 		case <-generationDone:
 			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, time.Since(start).Round(time.Second).String())
-			message := "Uploading image..."
+
+			message := fmt.Sprintf("%s\n\nUploading image...", message)
 			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
 				Content: &message,
 			})
@@ -114,13 +117,14 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 				log.Printf("Error editing interaction: %v", progressErr)
 				return
 			}
+
 			return
 		case <-time.After(1 * time.Second):
 			frame = nextFrame(frame, len(visual))
 			if frame >= len(visual) {
 				frame = 0
 			}
-			message := imagineMessageSimple(item.Request, item.user)
+
 			elapsed := time.Since(start).Round(time.Second).String()
 			progress := fmt.Sprintf("\r%s\n\n%s Time elapsed: %s", message, visual[frame], elapsed)
 			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
