@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"io"
+	"slices"
 	"stable_diffusion_bot/composite_renderer"
 	"time"
 )
@@ -27,22 +28,21 @@ func EmbedImages(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, 
 	}
 
 	var files []*discordgo.File
-	var embeds []*discordgo.MessageEmbed
 
-	embeds = append(embeds, embed)
-
-	// Process thumbnails
-	for i := len(thumbnails) - 1; i >= 0; i-- {
-		if thumbnails[i] == nil {
-			thumbnails = append(thumbnails[:i], thumbnails[i+1:]...)
-		}
+	embedCount := len(images)
+	if embedCount > 4 {
+		embedCount = 1
 	}
+	embeds := make([]*discordgo.MessageEmbed, 1, embedCount+1)
+	embeds[0] = embed
 
+	thumbnails = slices.DeleteFunc(thumbnails, func(i io.Reader) bool { return i == nil })
 	if len(thumbnails) > 0 {
 		thumbnailTile, err := compositor.TileImages(thumbnails)
 		if err != nil {
 			return fmt.Errorf("error tiling thumbnails: %w", err)
 		}
+
 		if thumbnailTile != nil {
 			embed.Thumbnail = &discordgo.MessageEmbedThumbnail{
 				URL: "attachment://thumbnail.png",
@@ -54,56 +54,45 @@ func EmbedImages(webhook *discordgo.WebhookEdit, embed *discordgo.MessageEmbed, 
 		}
 	}
 
-	for i := len(images) - 1; i >= 0; i-- {
-		if images[i] == nil {
-			images = append(images[:i], images[i+1:]...)
-		}
-	}
-
-	// Process primary images
-	if len(images) > 4 {
-		// Tile images if more than four
+	images = slices.DeleteFunc(images, func(i io.Reader) bool { return i == nil })
+	if len(images) > 4 { // Tile images if more than four
 		if compositor == nil {
 			return errors.New("compositor is required for tiling more than four images")
 		}
+
 		primaryTile, err := compositor.TileImages(images)
 		if err != nil {
 			return fmt.Errorf("error tiling primary images: %w", err)
 		}
-		imgName := fmt.Sprintf("%v.png", nowFormatted)
+
+		// Use primaryTile as the only image
+		if primaryTile != nil {
+			images[0] = primaryTile
+			clear(images[1:])
+			images = images[:1]
+		}
+	}
+
+	// Create separate embeds for four or fewer images
+	for i, imgBuf := range images {
+		if imgBuf == nil {
+			continue
+		}
+
+		imgName := fmt.Sprintf("%v-%d.png", nowFormatted, i)
 		files = append(files, &discordgo.File{
-			Name:   imgName,
-			Reader: primaryTile,
+			Name:        imgName,
+			ContentType: "image/png",
+			Reader:      imgBuf,
 		})
-		embed.Image = &discordgo.MessageEmbedImage{
-			URL: fmt.Sprintf("attachment://%s", imgName),
-		}
-	} else {
-		// Create separate embeds for four or fewer images
-		for i, imgBuf := range images {
-			if imgBuf == nil {
-				continue
-			}
 
-			imgName := fmt.Sprintf("%v-%d.png", nowFormatted, i)
-			files = append(files, &discordgo.File{
-				Name:   imgName,
-				Reader: imgBuf,
-			})
-
-			newEmbed := &discordgo.MessageEmbed{
-				Type: discordgo.EmbedTypeImage,
-				URL:  embed.URL, // Using the same URL as the original embed
-				Image: &discordgo.MessageEmbedImage{
-					URL: fmt.Sprintf("attachment://%s", imgName),
-				},
-			}
-			if i == 0 {
-				embed.Image = newEmbed.Image
-			} else {
-				embeds = append(embeds, newEmbed)
-			}
-		}
+		embeds = append(embeds, &discordgo.MessageEmbed{
+			Type: discordgo.EmbedTypeImage,
+			URL:  "https://github.com/ellypaws/sd-discord-bot",
+			Image: &discordgo.MessageEmbedImage{
+				URL: fmt.Sprintf("attachment://%s", imgName),
+			},
+		})
 	}
 
 	webhook.Embeds = &embeds

@@ -132,7 +132,6 @@ func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextTo
 
 	webhook = &discordgo.WebhookEdit{
 		Content:    &mention,
-		Embeds:     &[]*discordgo.MessageEmbed{embed},
 		Components: rerollVariationComponents(min(len(imageBuffers), totalImages), queue.Type == ItemTypeImg2Img || (queue.Raw != nil && queue.Raw.Debug)),
 	}
 

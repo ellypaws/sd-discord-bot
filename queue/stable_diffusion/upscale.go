@@ -132,7 +132,6 @@ func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion
 
 	webhook := &discordgo.WebhookEdit{
 		Content: &finishedContent,
-		Embeds:  &[]*discordgo.MessageEmbed{embed},
 		Components: &[]discordgo.MessageComponent{
 			handlers.Components[handlers.DeleteGeneration],
 		},

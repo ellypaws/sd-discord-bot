@@ -74,7 +74,7 @@ func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmb
 	request := item.Request
 	newContent := imagineMessageSimple(request, item.user)
 
-	embed := generationEmbedDetails(new(discordgo.MessageEmbed), item, nil, item.Interrupt != nil)
+	embed := generationEmbedDetails(new(discordgo.MessageEmbed), item, nil, item.Interrupt != nil, false)
 
 	webhook := &discordgo.WebhookEdit{
 		Content:    &newContent,
@@ -145,21 +145,20 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 	} else {
 		user = &discordgo.User{ID: "unknown"}
 	}
-	mention := fmt.Sprintf("<@%v>", user.ID)
-	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
-	embed = generationEmbedDetails(embed, item, getMetadata(response), item.Interrupt != nil)
 
+	mention := fmt.Sprintf("<@%v>", user.ID)
 	webhook = &discordgo.WebhookEdit{
 		Content:    &mention,
-		Embeds:     &[]*discordgo.MessageEmbed{embed},
 		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.DeleteGeneration]},
 	}
 
-	if err := utils.EmbedImages(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers, q.compositor); err != nil {
+	embed = generationEmbedDetails(embed, item, getMetadata(response), item.Interrupt != nil, true)
+	err := utils.EmbedImages(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers, q.compositor)
+	if err != nil {
 		return fmt.Errorf("error creating image embed: %w", err)
 	}
 
-	_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
+	_, err = handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
 	return err
 }
 
@@ -194,7 +193,7 @@ func retrieveImagesFromResponse(response *entities.NovelAIResponse, item *NAIQue
 	return response.Images, thumbnails
 }
 
-func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, metadata *meta.Metadata, interrupted bool) *discordgo.MessageEmbed {
+func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, metadata *meta.Metadata, interrupted, hidePrompt bool) *discordgo.MessageEmbed {
 	if item == nil {
 		log.Printf("WARNING: generationEmbedDetails called with nil %T", item)
 		return embed
@@ -292,10 +291,12 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 				Value:  fmt.Sprintf("`%d`", metadata.Comment.Steps),
 				Inline: true,
 			},
-			{
+		}
+		if !hidePrompt {
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:  "Prompt",
 				Value: fmt.Sprintf("```\n%s\n```", prompt),
-			},
+			})
 		}
 	} else {
 		embed.Fields = []*discordgo.MessageEmbedField{
@@ -304,10 +305,12 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 				Value:  fmt.Sprintf("`%s`", request.Model),
 				Inline: false,
 			},
-			{
+		}
+		if !hidePrompt {
+			embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 				Name:  "Prompt",
 				Value: fmt.Sprintf("```\n%s\n```", request.Input),
-			},
+			})
 		}
 	}
 
