@@ -58,6 +58,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 
 	switch item.Type {
 	case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
+		item.Created = time.Now()
 		images, err := q.client.Inference(request)
 		generationDone <- true
 		if err != nil {
@@ -105,6 +106,14 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 			break
 		case <-generationDone:
 			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, time.Since(start).Round(time.Second).String())
+			message := "Uploading image..."
+			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
+				Content: &message,
+			})
+			if progressErr != nil {
+				log.Printf("Error editing interaction: %v", progressErr)
+				return
+			}
 			return
 		case <-time.After(1 * time.Second):
 			frame = nextFrame(frame, len(visual))
