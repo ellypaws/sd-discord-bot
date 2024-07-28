@@ -15,7 +15,10 @@ type CloseAfterRead struct {
 func (c *CloseAfterRead) Read(p []byte) (int, error) {
 	n, err := c.Reader.Read(p)
 	if err == io.EOF {
-		c.Reader.Close()
+		err := c.Reader.Close()
+		if err != nil {
+			return n, err
+		}
 	}
 	return n, err
 }
