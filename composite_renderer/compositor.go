@@ -18,6 +18,10 @@ func (c *compositor) TileImages(imageBufs []io.Reader) (io.Reader, error) {
 		return nil, errors.New("no images provided")
 	}
 
+	if numImages == 1 {
+		return imageBufs[0], nil
+	}
+
 	images := make([]image.Image, numImages)
 	var totalWidth, totalHeight int
 	for i, buf := range imageBufs {
