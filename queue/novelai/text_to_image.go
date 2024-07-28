@@ -152,7 +152,7 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.DeleteGeneration]},
 	}
 
-	embed = generationEmbedDetails(embed, item, getMetadata(response), item.Interrupt != nil, true)
+	embed = generationEmbedDetails(embed, item, getMetadata(response), item.Interrupt != nil, len(item.Request.Input) > 200)
 	err := utils.EmbedImages(webhook, embed, imageBuffers[:min(len(imageBuffers), totalImages)], thumbnailBuffers, q.compositor)
 	if err != nil {
 		return fmt.Errorf("error creating image embed: %w", err)
