@@ -7,8 +7,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
@@ -295,33 +297,43 @@ func (b *botImpl) Start() {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
-	if b.config.ImagineQueue != nil {
-		go b.config.ImagineQueue.Start(b.botSession)
-	}
-	if b.config.NovelAIQueue != nil {
-		go b.config.NovelAIQueue.Start(b.botSession)
-	}
-	if b.config.LLMQueue != nil {
-		go b.config.LLMQueue.Start(b.botSession)
+	queues := []queue.StartStop{
+		b.config.ImagineQueue,
+		b.config.NovelAIQueue,
+		b.config.LLMQueue,
 	}
 
-	log.Println("Press Ctrl+C to exit")
+	slices.DeleteFunc(queues, IsNil)
+	for _, q := range queues {
+		go q.Start(b.botSession)
+	}
+
+	if len(queues) == 0 {
+		log.Println("No queues to start, exiting...")
+		stop <- os.Interrupt
+	} else {
+		log.Println("Press Ctrl+C to exit")
+	}
 
 	<-stop
-	if b.config.ImagineQueue != nil {
-		b.config.ImagineQueue.Stop()
+	var wg sync.WaitGroup
+	for _, q := range queues {
+		wg.Add(1)
+		go func(q queue.StartStop) {
+			q.Stop()
+			wg.Done()
+		}(q)
 	}
-	if b.config.NovelAIQueue != nil {
-		b.config.NovelAIQueue.Stop()
-	}
-	if b.config.LLMQueue != nil {
-		b.config.LLMQueue.Stop()
-	}
+	wg.Wait()
 
 	err := b.teardown()
 	if err != nil {
 		log.Printf("Error tearing down bot: %v", err)
 	}
+}
+
+func IsNil(q queue.StartStop) bool {
+	return q == nil
 }
 
 func (b *botImpl) teardown() error {

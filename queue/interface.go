@@ -14,6 +14,11 @@ type Queue[item Item] interface {
 	Stop()
 }
 
+type StartStop interface {
+	Start(botSession *discordgo.Session)
+	Stop()
+}
+
 type Item interface {
 	Interaction() *discordgo.Interaction
 }
