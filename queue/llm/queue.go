@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func New(host *llm.Config) queue.Queue[*LLMItem] {
+func New(host *llm.Config, commands []*discordgo.ApplicationCommand, handlers []queue.Handler) queue.Queue[*LLMItem] {
 	if host == nil {
 		return nil
 	}
@@ -21,6 +21,8 @@ func New(host *llm.Config) queue.Queue[*LLMItem] {
 		queue:      make(chan *LLMItem, 24),
 		cancelled:  make(map[string]bool),
 		compositor: composite_renderer.Compositor(),
+		commands:   commands,
+		handlers:   handlers,
 	}
 }
 
@@ -37,6 +39,9 @@ type LLMQueue struct {
 	compositor composite_renderer.Renderer
 
 	stop chan os.Signal
+
+	commands []*discordgo.ApplicationCommand
+	handlers []queue.Handler
 }
 
 func (q *LLMQueue) Start(botSession *discordgo.Session) {
@@ -105,4 +110,12 @@ func (q *LLMQueue) Stop() {
 	}
 	q.stop <- os.Interrupt
 	close(q.stop)
+}
+
+func (q *LLMQueue) Commands() []*discordgo.ApplicationCommand {
+	return nil
+}
+
+func (q *LLMQueue) Handlers() []queue.Handler {
+	return q.handlers
 }

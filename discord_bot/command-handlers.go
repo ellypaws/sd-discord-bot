@@ -16,6 +16,7 @@ import (
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/queue"
 	"stable_diffusion_bot/queue/llm"
 	"stable_diffusion_bot/queue/novelai"
 	"stable_diffusion_bot/queue/stable_diffusion"
@@ -27,46 +28,24 @@ import (
 
 type Handler = func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error
 
-var commandHandlers = map[Command]Handler{
+var CommandHandlers = map[Command]Handler{
 	helloCommand: func(b *botImpl, bot *discordgo.Session, i *discordgo.InteractionCreate) error {
 		return handlers.HelloResponse(bot, i)
 	},
-	imagineCommand:         (*botImpl).processImagineCommand,
-	imagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
-	llmCommand:             (*botImpl).processLLMCommand,
-	novelAICommand:         (*botImpl).processNovelAICommand,
-	refreshCommand:         (*botImpl).processRefreshCommand,
-	rawCommand:             (*botImpl).processRawCommand,
+	ImagineCommand:         (*botImpl).processImagineCommand,
+	ImagineSettingsCommand: (*botImpl).processImagineSettingsCommand,
+	LLMCommand:             (*botImpl).processLLMCommand,
+	NovelAICommand:         (*botImpl).processNovelAICommand,
+	RefreshCommand:         (*botImpl).processRefreshCommand,
+	RawCommand:             (*botImpl).processRawCommand,
 }
 
 var autocompleteHandlers = map[Command]Handler{
-	imagineCommand: (*botImpl).processImagineAutocomplete,
+	ImagineCommand: (*botImpl).processImagineAutocomplete,
 }
 
 var modalHandlers = map[Command]Handler{
-	rawCommand: (*botImpl).processRawModal,
-}
-
-func getOpts(data discordgo.ApplicationCommandInteractionData) map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption {
-	options := data.Options
-	optionMap := make(map[CommandOption]*discordgo.ApplicationCommandInteractionDataOption, len(options))
-	for _, opt := range options {
-		optionMap[opt.Name] = opt
-	}
-	return optionMap
-}
-
-// keyValue matches --key value, --key=value, or --key "value with spaces"
-var keyValue = regexp.MustCompile(`\B(?:--|—)+(\w+)(?:[ =]([\w./\\:]+|"[^"]+"))?`)
-
-func extractKeyValuePairsFromPrompt(prompt string) (parameters map[CommandOption]string, sanitized string) {
-	parameters = make(map[CommandOption]string)
-	sanitized = keyValue.ReplaceAllString(prompt, "")
-	sanitized = strings.TrimSpace(sanitized)
-	for _, match := range keyValue.FindAllStringSubmatch(prompt, -1) {
-		parameters[match[1]] = match[2]
-	}
-	return
+	RawCommand: (*botImpl).processRawModal,
 }
 
 // If FieldType and ValueType are the same, then we attempt to assert FieldType to value.Value
@@ -110,12 +89,18 @@ func interfaceConvertAuto[F any, V string | float64](field *F, option CommandOpt
 	return nil, false
 }
 
+func (b *botImpl) Wrap(handler func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error) queue.Handler {
+	return func(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+		return handler(b, b.botSession, i)
+	}
+}
+
 func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	if err := handlers.ThinkResponse(s, i); err != nil {
 		return err
 	}
 
-	optionMap := getOpts(i.ApplicationCommandData())
+	optionMap := utils.GetOpts(i.ApplicationCommandData())
 
 	var position int
 	var queue *stable_diffusion.SDQueueItem
@@ -123,7 +108,7 @@ func (b *botImpl) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 	if option, ok := optionMap[promptOption]; !ok {
 		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a prompt.")
 	} else {
-		parameters, sanitized := extractKeyValuePairsFromPrompt(option.StringValue())
+		parameters, sanitized := utils.ExtractKeyValuePairsFromPrompt(option.StringValue())
 		queue = b.config.ImagineQueue.NewItem(i.Interaction, stable_diffusion.WithPrompt(sanitized))
 		queue.Type = stable_diffusion.ItemTypeImagine
 
@@ -364,7 +349,7 @@ func (b *botImpl) processLLMCommand(s *discordgo.Session, i *discordgo.Interacti
 		return err
 	}
 
-	optionMap := getOpts(i.ApplicationCommandData())
+	optionMap := utils.GetOpts(i.ApplicationCommandData())
 
 	prompt, ok := optionMap[promptOption]
 	if !ok {
@@ -610,7 +595,7 @@ func (b *botImpl) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 	input = opt.StringValue()
 
 	// check the Type first
-	optionMap := getOpts(i.ApplicationCommandData())
+	optionMap := utils.GetOpts(i.ApplicationCommandData())
 
 	cache, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.config.StableDiffusionApi)
 	if err != nil {
@@ -742,7 +727,7 @@ func (b *botImpl) processNovelAICommand(s *discordgo.Session, i *discordgo.Inter
 		return err
 	}
 
-	optionMap := getOpts(i.ApplicationCommandData())
+	optionMap := utils.GetOpts(i.ApplicationCommandData())
 	option, ok := optionMap[promptOption]
 	if !ok {
 		return handlers.ErrorEdit(s, i.Interaction, "You need to provide a prompt.")
@@ -953,7 +938,7 @@ func (b *botImpl) processRefreshCommand(s *discordgo.Session, i *discordgo.Inter
 
 // processRawCommand responds with a Modal to receive a json blob from the user to pass to the api
 func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	optionMap := getOpts(i.ApplicationCommandData())
+	optionMap := utils.GetOpts(i.ApplicationCommandData())
 
 	params := entities.RawParams{
 		UseDefault: true,
@@ -981,7 +966,7 @@ func (b *botImpl) processRawCommand(s *discordgo.Session, i *discordgo.Interacti
 		interactionResponse := discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseModal,
 			Data: &discordgo.InteractionResponseData{
-				CustomID: rawCommand,
+				CustomID: RawCommand,
 				Title:    "Raw JSON",
 				Components: []discordgo.MessageComponent{
 					handlers.Components[handlers.JSONInput],

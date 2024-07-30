@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-func New(token *string) queue.Queue[*NAIQueueItem] {
+func New(token *string, commands []*discordgo.ApplicationCommand, handlers []queue.Handler) queue.Queue[*NAIQueueItem] {
 	if token == nil {
 		return nil
 	}
@@ -21,6 +21,8 @@ func New(token *string) queue.Queue[*NAIQueueItem] {
 		queue:      make(chan *NAIQueueItem, 24),
 		cancelled:  make(map[string]bool),
 		compositor: composite_renderer.Compositor(),
+		commands:   commands,
+		handlers:   handlers,
 	}
 }
 
@@ -37,6 +39,9 @@ type NAIQueue struct {
 	compositor composite_renderer.Renderer
 
 	stop chan os.Signal
+
+	commands []*discordgo.ApplicationCommand
+	handlers []queue.Handler
 }
 
 func (q *NAIQueue) Start(botSession *discordgo.Session) {
@@ -105,4 +110,12 @@ func (q *NAIQueue) Stop() {
 	}
 	q.stop <- os.Interrupt
 	close(q.stop)
+}
+
+func (q *NAIQueue) Commands() []*discordgo.ApplicationCommand {
+	return q.commands
+}
+
+func (q *NAIQueue) Handlers() []queue.Handler {
+	return q.handlers
 }

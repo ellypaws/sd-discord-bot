@@ -14,18 +14,15 @@ type (
 	CommandOption = string
 )
 
-var (
-	// Command names
-	imagineCommand         Command = "imagine"
-	imagineSettingsCommand Command = "imagine_settings"
-)
-
 const (
-	helloCommand   Command = "hello"
-	refreshCommand Command = "refresh"
-	llmCommand     Command = "llm"
-	novelAICommand Command = "novelai"
-	rawCommand     Command = Command(handlers.JSONInput)
+	helloCommand Command = "hello"
+
+	ImagineCommand         Command = "imagine"
+	ImagineSettingsCommand Command = "imagine_settings"
+	RefreshCommand         Command = "refresh"
+	LLMCommand             Command = "llm"
+	NovelAICommand         Command = "novelai"
+	RawCommand             Command = Command(handlers.JSONInput)
 )
 
 const (
@@ -93,7 +90,7 @@ const (
 	extraLoras = 2
 )
 
-var commands = map[Command]*discordgo.ApplicationCommand{
+var Commands = map[Command]*discordgo.ApplicationCommand{
 	helloCommand: {
 		Name: helloCommand,
 		// All commands and options must have a description
@@ -102,19 +99,19 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 		Description: "Say hello to the bot",
 		Type:        discordgo.ChatApplicationCommand,
 	},
-	imagineCommand: {
-		Name:        imagineCommand,
+	ImagineCommand: {
+		Name:        ImagineCommand,
 		Description: "Ask the bot to imagine something",
 		Options:     imagineOptions(),
 		Type:        discordgo.ChatApplicationCommand,
 	},
-	imagineSettingsCommand: {
-		Name:        imagineSettingsCommand,
+	ImagineSettingsCommand: {
+		Name:        ImagineSettingsCommand,
 		Description: "Change the default settings for the imagine command",
 		Type:        discordgo.ChatApplicationCommand,
 	},
-	llmCommand: {
-		Name:        llmCommand,
+	LLMCommand: {
+		Name:        LLMCommand,
 		Description: "Ask the bot to generate text using an LLM",
 		Type:        discordgo.ChatApplicationCommand,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -123,8 +120,8 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[maxTokensOption],
 		},
 	},
-	novelAICommand: {
-		Name:        novelAICommand,
+	NovelAICommand: {
+		Name:        NovelAICommand,
 		Description: "Ask the bot to imagine something using NovelAI",
 		Type:        discordgo.ChatApplicationCommand,
 		Options: []*discordgo.ApplicationCommandOption{
@@ -148,8 +145,8 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[novelaiSMEADynOption],
 		},
 	},
-	refreshCommand: {
-		Name:        refreshCommand,
+	RefreshCommand: {
+		Name:        RefreshCommand,
 		Description: "Refresh the loaded models from the API",
 		Options: []*discordgo.ApplicationCommandOption{
 			commandOptions[refreshLoraOption],
@@ -158,8 +155,8 @@ var commands = map[Command]*discordgo.ApplicationCommand{
 			commandOptions[refreshAllOption],
 		},
 	},
-	rawCommand: {
-		Name:        rawCommand,
+	RawCommand: {
+		Name:        RawCommand,
 		Description: "Send a raw json request to the API. ",
 		Type:        discordgo.ChatApplicationCommand,
 		Options: []*discordgo.ApplicationCommandOption{

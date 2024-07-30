@@ -94,12 +94,17 @@ type SDQueue struct {
 	llmConfig *llm.Config
 
 	stop chan os.Signal
+
+	commands []*discordgo.ApplicationCommand
+	handlers []queue.Handler
 }
 
 type Config struct {
 	StableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
 	ImageGenerationRepo image_generations.Repository
 	DefaultSettingsRepo default_settings.Repository
+	Commands            []*discordgo.ApplicationCommand
+	Handlers            []queue.Handler
 }
 
 func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
@@ -122,7 +127,17 @@ func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
 		compositor:          composite_renderer.Compositor(),
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 		cancelledItems:      make(map[string]bool),
+		commands:            cfg.Commands,
+		handlers:            cfg.Handlers,
 	}, nil
+}
+
+func (q *SDQueue) Commands() []*discordgo.ApplicationCommand {
+	return q.commands
+}
+
+func (q *SDQueue) Handlers() []queue.Handler {
+	return q.handlers
 }
 
 const (

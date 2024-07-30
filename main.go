@@ -18,6 +18,7 @@ import (
 	"stable_diffusion_bot/repositories/image_generations"
 	"strings"
 
+	"github.com/bwmarrin/discordgo"
 	openai "github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/joho/godotenv"
 )
@@ -163,6 +164,13 @@ func main() {
 		StableDiffusionAPI:  stableDiffusionAPI,
 		ImageGenerationRepo: generationRepo,
 		DefaultSettingsRepo: defaultSettingsRepo,
+		Commands: getCommands(
+			discord_bot.ImagineCommand,
+			discord_bot.ImagineSettingsCommand,
+			discord_bot.RefreshCommand,
+			discord_bot.RawCommand,
+		),
+		Handlers: nil,
 	})
 	if err != nil {
 		log.Fatalf("Failed to create imagine queue: %v", err)
@@ -188,9 +196,8 @@ func main() {
 		BotToken:           *botToken,
 		GuildID:            *guildID,
 		ImagineQueue:       imagineQueue,
-		NovelAIQueue:       novelai.New(novelAIToken),
-		LLMQueue:           llm.New(llmConfig),
-		ImagineCommand:     imagineCommand,
+		NovelAIQueue:       novelai.New(novelAIToken, getCommands(discord_bot.NovelAICommand), nil),
+		LLMQueue:           llm.New(llmConfig, getCommands(discord_bot.LLMCommand), nil),
 		RemoveCommands:     removeCommands,
 		StableDiffusionApi: stableDiffusionAPI,
 	})
@@ -198,7 +205,20 @@ func main() {
 		log.Fatalf("Error creating Discord bot: %v", err)
 	}
 
-	bot.Start()
+	if err := bot.Start(); err != nil {
+		panic(err)
+	}
 
 	log.Println("Gracefully shutting down.")
+}
+
+// getCommands panics if the command is not found in discord_bot.Commands
+func getCommands(keys ...discord_bot.Command) []*discordgo.ApplicationCommand {
+	commands := make([]*discordgo.ApplicationCommand, len(keys))
+
+	for i, k := range keys {
+		commands[i] = discord_bot.Commands[k]
+	}
+
+	return commands
 }

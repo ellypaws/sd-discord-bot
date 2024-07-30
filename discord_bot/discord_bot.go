@@ -27,6 +27,8 @@ type botImpl struct {
 
 	registeredCommands map[Command]*discordgo.ApplicationCommand
 	config             *Config
+
+	queues []queue.HandlerStartStopper
 }
 
 type Config struct {
@@ -60,60 +62,36 @@ func New(cfg *Config) (Bot, error) {
 		return nil, err
 	}
 
-	botSession.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
-	})
-	err = botSession.Open()
-	if err != nil {
-		return nil, err
+	queues := []queue.HandlerStartStopper{
+		cfg.ImagineQueue,
+		cfg.NovelAIQueue,
+		cfg.LLMQueue,
 	}
+	queues = slices.DeleteFunc(queues, func(q queue.HandlerStartStopper) bool { return q == nil })
 
 	bot := &botImpl{
 		botSession:         botSession,
 		registeredCommands: make(map[Command]*discordgo.ApplicationCommand),
 		config:             cfg,
+		queues:             queues,
 	}
-
-	if bot.config.NovelAIQueue == nil {
-		delete(commands, novelAICommand)
-	}
-
-	err = bot.registerCommands()
-	if err != nil {
-		return nil, err
-	}
-
-	bot.registerHandlers(botSession)
 
 	return bot, nil
 }
 
-func (b *botImpl) registerHandlers(session *discordgo.Session) {
-	session.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
-		var handler func(b *botImpl, s *discordgo.Session, i *discordgo.InteractionCreate) error
+func (b *botImpl) registerHandlers() {
+	b.botSession.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
+		var handler Handler
 		var ok bool
 		switch i.Type {
 		// commands
 		case discordgo.InteractionApplicationCommand:
-			handler, ok = commandHandlers[i.ApplicationCommandData().Name]
-			//If we're using *Command, we have to range through the map to dereference the Command string
-			//for key, command := range commandHandlers {
-			//	if string(*key) == i.ApplicationCommandData().Name {
-			//		h = command
-			//		ok = true
-			//	}
-			//}
+			handler, ok = CommandHandlers[i.ApplicationCommandData().Name]
+
 		// buttons
 		case discordgo.InteractionMessageComponent:
 			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
 			handler, ok = componentHandlers[handlers.Component(i.MessageComponentData().CustomID)]
-			//bot.p.Send(logger.Message(fmt.Sprintf(
-			//	"Handler found, executing on message `%v`\nRan by: <@%v>\nUsername: %v",
-			//	i.Message.ID,
-			//	i.Member.User.ID,
-			//	i.Member.User.Username,
-			//)))
-			//bot.p.Send(logger.Message(fmt.Sprintf("https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)))
 
 			if !ok {
 				switch customID := i.MessageComponentData().CustomID; {
@@ -185,60 +163,47 @@ func (b *botImpl) registerHandlers(session *discordgo.Session) {
 			}
 		}
 	})
-	//currentProgress = len(commandHandlers) + len(componentHandlers) + len(components)
-	//bot.p.Send(load.Goal{
-	//	Current: currentProgress,
-	//	Total:   totalProgress,
-	//	Show:    true,
-	//})
-	//session.AddHandler(func(session *discordgo.Session, r *discordgo.Ready) {
-	//	bot.p.Send(logger.Message(fmt.Sprintf("Logged in as: %v#%v", session.State.User.Username, session.State.User.Discriminator)))
-	//})
 }
 
 func (b *botImpl) registerCommands() error {
-	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(commands))
-	for key, command := range commands {
-		if command.Name == llmCommand && b.config.LLMQueue == nil {
-			continue
-		}
-		if command.Name == novelAICommand && b.config.NovelAIQueue == nil {
-			continue
-		}
-		if command.Name == "" {
-			// clean the key because it might be a description of some sort
-			// only get the first word, and clean to only alphanumeric characters or -
-			sanitized := strings.ReplaceAll(key, " ", "-")
-			sanitized = strings.ToLower(sanitized)
+	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(Commands))
 
-			// remove all non-valid characters
-			for _, c := range sanitized {
-				if (c < 'a' || c > 'z') && (c < '0' || c > '9') && c != '-' {
-					sanitized = strings.ReplaceAll(sanitized, string(c), "")
-				}
+	for _, q := range b.queues {
+		if q == nil {
+			continue
+		}
+
+		for _, command := range q.Commands() {
+			cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.config.GuildID, command)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
 			}
-			command.Name = sanitized
+
+			b.registeredCommands[command.Name] = cmd
+			log.Printf("Registered %v command as: /%v", command.Name, cmd.Name)
 		}
-		//b.controlnetTypes()
-		cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.config.GuildID, command)
-		if err != nil {
-			return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
-		}
-		b.registeredCommands[key] = cmd
-		log.Printf("Registered %v command as: /%v", key, cmd.Name)
-		//bot.p.Send(logger.Message(fmt.Sprintf("Registered command: %v", cmd.Name)))
-		//currentProgress++
-		//bot.p.Send(load.Goal{
-		//	Current: currentProgress,
-		//	Total:   totalProgress,
-		//	Show:    true,
-		//})
 	}
 
 	return nil
 }
 
-func (b *botImpl) Start() {
+func (b *botImpl) Start() error {
+	b.botSession.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+	})
+
+	err := b.botSession.Open()
+	if err != nil {
+		return fmt.Errorf("error opening connection to Discord: %w", err)
+	}
+
+	err = b.registerCommands()
+	if err != nil {
+		return fmt.Errorf("error registering commands: %w", err)
+	}
+
+	b.registerHandlers()
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
 
@@ -271,10 +236,12 @@ func (b *botImpl) Start() {
 	}
 	wg.Wait()
 
-	err := b.teardown()
+	err = b.teardown()
 	if err != nil {
-		log.Printf("Error tearing down bot: %v", err)
+		return fmt.Errorf("error tearing down bot: %w", err)
 	}
+
+	return nil
 }
 
 func IsNil(q queue.StartStop) bool {

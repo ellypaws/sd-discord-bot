@@ -11,7 +11,21 @@ type Queue[item Item] interface {
 	Remove(message *discordgo.MessageInteraction) error
 	Interrupt(i *discordgo.Interaction) error
 
+	Registrar
+
 	Stop()
+}
+
+type Handler = func(*discordgo.Session, *discordgo.InteractionCreate) error
+
+type Registrar interface {
+	Commands() []*discordgo.ApplicationCommand
+	Handlers() []Handler
+}
+
+type HandlerStartStopper interface {
+	Registrar
+	StartStop
 }
 
 type StartStop interface {
