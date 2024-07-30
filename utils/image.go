@@ -11,6 +11,42 @@ import (
 	"strings"
 )
 
+func AsyncImage(url string) *Image {
+	result := Image{ch: make(chan []byte)}
+
+	go func() {
+		defer close(result.ch)
+		data, err := DownloadImageAsBase64(url)
+		if err != nil {
+			result.err = err
+			return
+		}
+
+		result.ch <- []byte(data)
+	}()
+
+	return &result
+}
+
+type Image struct {
+	ch     chan []byte
+	err    error
+	buffer bytes.Buffer
+}
+
+func (r *Image) Read(b []byte) (int, error) {
+	bin, ok := <-r.ch
+	if ok {
+		r.buffer.Write(bin)
+	}
+
+	if r.err != nil {
+		return 0, r.err
+	}
+
+	return r.buffer.Read(b)
+}
+
 func GetDataFromUrl(url string) ([]byte, error) {
 	response, err := http.Get(url)
 	if err != nil {
