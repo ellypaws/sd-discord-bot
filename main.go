@@ -29,7 +29,6 @@ var (
 	apiHost            = flag.String("host", "", "Host for the Automatic1111 API")
 	imagineCommand     = flag.String("imagine", "imagine", "Imagine command name. Default is \"imagine\"")
 	removeCommandsFlag = flag.Bool("remove", false, "Delete all commands when bot exits")
-	devModeFlag        = flag.Bool("dev", false, "Start in development mode, using \"dev_\" prefixed commands instead")
 
 	llmHost      = flag.String("llm", "", "LLM model to use")
 	novelAIToken = flag.String("novelai", "", "NovelAI API token")
@@ -78,14 +77,6 @@ func init() {
 		}
 	}
 
-	if devModeFlag == nil || !*devModeFlag {
-		devModeEnv := os.Getenv("DEV_MODE")
-		if devModeEnv != "" {
-			devModeFlag = new(bool)
-			*devModeFlag = devModeEnv == "true"
-		}
-	}
-
 	if llmHost == nil || *llmHost == "" {
 		llmHostEnv := os.Getenv("LLM_HOST")
 		if llmHostEnv != "" {
@@ -131,13 +122,6 @@ func main() {
 
 	if imagineCommand == nil || *imagineCommand == "" {
 		log.Fatalf("Imagine command flag is required")
-	}
-
-	devMode := false
-
-	if devModeFlag != nil && *devModeFlag {
-		devMode = *devModeFlag
-		log.Printf("Starting in development mode.. all commands prefixed with \"dev_\"")
 	}
 
 	var removeCommands bool
@@ -201,7 +185,6 @@ func main() {
 	}
 
 	bot, err := discord_bot.New(&discord_bot.Config{
-		DevelopmentMode:    devMode,
 		BotToken:           *botToken,
 		GuildID:            *guildID,
 		ImagineQueue:       imagineQueue,

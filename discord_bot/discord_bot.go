@@ -23,15 +23,13 @@ import (
 )
 
 type botImpl struct {
-	developmentMode bool
-	botSession      *discordgo.Session
+	botSession *discordgo.Session
 
 	registeredCommands map[Command]*discordgo.ApplicationCommand
 	config             *Config
 }
 
 type Config struct {
-	DevelopmentMode    bool
 	BotToken           string
 	GuildID            string
 	ImagineQueue       queue.Queue[*stable_diffusion.SDQueueItem]
@@ -40,24 +38,6 @@ type Config struct {
 	ImagineCommand     *Command
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
-}
-
-func (b *botImpl) imagineCommandString() Command {
-	if b.developmentMode && !strings.HasPrefix(imagineCommand, "dev_") {
-		imagineCommand = fmt.Sprintf("dev_%v", strings.TrimPrefix(*b.config.ImagineCommand, "dev_"))
-		return imagineCommand
-	}
-
-	return *b.config.ImagineCommand
-}
-
-func (b *botImpl) imagineSettingsCommandString() Command {
-	if b.developmentMode && !strings.HasPrefix(imagineSettingsCommand, "dev_") {
-		imagineSettingsCommand = fmt.Sprintf("dev_%v_settings", strings.TrimPrefix(*b.config.ImagineCommand, "dev_"))
-		return imagineSettingsCommand
-	}
-
-	return fmt.Sprintf("%v_settings", *b.config.ImagineCommand)
 }
 
 func New(cfg *Config) (Bot, error) {
@@ -94,14 +74,10 @@ func New(cfg *Config) (Bot, error) {
 	}
 
 	bot := &botImpl{
-		developmentMode:    cfg.DevelopmentMode,
 		botSession:         botSession,
 		registeredCommands: make(map[Command]*discordgo.ApplicationCommand),
 		config:             cfg,
 	}
-
-	//Read the imagineCommand from the config and remake the maps
-	bot.customImagineCommand()
 
 	if bot.config.NovelAIQueue == nil {
 		delete(commands, novelAICommand)
@@ -265,32 +241,6 @@ func (b *botImpl) registerCommands() error {
 	}
 
 	return nil
-}
-
-// customImagineCommand is used to read the imagineCommand from the config and remake the maps
-// the keys are copied from the commands and commandHandlers map, deleted, and then re-added with the new command
-func (b *botImpl) customImagineCommand() {
-	//imagine
-	b.rebuildMap((*botImpl).imagineCommandString, &imagineCommand, commands, commandHandlers)
-
-	//imagine_settings
-	b.rebuildMap((*botImpl).imagineSettingsCommandString, &imagineSettingsCommand, commands, commandHandlers)
-}
-
-func (b *botImpl) rebuildMap(f func(*botImpl) Command, key *Command, m map[Command]*discordgo.ApplicationCommand, h map[Command]Handler) {
-	oldKey := *key
-
-	*key = f(b)
-	if *key == oldKey {
-		return
-	}
-	log.Printf("Rebuilding map for '%v' to '%v'", oldKey, *key)
-
-	m[*key] = m[oldKey]
-	m[*key].Name = *key
-	h[*key] = h[oldKey]
-	delete(m, oldKey)
-	delete(h, oldKey)
 }
 
 func (b *botImpl) Start() {
