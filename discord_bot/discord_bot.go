@@ -35,7 +35,6 @@ type Config struct {
 	ImagineQueue       queue.Queue[*stable_diffusion.SDQueueItem]
 	NovelAIQueue       queue.Queue[*novelai.NAIQueueItem]
 	LLMQueue           queue.Queue[*llm.LLMItem]
-	ImagineCommand     *Command
 	RemoveCommands     bool
 	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
 }
@@ -54,10 +53,6 @@ func New(cfg *Config) (Bot, error) {
 
 	if cfg.ImagineQueue == nil {
 		return nil, errors.New("missing imagine queue")
-	}
-
-	if cfg.ImagineCommand == nil || *cfg.ImagineCommand == "" {
-		return nil, errors.New("missing imagine command")
 	}
 
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
