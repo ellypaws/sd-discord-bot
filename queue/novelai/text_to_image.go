@@ -54,6 +54,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 	}
 
 	generationDone := make(chan bool)
+	defer close(generationDone)
 	go q.updateProgressBar(item, generationDone)
 
 	switch item.Type {
@@ -65,6 +66,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 			return fmt.Errorf("error generating image: %w", err)
 		}
 
+		<-generationDone
 		return q.showFinalMessage(item, images, embed, webhook)
 	default:
 		return fmt.Errorf("unknown item type: %s", item.Type)
@@ -96,7 +98,7 @@ func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmb
 	return embed, webhook, nil
 }
 
-func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan bool) {
+func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone chan bool) {
 	start := time.Now()
 	visual := spinner.Moon.Frames
 	message := imagineMessageSimple(item.Request, item.user)
@@ -113,6 +115,7 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
 				Content: &message,
 			})
+			generationDone <- true
 			if progressErr != nil {
 				log.Printf("Error editing interaction: %v", progressErr)
 				return
