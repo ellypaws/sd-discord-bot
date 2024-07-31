@@ -237,10 +237,7 @@ func (q *SDQueue) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 			} else {
 				item.Type = ItemTypeImg2Img
 
-				item.Img2ImgItem.MessageAttachment = &entities.MessageAttachment{
-					MessageAttachment: *attachment.Attachment,
-					Image:             attachment.Image,
-				}
+				item.Img2ImgItem.Image = attachment.Image
 
 				if option, ok := optionMap[denoisingOption]; ok {
 					item.TextToImageRequest.DenoisingStrength = option.FloatValue()
@@ -250,8 +247,8 @@ func (q *SDQueue) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		if option, ok := optionMap[controlnetImage]; ok {
-			if attachment, ok := item.Attachments[option.Value.(string)]; ok {
-				item.ControlnetItem.MessageAttachment = attachment
+			if attachment, ok := attachments[option.Value.(string)]; ok {
+				item.ControlnetItem.Image = attachment.Image
 			} else {
 				return handlers.ErrorEdit(s, i.Interaction, "You need to provide an image to controlnet.")
 			}

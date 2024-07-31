@@ -175,7 +175,7 @@ func totalImageCount(request *entities.ImageGenerationRequest) int {
 	return totalImages
 }
 
-func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *SDQueueItem) (images, thumbnails []io.Reader) {
+func retrieveImagesFromResponse(response *entities.TextToImageResponse, item *SDQueueItem) (images, thumbnails []io.Reader) {
 	images = make([]io.Reader, len(response.Images))
 
 	for idx, image := range response.Images {
@@ -187,26 +187,18 @@ func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *S
 		images[idx] = bytes.NewBuffer(decodedImage)
 	}
 
-	if queue.ControlnetItem.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(queue.ControlnetItem.MessageAttachment.Image.String())
-		if err != nil {
-			log.Printf("Error decoding image: %v\n", err)
-		}
-		thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
+	if image := item.ControlnetItem.Image; image != nil {
+		thumbnails = append(thumbnails, image)
 	}
 
-	if queue.Img2ImgItem.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(queue.Img2ImgItem.MessageAttachment.Image.String())
-		if err != nil {
-			log.Printf("Error decoding image: %v\n", err)
-		}
-		thumbnails = append(thumbnails, bytes.NewBuffer(decodedBytes))
+	if image := item.Img2ImgItem.Image; image != nil {
+		thumbnails = append(thumbnails, image)
 	}
 
-	generation := queue.ImageGenerationRequest
+	generation := item.ImageGenerationRequest
 	totalImages := totalImageCount(generation)
 	if len(images) > totalImages {
-		log.Printf("received extra images: len(imageBufs): %v, controlnet: %v", len(images), queue.ControlnetItem.Enabled)
+		log.Printf("received extra images: len(imageBufs): %v, controlnet: %v", len(images), item.ControlnetItem.Enabled)
 		thumbnails = append(thumbnails, images[totalImages:]...)
 	}
 

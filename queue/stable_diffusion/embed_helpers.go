@@ -27,9 +27,9 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *SDQueueItem, i
 	switch {
 	case queue.Enabled && queue.Type == ItemTypeImg2Img:
 		embed.Title = "Image to Image (Controlnet)"
-	case queue.Enabled || (queue.ControlnetItem.MessageAttachment != nil && queue.ControlnetItem.Image != nil):
+	case queue.Enabled || queue.ControlnetItem.Image != nil:
 		embed.Title = "Text to Image (Controlnet)"
-	case queue.Type == ItemTypeImg2Img || (queue.Img2ImgItem.MessageAttachment != nil && queue.Img2ImgItem.Image != nil):
+	case queue.Type == ItemTypeImg2Img || queue.Img2ImgItem.Image != nil:
 		embed.Title = "Image to Image"
 	case queue.Type == ItemTypeVariation:
 		embed.Title = "Variation"

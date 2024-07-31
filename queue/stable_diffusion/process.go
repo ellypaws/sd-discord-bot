@@ -119,13 +119,12 @@ func initializeScripts(queue *SDQueueItem) {
 func initializeControlnet(queue *SDQueueItem) {
 	request := queue.ImageGenerationRequest
 	textToImage := request.TextToImageRequest
-	log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", queue.ControlnetItem.Enabled)
 
 	var controlnetImage string
 	switch {
-	case queue.ControlnetItem.MessageAttachment != nil && queue.ControlnetItem.Image != nil:
+	case queue.ControlnetItem.Image != nil:
 		controlnetImage = queue.ControlnetItem.Image.String()
-	case queue.Img2ImgItem.MessageAttachment != nil && queue.Img2ImgItem.Image != nil:
+	case queue.Img2ImgItem.Image != nil:
 		// not needed for Img2Img as it automatically uses it if InputImage is null, only used for width/height
 		controlnetImage = queue.Img2ImgItem.Image.String()
 	default:
@@ -153,7 +152,7 @@ func initializeControlnet(queue *SDQueueItem) {
 			},
 		},
 	}
-	if queue.Type == ItemTypeImg2Img && queue.ControlnetItem.MessageAttachment == nil {
+	if queue.Type == ItemTypeImg2Img && queue.ControlnetItem.Image == nil {
 		// controlnet will automatically use img2img if it is null
 		request.Scripts.ControlNet.Args[0].InputImage = nil
 	}
@@ -161,4 +160,6 @@ func initializeControlnet(queue *SDQueueItem) {
 	if !queue.Enabled {
 		request.Scripts.ControlNet = nil
 	}
+
+	log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", queue.ControlnetItem.Enabled)
 }

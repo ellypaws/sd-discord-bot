@@ -39,7 +39,7 @@ func (q *SDQueue) imageToImage(generationDone chan bool, embed *discordgo.Messag
 }
 
 func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToImageRequest) error {
-	if len(queue.Attachments) == 0 {
+	if queue.Img2ImgItem.Image == nil {
 		return errors.New("no attached images found, skipping img2img generation")
 	}
 

@@ -18,6 +18,7 @@ import (
 	"stable_diffusion_bot/repositories"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
+	"stable_diffusion_bot/utils"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,7 +40,6 @@ type SDQueueItem struct {
 	DiscordInteraction *discordgo.Interaction
 
 	ADetailerString string // use AppendSegModelByString
-	Attachments     map[string]*entities.MessageAttachment
 
 	Img2ImgItem
 	ControlnetItem
@@ -54,14 +54,12 @@ func (q *SDQueueItem) Interaction() *discordgo.Interaction {
 }
 
 type Img2ImgItem struct {
-	// Deprecated: Use (*utils.Image) instead
-	*entities.MessageAttachment
+	Image             *utils.Image
 	DenoisingStrength float64
 }
 
 type ControlnetItem struct {
-	// Deprecated: Use (*utils.Image) instead
-	*entities.MessageAttachment
+	Image        *utils.Image
 	ControlMode  entities.ControlMode
 	ResizeMode   entities.ResizeMode
 	Type         string
