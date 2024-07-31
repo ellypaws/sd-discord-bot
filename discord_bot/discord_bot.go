@@ -23,7 +23,7 @@ import (
 type botImpl struct {
 	botSession *discordgo.Session
 
-	registeredCommands map[Command]*discordgo.ApplicationCommand
+	registeredCommands map[handlers.Command]*discordgo.ApplicationCommand
 	config             *Config
 
 	queues []queue.HandlerStartStopper
@@ -72,11 +72,11 @@ func New(cfg *Config) (Bot, error) {
 
 	bot := &botImpl{
 		botSession:         botSession,
-		registeredCommands: make(map[Command]*discordgo.ApplicationCommand),
+		registeredCommands: make(map[handlers.Command]*discordgo.ApplicationCommand),
 		config:             cfg,
 		queues:             queues,
 		handlers:           make(queue.CommandHandlers),
-		components:         componentHandlers,
+		components:         handlers.ComponentHandlers,
 	}
 
 	return bot, nil
@@ -165,7 +165,7 @@ func (b *botImpl) registerHandlers() {
 }
 
 func (b *botImpl) registerCommands() error {
-	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand)
+	b.registeredCommands = make(map[handlers.Command]*discordgo.ApplicationCommand)
 
 	for _, q := range b.queues {
 		if q == nil {

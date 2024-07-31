@@ -1,4 +1,4 @@
-package discord_bot
+package handlers
 
 import (
 	"github.com/bwmarrin/discordgo"
