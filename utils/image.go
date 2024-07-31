@@ -12,6 +12,14 @@ import (
 	"sync"
 )
 
+type Image struct {
+	ch     chan []byte
+	err    error
+	buffer bytes.Buffer
+	id     int
+	closed bool
+}
+
 var asyncPool = sync.Pool{New: newAsync}
 
 // AsyncImage returns an *Image that asynchronously downloads the image from the given URL as the object is created.
@@ -34,23 +42,6 @@ func AsyncImage(url string) *Image {
 	return result
 }
 
-type Image struct {
-	ch     chan []byte
-	err    error
-	buffer bytes.Buffer
-	id     int
-	closed bool
-}
-
-// flush writes the data from the channel to the buffer, waiting until the data is ready.
-// multiple calls to flush will simultaneously unlock once the channel is closed
-func (r *Image) flush() {
-	bin, ok := <-r.ch
-	if ok {
-		r.buffer.Write(bin)
-	}
-}
-
 func (r *Image) Read(b []byte) (int, error) {
 	r.flush()
 
@@ -65,6 +56,27 @@ func (r *Image) Read(b []byte) (int, error) {
 	}
 
 	return i, r.err
+}
+
+func (r *Image) MarshalJSON() ([]byte, error) {
+	r.flush()
+	out := make([]byte, r.Buffer().Len()+2)
+	out[0] = '"'
+	read, err := r.Read(out[1:])
+	if err != nil {
+		return nil, err
+	}
+	out[read+1] = '"'
+	return out, nil
+}
+
+// flush writes the data from the channel to the buffer, waiting until the data is ready.
+// multiple calls to flush will simultaneously unlock once the channel is closed
+func (r *Image) flush() {
+	bin, ok := <-r.ch
+	if ok {
+		r.buffer.Write(bin)
+	}
 }
 
 func (r *Image) Bytes() []byte {
@@ -82,19 +94,19 @@ func (r *Image) Buffer() *bytes.Buffer {
 	return &r.buffer
 }
 
+func (r *Image) Reset() {
+	r.ch = make(chan []byte)
+	r.closed = false
+	r.err = nil
+	r.buffer.Reset()
+}
+
 var asyncID int
 
 func newAsync() any {
 	async := Image{id: asyncID}
 	asyncID++
 	return &async
-}
-
-func (r *Image) Reset() {
-	r.ch = make(chan []byte)
-	r.closed = false
-	r.err = nil
-	r.buffer.Reset()
 }
 
 func (r *Image) close() {
@@ -104,18 +116,6 @@ func (r *Image) close() {
 	r.err = io.EOF
 	r.buffer.Reset()
 	asyncPool.Put(r)
-}
-
-func (r *Image) MarshalJSON() ([]byte, error) {
-	r.flush()
-	out := make([]byte, r.Buffer().Len()+2)
-	out[0] = '"'
-	read, err := r.Read(out[1:])
-	if err != nil {
-		return nil, err
-	}
-	out[read+1] = '"'
-	return out, nil
 }
 
 func GetDataFromUrl(url string) ([]byte, error) {
