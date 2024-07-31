@@ -188,7 +188,7 @@ func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *S
 	}
 
 	if queue.ControlnetItem.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(queue.ControlnetItem.MessageAttachment.Image))
+		decodedBytes, err := base64.StdEncoding.DecodeString(queue.ControlnetItem.MessageAttachment.Image.String())
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}
@@ -196,7 +196,7 @@ func retrieveImagesFromResponse(response *entities.TextToImageResponse, queue *S
 	}
 
 	if queue.Img2ImgItem.MessageAttachment != nil {
-		decodedBytes, err := base64.StdEncoding.DecodeString(safeDereference(queue.Img2ImgItem.MessageAttachment.Image))
+		decodedBytes, err := base64.StdEncoding.DecodeString(queue.Img2ImgItem.MessageAttachment.Image.String())
 		if err != nil {
 			log.Printf("Error decoding image: %v\n", err)
 		}

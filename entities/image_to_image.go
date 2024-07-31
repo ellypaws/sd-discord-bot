@@ -9,11 +9,12 @@ package entities
 import (
 	"encoding/json"
 	"github.com/bwmarrin/discordgo"
+	"stable_diffusion_bot/utils"
 )
 
 type MessageAttachment struct {
 	discordgo.MessageAttachment
-	Image *string `json:"image"`
+	Image *utils.Image `json:"image"`
 }
 
 func UnmarshalImageToImageRequest(data []byte) (ImageToImageRequest, error) {

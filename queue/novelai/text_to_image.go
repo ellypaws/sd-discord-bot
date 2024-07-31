@@ -184,20 +184,12 @@ func getMetadata(response *entities.NovelAIResponse) *meta.Metadata {
 }
 
 func retrieveImagesFromResponse(response *entities.NovelAIResponse, item *NAIQueueItem) (images []io.Reader, thumbnails []io.Reader) {
-	if item.Request.Parameters.VibeTransferImage != nil {
-		reader, err := item.Request.Parameters.VibeTransferImage.Reader()
-		if err != nil {
-			log.Printf("Error decoding image: %v\n", err)
-		}
-		thumbnails = append(thumbnails, reader)
+	if reader := item.Request.Parameters.VibeTransferImage; reader != nil {
+		thumbnails = append(thumbnails, item.Request.Parameters.VibeTransferImage)
 	}
 
 	if item.Request.Parameters.Img2Img != nil {
-		reader, err := item.Request.Parameters.Img2Img.Reader()
-		if err != nil {
-			log.Printf("Error decoding image: %v\n", err)
-		}
-		thumbnails = append(thumbnails, reader)
+		thumbnails = append(thumbnails, item.Request.Parameters.Img2Img)
 	}
 
 	// if there are more images than requested, move the rest to thumbnails

@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
+	"log"
 	"regexp"
 	"strings"
 )
@@ -69,4 +70,33 @@ func InterfaceConvertAuto[F any, V string | float64](field *F, option string, op
 		return &out, true
 	}
 	return nil, false
+}
+
+type AttachmentImage struct {
+	Attachment *discordgo.MessageAttachment
+	Image      *Image
+}
+
+func GetAttachments(i *discordgo.InteractionCreate) (map[string]AttachmentImage, error) {
+	if i.ApplicationCommandData().Resolved == nil {
+		return nil, nil
+	}
+
+	resolved := i.ApplicationCommandData().Resolved.Attachments
+	if resolved == nil {
+		return nil, nil
+	}
+
+	attachments := make(map[string]AttachmentImage, len(resolved))
+	for snowflake, attachment := range resolved {
+		log.Printf("Attachment[%v]: %#v", snowflake, attachment.URL)
+		if !strings.HasPrefix(attachment.ContentType, "image") {
+			log.Printf("Attachment[%v] is not an image, removing from queue.", snowflake)
+			continue
+		}
+
+		attachments[snowflake] = AttachmentImage{attachment, AsyncImage(attachment.URL)}
+	}
+
+	return attachments, nil
 }

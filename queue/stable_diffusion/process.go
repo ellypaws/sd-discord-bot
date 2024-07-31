@@ -9,7 +9,6 @@ import (
 )
 
 func (q *SDQueue) processCurrentImagine() error {
-	defer q.done()
 	queue := q.currentImagine
 
 	request, err := queue.ImageGenerationRequest, error(nil)
@@ -122,17 +121,17 @@ func initializeControlnet(queue *SDQueueItem) {
 	textToImage := request.TextToImageRequest
 	log.Printf("q.currentImagine.ControlnetItem.Enabled: %v", queue.ControlnetItem.Enabled)
 
-	var controlnetImage *string
+	var controlnetImage string
 	switch {
 	case queue.ControlnetItem.MessageAttachment != nil && queue.ControlnetItem.Image != nil:
-		controlnetImage = queue.ControlnetItem.Image
+		controlnetImage = queue.ControlnetItem.Image.String()
 	case queue.Img2ImgItem.MessageAttachment != nil && queue.Img2ImgItem.Image != nil:
 		// not needed for Img2Img as it automatically uses it if InputImage is null, only used for width/height
-		controlnetImage = queue.Img2ImgItem.Image
+		controlnetImage = queue.Img2ImgItem.Image.String()
 	default:
 		queue.ControlnetItem.Enabled = false
 	}
-	width, height, err := utils.GetBase64ImageSize(safeDereference(controlnetImage))
+	width, height, err := utils.GetBase64ImageSize(controlnetImage)
 	var controlnetResolution int
 	if err != nil {
 		log.Printf("Error getting image size: %v", err)
@@ -143,7 +142,7 @@ func initializeControlnet(queue *SDQueueItem) {
 	textToImage.Scripts.ControlNet = &entities.ControlNet{
 		Args: []*entities.ControlNetParameters{
 			{
-				InputImage:   controlnetImage,
+				InputImage:   &controlnetImage,
 				Module:       queue.ControlnetItem.Preprocessor,
 				Model:        queue.ControlnetItem.Model,
 				Weight:       1.0,

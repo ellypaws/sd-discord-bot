@@ -54,11 +54,13 @@ func (q *SDQueueItem) Interaction() *discordgo.Interaction {
 }
 
 type Img2ImgItem struct {
+	// Deprecated: Use (*utils.Image) instead
 	*entities.MessageAttachment
 	DenoisingStrength float64
 }
 
 type ControlnetItem struct {
+	// Deprecated: Use (*utils.Image) instead
 	*entities.MessageAttachment
 	ControlMode  entities.ControlMode
 	ResizeMode   entities.ResizeMode
@@ -94,17 +96,12 @@ type SDQueue struct {
 	llmConfig *llm.Config
 
 	stop chan os.Signal
-
-	commands []*discordgo.ApplicationCommand
-	handlers []queue.Handler
 }
 
 type Config struct {
 	StableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
 	ImageGenerationRepo image_generations.Repository
 	DefaultSettingsRepo default_settings.Repository
-	Commands            []*discordgo.ApplicationCommand
-	Handlers            []queue.Handler
 }
 
 func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
@@ -127,18 +124,14 @@ func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
 		compositor:          composite_renderer.Compositor(),
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 		cancelledItems:      make(map[string]bool),
-		commands:            cfg.Commands,
-		handlers:            cfg.Handlers,
 	}, nil
 }
 
-func (q *SDQueue) Commands() []*discordgo.ApplicationCommand {
-	return q.commands
-}
+func (q *SDQueue) Commands() []*discordgo.ApplicationCommand { return q.commands() }
 
-func (q *SDQueue) Handlers() []queue.Handler {
-	return q.handlers
-}
+func (q *SDQueue) Handlers() queue.CommandHandlers { return q.handlers() }
+
+func (q *SDQueue) Components() queue.Components { return q.components() }
 
 const (
 	ItemTypeImagine ItemType = iota
@@ -148,96 +141,6 @@ const (
 	ItemTypeImg2Img
 	ItemTypeRaw // raw JSON
 )
-
-func (q *SDQueue) DefaultQueueItem() *SDQueueItem {
-	defaultBatchCount, err := q.defaultBatchCount()
-	if err != nil {
-		log.Printf("Error getting default batch count: %v", err)
-		defaultBatchCount = 1
-	}
-
-	defaultBatchSize, err := q.defaultBatchSize()
-	if err != nil {
-		log.Printf("Error getting default batch size: %v", err)
-		defaultBatchSize = 4
-	}
-
-	defaultWidth, err := q.defaultWidth()
-	if err != nil {
-		log.Printf("Error getting default width: %v", err)
-		defaultWidth = 512
-	}
-
-	defaultHeight, err := q.defaultHeight()
-	if err != nil {
-		log.Printf("Error getting default height: %v", err)
-		defaultHeight = 512
-	}
-
-	return &SDQueueItem{
-		Type: ItemTypeImagine,
-
-		ImageGenerationRequest: &entities.ImageGenerationRequest{
-			GenerationInfo: entities.GenerationInfo{
-				CreatedAt: time.Now(),
-			},
-			TextToImageRequest: &entities.TextToImageRequest{
-				Width:             defaultWidth,
-				Height:            defaultHeight,
-				NegativePrompt:    DefaultNegative,
-				Steps:             20,
-				Seed:              -1,
-				SamplerName:       "Euler a",
-				EnableHr:          false,
-				HrUpscaler:        "R-ESRGAN 2x+",
-				HrSecondPassSteps: 20,
-				HrScale:           1.0,
-				DenoisingStrength: 0.7,
-				CFGScale:          7.0,
-				NIter:             defaultBatchCount,
-				BatchSize:         defaultBatchSize,
-			},
-		},
-
-		Img2ImgItem: Img2ImgItem{
-			DenoisingStrength: 0.7,
-		},
-		ControlnetItem: ControlnetItem{
-			ControlMode: entities.ControlModeBalanced,
-			ResizeMode:  entities.ResizeModeScaleToFit,
-		},
-	}
-}
-
-func (q *SDQueue) NewItem(interaction *discordgo.Interaction, options ...func(*SDQueueItem)) *SDQueueItem {
-	item := q.DefaultQueueItem()
-	item.DiscordInteraction = interaction
-
-	for _, option := range options {
-		option(item)
-	}
-
-	return item
-}
-
-func WithPrompt(prompt string) func(*SDQueueItem) {
-	return func(q *SDQueueItem) {
-		q.Prompt = prompt
-	}
-}
-
-func WithCurrentModels(api stable_diffusion_api.StableDiffusionAPI) func(*SDQueueItem) {
-	return func(q *SDQueueItem) {
-		config, err := api.GetConfig()
-		if err != nil {
-			log.Printf("Error getting config: %v", err)
-		} else {
-			q.ImageGenerationRequest.Checkpoint = config.SDModelCheckpoint
-			q.VAE = config.SDVae
-			q.Hypernetwork = config.SDHypernetwork
-		}
-	}
-}
 
 func (q *SDQueue) Add(queue *SDQueueItem) (int, error) {
 	if len(q.queue) == cap(q.queue) {
@@ -310,6 +213,7 @@ func (q *SDQueue) pullNextInQueue() error {
 		var err error
 		select {
 		case q.currentImagine = <-q.queue:
+			defer q.done()
 			if q.currentImagine.DiscordInteraction == nil {
 				// If the interaction is nil, we can't respond. Make sure to set the implementation before adding to the queue.
 				// Example: queue.DiscordInteraction = i.Interaction
@@ -318,7 +222,6 @@ func (q *SDQueue) pullNextInQueue() error {
 			if interaction := q.currentImagine.DiscordInteraction; interaction != nil && q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
 				// If the item is cancelled, skip it
 				delete(q.cancelledItems, interaction.ID)
-				q.done()
 				return nil
 			}
 			switch q.currentImagine.Type {
@@ -331,7 +234,6 @@ func (q *SDQueue) pullNextInQueue() error {
 			case ItemTypeUpscale:
 				err = q.processUpscaleImagine()
 			default:
-				q.done()
 				return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
 			}
 		default:

@@ -7,7 +7,6 @@ import (
 )
 
 func (q *SDQueue) processVariation() error {
-	defer q.done()
 	c, err := q.currentImagine, error(nil)
 	c.ImageGenerationRequest, err = q.getPreviousGeneration(c)
 	request := c.ImageGenerationRequest

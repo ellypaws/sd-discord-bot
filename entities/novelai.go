@@ -13,6 +13,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"stable_diffusion_bot/utils"
 )
 
 type NovelAIRequest struct {
@@ -61,7 +62,7 @@ type Parameters struct {
 	ExtraNoiseSeed int64    `json:"extra_noise_seed,omitempty"`
 	NoiseSchedule  schedule `json:"noise_schedule,omitempty"`
 
-	Img2Img             *Image  `json:"image,omitempty"` // used by Img2Img
+	Img2Img             *async  `json:"image,omitempty"` // used by Img2Img
 	Noise               float64 `json:"noise,omitempty"`
 	Strength            float64 `json:"strength,omitempty"`
 	ControlnetCondition string  `json:"controlnet_condition,omitempty"`
@@ -73,8 +74,8 @@ type Parameters struct {
 	Mask             string `json:"mask,omitempty"`
 
 	// VibeTransferImage is used for Vibe Transfer
-	VibeTransferImage                     *Image    `json:"reference_image,omitempty"`
-	ReferenceImageMultiple                []*Image  `json:"reference_image_multiple,omitempty"`
+	VibeTransferImage                     *async    `json:"reference_image,omitempty"`
+	ReferenceImageMultiple                []*async  `json:"reference_image_multiple,omitempty"`
 	ReferenceInformationExtracted         float64   `json:"reference_information_extracted,omitempty"`
 	ReferenceInformationExtractedMultiple []float64 `json:"reference_information_extracted_multiple,omitempty"`
 	ReferenceStrength                     float64   `json:"reference_strength,omitempty"`
@@ -89,9 +90,12 @@ type NovelAIResponse struct {
 	Images []io.Reader `json:"images"`
 }
 
+type async = utils.Image
+
 type Image struct {
 	Base64   *string
 	Image    *image.Image
+	Reader   io.Reader
 	Metadata *meta.Metadata
 }
 type sampler = string
@@ -303,6 +307,21 @@ func (b *Image) UnmarshalJSON(data []byte) error {
 }
 
 func (b *Image) MarshalJSON() ([]byte, error) {
+	if b.Reader != nil {
+		var buf bytes.Buffer
+		_, err := io.Copy(&buf, b.Reader)
+		if err != nil {
+			return nil, err
+		}
+
+		var bin bytes.Buffer
+		err = json.NewEncoder(&bin).Encode(buf.String())
+		if err != nil {
+			return nil, err
+		}
+
+		return bin.Bytes(), nil
+	}
 	if b.Base64 != nil {
 		return json.Marshal(b.Base64)
 	}
@@ -325,24 +344,6 @@ func (b *Image) ImageBytes(w io.Writer) error {
 		return errors.New("no image data")
 	}
 	return png.Encode(w, *b.Image)
-}
-
-// Deprecated: directly use the io.ReadCloser from (*zip.File).Open
-func (b *Image) Reader() (io.Reader, error) {
-	if b.Base64 != nil {
-		return base64.NewDecoder(base64.StdEncoding, bytes.NewReader([]byte(*b.Base64))), nil
-	}
-
-	if b.Image != nil {
-		buf := new(bytes.Buffer)
-		err := b.ImageBytes(buf)
-		if err != nil {
-			return nil, err
-		}
-		return buf, nil
-	}
-
-	return nil, errors.New("no image data")
 }
 
 const (

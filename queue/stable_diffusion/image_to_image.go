@@ -43,7 +43,7 @@ func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToIma
 		return errors.New("no attached images found, skipping img2img generation")
 	}
 
-	width, height, err := utils.GetBase64ImageSize(safeDereference(queue.Img2ImgItem.Image))
+	width, height, err := utils.GetBase64ImageSize(queue.Img2ImgItem.Image.String())
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToIma
 
 	*img2img.Width, *img2img.Height = aspectRatioCalculation(aspectRatio, initializedWidth, initializedHeight)
 
-	img2img.InitImages = append(img2img.InitImages, safeDereference(queue.Img2ImgItem.Image))
+	img2img.InitImages = append(img2img.InitImages, queue.Img2ImgItem.Image.String())
 	return err
 }
 

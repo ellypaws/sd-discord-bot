@@ -140,7 +140,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 			Label:    fmt.Sprintf("%d", i),
 			Style:    discordgo.SecondaryButton,
 			Disabled: disable,
-			CustomID: fmt.Sprintf("%v_%d", handlers.VariantButton, i),
+			CustomID: fmt.Sprintf("%v_%d", VariantButton, i),
 			Emoji: &discordgo.ComponentEmoji{
 				Name: "♻️",
 			},
@@ -151,7 +151,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 		Label:    "Re-roll",
 		Style:    discordgo.PrimaryButton,
 		Disabled: disable,
-		CustomID: string(handlers.RerollButton),
+		CustomID: RerollButton,
 		Emoji: &discordgo.ComponentEmoji{
 			Name: "🎲",
 		},
@@ -169,7 +169,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 			Label:    fmt.Sprintf("%d", i),
 			Style:    discordgo.SecondaryButton,
 			Disabled: disable,
-			CustomID: fmt.Sprintf("%v_%d", handlers.UpscaleButton, i),
+			CustomID: fmt.Sprintf("%v_%d", UpscaleButton, i),
 			Emoji: &discordgo.ComponentEmoji{
 				Name: "⬆️",
 			},
@@ -181,7 +181,7 @@ func rerollVariationComponents(amount int, disable bool) *[]discordgo.MessageCom
 		Label:    "Delete",
 		Style:    discordgo.DangerButton,
 		Disabled: false,
-		CustomID: string(handlers.DeleteGeneration),
+		CustomID: handlers.DeleteGeneration,
 		Emoji: &discordgo.ComponentEmoji{
 			Name: "🗑️",
 		},

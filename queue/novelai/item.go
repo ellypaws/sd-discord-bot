@@ -17,8 +17,7 @@ const (
 type NAIQueueItem struct {
 	Type ItemType
 
-	Request     *entities.NovelAIRequest
-	Attachments map[string]*entities.MessageAttachment
+	Request *entities.NovelAIRequest
 
 	Created            time.Time
 	InteractionIndex   int
@@ -52,11 +51,10 @@ func (q *NAIQueue) NewItem(interaction *discordgo.Interaction, options ...func(*
 
 func (q *NAIQueue) DefaultQueueItem() *NAIQueueItem {
 	return &NAIQueueItem{
-		Type:        ItemTypeImage,
-		Request:     entities.DefaultNovelAIRequest(),
-		Attachments: nil,
-		Created:     time.Now(),
-		Interrupt:   nil,
+		Type:      ItemTypeImage,
+		Request:   entities.DefaultNovelAIRequest(),
+		Created:   time.Now(),
+		Interrupt: nil,
 	}
 }
 

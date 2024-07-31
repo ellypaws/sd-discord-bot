@@ -16,7 +16,6 @@ import (
 )
 
 func (q *SDQueue) processUpscaleImagine() error {
-	defer q.done()
 	queue := q.currentImagine
 	var err error
 	queue.ImageGenerationRequest, err = q.getPreviousGeneration(queue)

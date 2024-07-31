@@ -1,15 +1,13 @@
 package discord_bot
 
 import (
-	"cmp"
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"os"
 	"os/signal"
 	"slices"
-	"sort"
-	"strings"
 	"sync"
 
 	"stable_diffusion_bot/api/stable_diffusion_api"
@@ -29,6 +27,9 @@ type botImpl struct {
 	config             *Config
 
 	queues []queue.HandlerStartStopper
+
+	handlers   queue.CommandHandlers
+	components queue.Components
 }
 
 type Config struct {
@@ -74,48 +75,46 @@ func New(cfg *Config) (Bot, error) {
 		registeredCommands: make(map[Command]*discordgo.ApplicationCommand),
 		config:             cfg,
 		queues:             queues,
+		handlers:           make(queue.CommandHandlers),
+		components:         componentHandlers,
 	}
 
 	return bot, nil
 }
 
 func (b *botImpl) registerHandlers() {
-	b.botSession.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
-		var handler Handler
-		var ok bool
-		switch i.Type {
-		// commands
-		case discordgo.InteractionApplicationCommand:
-			handler, ok = CommandHandlers[i.ApplicationCommandData().Name]
-
-		// buttons
-		case discordgo.InteractionMessageComponent:
-			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
-			handler, ok = componentHandlers[handlers.Component(i.MessageComponentData().CustomID)]
-
-			if !ok {
-				switch customID := i.MessageComponentData().CustomID; {
-				case strings.HasPrefix(customID, string(handlers.UpscaleButton)):
-					handler, ok = componentHandlers[handlers.UpscaleButton]
-				case strings.HasPrefix(customID, string(handlers.VariantButton)):
-					handler, ok = componentHandlers[handlers.VariantButton]
-				default:
-					log.Printf("Unknown message component '%v'", i.MessageComponentData().CustomID)
-				}
+	for _, q := range b.queues {
+		handlers := q.Handlers()
+		for interactionType, commandHandlers := range handlers {
+			if _, ok := b.handlers[interactionType]; !ok {
+				maps.Copy(b.handlers, handlers)
+			} else {
+				maps.Copy(b.handlers[interactionType], commandHandlers)
 			}
-		// autocomplete
-		case discordgo.InteractionApplicationCommandAutocomplete:
-			handler, ok = autocompleteHandlers[i.ApplicationCommandData().Name]
-		// modals
-		case discordgo.InteractionModalSubmit:
-			handler, ok = modalHandlers[i.ModalSubmitData().CustomID]
-		default:
-			log.Printf("Unknown interaction type '%v'", i.Type)
+		}
+
+		maps.Copy(b.components, q.Components())
+	}
+
+	b.botSession.AddHandler(func(session *discordgo.Session, i *discordgo.InteractionCreate) {
+		var handler queue.Handler
+		var ok bool
+		if i.Type == discordgo.InteractionMessageComponent {
+			log.Printf("Component with customID `%v` was pressed, attempting to respond\n", i.MessageComponentData().CustomID)
+			handler, ok = b.components[i.MessageComponentData().CustomID]
+		} else {
+			handles, exist := b.handlers[i.Type]
+			if !exist {
+				log.Printf("Unknown interaction type: %v", i.Type)
+				return
+			}
+
+			handler, ok = handles[i.ApplicationCommandData().Name]
 		}
 
 		if !ok || handler == nil {
-			var interactionType string = "unknown"
-			var interactionName string = "unknown"
+			var interactionType = "unknown"
+			var interactionName = "unknown"
 			switch i.Type {
 			case discordgo.InteractionApplicationCommand:
 				interactionType = "command"
@@ -142,9 +141,9 @@ func (b *botImpl) registerHandlers() {
 			return
 		}
 
-		err := handler(b, session, i)
+		err := handler(session, i)
 
-		var username string = "unknown"
+		var username = "unknown"
 		if i.Member != nil {
 			username = i.Member.User.Username
 		}
@@ -166,7 +165,7 @@ func (b *botImpl) registerHandlers() {
 }
 
 func (b *botImpl) registerCommands() error {
-	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand, len(Commands))
+	b.registeredCommands = make(map[Command]*discordgo.ApplicationCommand)
 
 	for _, q := range b.queues {
 		if q == nil {
@@ -176,7 +175,7 @@ func (b *botImpl) registerCommands() error {
 		for _, command := range q.Commands() {
 			cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.config.GuildID, command)
 			if err != nil {
-				return errors.New(fmt.Sprintf("Cannot create '%v' command: %v", command.Name, err))
+				return fmt.Errorf("cannot create '%s' command: %w", command.Name, err)
 			}
 
 			b.registeredCommands[command.Name] = cmd
@@ -264,42 +263,4 @@ func (b *botImpl) teardown() error {
 	}
 
 	return b.botSession.Close()
-}
-
-// Deprecated: If we want to dynamically update the controlnet types, we can do it here
-func (b *botImpl) controlnetTypes() {
-	if false {
-		controlnet, err := stable_diffusion_api.ControlnetTypesCache.GetCache(b.config.StableDiffusionApi)
-		if err != nil {
-			log.Printf("Error getting controlnet types: %v", err)
-			panic(err)
-		}
-		// modify the choices of controlnetType by using the controlnetTypes cache
-		var keys map[string]bool = make(map[string]bool)
-		for key := range controlnet.(*stable_diffusion_api.ControlnetTypes).ControlTypes {
-			if keys[key] {
-				continue
-			}
-			keys[key] = true
-
-			commandOptions[controlnetType].Choices = append(commandOptions[controlnetType].Choices,
-				&discordgo.ApplicationCommandOptionChoice{
-					Name:  key,
-					Value: key,
-				})
-			if len(commandOptions[controlnetType].Choices) >= 25 {
-				break
-			}
-		}
-		sort.Slice(commandOptions[controlnetType].Choices, func(i, j int) bool {
-			return cmp.Less(commandOptions[controlnetType].Choices[i].Name, commandOptions[controlnetType].Choices[j].Name)
-		})
-	}
-}
-
-func shortenString(s string) string {
-	if len(s) > 90 {
-		return s[:90]
-	}
-	return s
 }
