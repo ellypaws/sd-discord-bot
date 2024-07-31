@@ -12,6 +12,9 @@ import (
 	"sync"
 )
 
+// Image is an io.Reader that asynchronously downloads an image from a URL.
+// The data returned by the Read method is the raw bytes, but MarshalJSON encodes in base64.StdEncoding
+// The zero value of Image is not usable, use AsyncImage instead.
 type Image struct {
 	ch     chan []byte
 	err    error
@@ -30,13 +33,13 @@ func AsyncImage(url string) *Image {
 
 	go func() {
 		defer close(result.ch)
-		data, err := DownloadImageAsBase64(url)
+		data, err := GetDataFromUrl(url)
 		if err != nil {
 			result.err = err
 			return
 		}
 
-		result.ch <- []byte(data)
+		result.ch <- data
 	}()
 
 	return result
@@ -60,14 +63,17 @@ func (r *Image) Read(b []byte) (int, error) {
 
 func (r *Image) MarshalJSON() ([]byte, error) {
 	r.flush()
-	out := make([]byte, r.Buffer().Len()+2)
-	out[0] = '"'
-	read, err := r.Read(out[1:])
+	out := bytes.NewBuffer(make([]byte, 0, r.buffer.Len()+2))
+	encoder := base64.NewEncoder(base64.StdEncoding, out)
+	defer encoder.Close()
+
+	out.WriteByte('"')
+	_, err := r.buffer.WriteTo(encoder)
 	if err != nil {
 		return nil, err
 	}
-	out[read+1] = '"'
-	return out, nil
+	out.WriteByte('"')
+	return out.Bytes(), nil
 }
 
 // flush writes the data from the channel to the buffer, waiting until the data is ready.
@@ -134,6 +140,8 @@ func GetDataFromUrl(url string) ([]byte, error) {
 	return data, nil
 }
 
+// DownloadImageAsBase64 downloads an image from the given URL and returns it as a base64 string.
+// Deprecated: Use AsyncImage instead.
 func DownloadImageAsBase64(url string) (string, error) {
 	imageData, err := GetDataFromUrl(url)
 	if err != nil {
