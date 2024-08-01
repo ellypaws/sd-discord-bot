@@ -92,12 +92,6 @@ type NovelAIResponse struct {
 
 type async = utils.Image
 
-type Image struct {
-	Base64   *string
-	Image    *image.Image
-	Reader   io.Reader
-	Metadata *meta.Metadata
-}
 type sampler = string
 type schedule = string
 
@@ -292,6 +286,15 @@ const (
 	ActionInpaint  actions = "infill"
 	ActionImg2Img  actions = "img2img"
 )
+
+// Image represents either a base64 encoded image, an image.Image, or an io.Reader.
+// Deprecated: use utils.Image
+type Image struct {
+	Base64   *string
+	Image    *image.Image
+	Reader   io.Reader
+	Metadata *meta.Metadata
+}
 
 func (b *Image) UnmarshalJSON(data []byte) error {
 	d := string(bytes.Trim(data, `"`))
