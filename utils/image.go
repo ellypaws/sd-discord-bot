@@ -68,7 +68,7 @@ func (r *Image) MarshalJSON() ([]byte, error) {
 	defer encoder.Close()
 
 	out.WriteByte('"')
-	_, err := r.buffer.WriteTo(encoder)
+	_, err := encoder.Write(r.buffer.Bytes())
 	if err != nil {
 		return nil, err
 	}
