@@ -67,11 +67,11 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 		}
 
 		message := fmt.Sprintf("%s\n\nUploading image...", imagineMessageSimple(item.Request, item.user))
-		_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
+		_, err = q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
 			Content: &message,
 		})
-		if progressErr != nil {
-			return progressErr
+		if err != nil {
+			return err
 		}
 
 		return q.showFinalMessage(item, images, embed, webhook)
