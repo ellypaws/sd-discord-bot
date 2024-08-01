@@ -66,7 +66,14 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 			return fmt.Errorf("error generating image: %w", err)
 		}
 
-		<-generationDone
+		message := fmt.Sprintf("%s\n\nUploading image...", imagineMessageSimple(item.Request, item.user))
+		_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
+			Content: &message,
+		})
+		if progressErr != nil {
+			return progressErr
+		}
+
 		return q.showFinalMessage(item, images, embed, webhook)
 	default:
 		return fmt.Errorf("unknown item type: %s", item.Type)
@@ -98,7 +105,7 @@ func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmb
 	return embed, webhook, nil
 }
 
-func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone chan bool) {
+func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan bool) {
 	start := time.Now()
 	visual := spinner.Moon.Frames
 	message := imagineMessageSimple(item.Request, item.user)
@@ -110,17 +117,6 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone chan boo
 			break
 		case <-generationDone:
 			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, time.Since(start).Round(time.Second).String())
-
-			message := fmt.Sprintf("%s\n\nUploading image...", message)
-			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
-				Content: &message,
-			})
-			generationDone <- true
-			if progressErr != nil {
-				log.Printf("Error editing interaction: %v", progressErr)
-				return
-			}
-
 			return
 		case <-time.After(1 * time.Second):
 			frame = nextFrame(frame, len(visual))
