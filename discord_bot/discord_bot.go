@@ -212,7 +212,7 @@ func (b *botImpl) Start() error {
 		b.config.LLMQueue,
 	}
 
-	slices.DeleteFunc(queues, IsNil)
+	queues = slices.DeleteFunc(queues, IsNil)
 	for _, q := range queues {
 		go q.Start(b.botSession)
 	}
