@@ -2,6 +2,7 @@ package novelai
 
 import (
 	"fmt"
+	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"time"
@@ -13,34 +14,38 @@ func (q *NAIQueue) next() error {
 			log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
 			return fmt.Errorf("currentImagine is not nil")
 		}
-		select {
-		case q.current = <-q.queue:
-			if q.current.DiscordInteraction == nil {
-				log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.current)
-			}
+		q.current = <-q.queue
+		requireInteraction(q.current.DiscordInteraction)
 
-			if i := q.current.DiscordInteraction; i != nil && q.cancelled[q.current.DiscordInteraction.ID] {
-				// If the item is cancelled, skip it
-				delete(q.cancelled, i.ID)
-				q.done()
-				return nil
-			}
-			switch q.current.Type {
-			case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
-				interaction, err := q.processCurrentItem()
-				if err != nil {
-					if interaction == nil {
-						return err
-					}
-					return handlers.ErrorEdit(q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
+		if q.cancelled[q.current.DiscordInteraction.ID] {
+			// If the item is cancelled, skip it
+			delete(q.cancelled, q.current.DiscordInteraction.ID)
+			q.done()
+			return nil
+		}
+
+		switch q.current.Type {
+		case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
+			interaction, err := q.processCurrentItem()
+			if err != nil {
+				if interaction == nil {
+					return err
 				}
-			default:
-				q.done()
-				return handlers.ErrorEdit(q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
+				return handlers.ErrorEdit(q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
 			}
+		default:
+			q.done()
+			return handlers.ErrorEdit(q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
 		}
 	}
 	return nil
+}
+
+func requireInteraction(i *discordgo.Interaction) {
+	if i != nil {
+		return
+	}
+	log.Panicf("Interaction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", i)
 }
 
 func (q *NAIQueue) done() {
