@@ -66,6 +66,9 @@ Polling:
 }
 
 func (q *NAIQueue) Add(item *NAIQueueItem) (int, error) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
 	if len(q.queue) == cap(q.queue) {
 		return -1, errors.New("queue is full")
 	}
