@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"time"
 )
 
 func (q *NAIQueue) next() error {
@@ -45,5 +46,47 @@ func (q *NAIQueue) next() error {
 func (q *NAIQueue) done() {
 	q.mu.Lock()
 	q.current = nil
+	q.updateWaiting()
 	q.mu.Unlock()
+}
+
+// updateWaiting updates all queued items with their new position
+func (q *NAIQueue) updateWaiting() {
+	items := len(q.queue)
+	finished := make(chan *NAIQueueItem, items)
+	for range items {
+		go func(item *NAIQueueItem) {
+			item.pos--
+			var queueString string
+			if item.pos == 0 {
+				queueString = fmt.Sprintf(
+					"I'm dreaming something up for you. You are next in line.\n<@%s> asked me to imagine \n```\n%s\n```",
+					item.DiscordInteraction.Member.User.ID,
+					item.Request.Input,
+				)
+			} else {
+				queueString = fmt.Sprintf(
+					"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
+					item.pos,
+					item.DiscordInteraction.Member.User.ID,
+					item.Request.Input,
+				)
+			}
+			_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, queueString, handlers.Components[handlers.Cancel])
+			if err != nil {
+				log.Printf("Error updating queue position for item %v: %v", item.DiscordInteraction.ID, err)
+			}
+
+			finished <- item
+		}(<-q.queue)
+	}
+
+	for range items {
+		select {
+		case q.queue <- <-finished:
+		case <-time.After(30 * time.Second):
+			log.Printf("Error updating queue position: timeout")
+			return
+		}
+	}
 }

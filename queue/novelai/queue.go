@@ -70,9 +70,10 @@ func (q *NAIQueue) Add(item *NAIQueueItem) (int, error) {
 		return -1, errors.New("queue is full")
 	}
 
+	item.pos = len(q.queue) + 1
 	q.queue <- item
 
-	return len(q.queue), nil
+	return item.pos, nil
 }
 
 func (q *NAIQueue) Remove(messageInteraction *discordgo.MessageInteraction) error {

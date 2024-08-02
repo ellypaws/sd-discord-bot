@@ -24,6 +24,7 @@ type NAIQueueItem struct {
 	DiscordInteraction *discordgo.Interaction
 	Interrupt          chan *discordgo.Interaction
 
+	pos  int
 	user *discordgo.User
 }
 
