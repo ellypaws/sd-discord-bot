@@ -130,7 +130,7 @@ func (b *botImpl) registerHandlers() {
 					if !opt.Focused {
 						continue
 					}
-					interactionName = fmt.Sprintf("command: /%v option: %v (%v)", data.Name, opt.Name)
+					interactionName = fmt.Sprintf("command: /%s option: %s", data.Name, opt.Name)
 					break
 				}
 			case discordgo.InteractionModalSubmit:
