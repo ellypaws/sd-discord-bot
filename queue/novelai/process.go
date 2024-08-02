@@ -59,22 +59,8 @@ func (q *NAIQueue) updateWaiting() {
 	for range items {
 		go func(item *NAIQueueItem) {
 			item.pos--
-			var queueString string
-			if item.pos == 0 {
-				queueString = fmt.Sprintf(
-					"I'm dreaming something up for you. You are next in line.\n<@%s> asked me to imagine \n```\n%s\n```",
-					item.DiscordInteraction.Member.User.ID,
-					item.Request.Input,
-				)
-			} else {
-				queueString = fmt.Sprintf(
-					"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
-					item.pos,
-					item.DiscordInteraction.Member.User.ID,
-					item.Request.Input,
-				)
-			}
-			_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, queueString, handlers.Components[handlers.Cancel])
+
+			_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, q.positionString(item), handlers.Components[handlers.Cancel])
 			if err != nil {
 				log.Printf("Error updating queue position for item %v: %v", item.DiscordInteraction.ID, err)
 			}

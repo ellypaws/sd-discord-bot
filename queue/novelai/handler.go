@@ -143,29 +143,13 @@ func (q *NAIQueue) processNovelAICommand(s *discordgo.Session, i *discordgo.Inte
 		}
 	}
 
-	position, err := q.Add(item)
+	_, err = q.Add(item)
 	if err != nil {
 		return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 	}
 
-	var snowflake string
-
-	switch {
-	case i.Member != nil:
-		snowflake = i.Member.User.ID
-	case i.User != nil:
-		snowflake = i.User.ID
-	}
-
-	queueString := fmt.Sprintf(
-		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
-		position,
-		snowflake,
-		item.Request.Input,
-	)
-
 	message, err := handlers.EditInteractionResponse(s, i.Interaction,
-		queueString,
+		q.positionString(item),
 		handlers.Components[handlers.Cancel],
 	)
 	if err != nil {
@@ -178,4 +162,30 @@ func (q *NAIQueue) processNovelAICommand(s *discordgo.Session, i *discordgo.Inte
 	}
 
 	return nil
+}
+
+func (q *NAIQueue) positionString(item *NAIQueueItem) string {
+	var snowflake string
+
+	switch {
+	case item.DiscordInteraction.Member != nil:
+		snowflake = item.DiscordInteraction.Member.User.ID
+	case item.DiscordInteraction.User != nil:
+		snowflake = item.DiscordInteraction.User.ID
+	}
+
+	if item.pos == 0 {
+		return fmt.Sprintf(
+			"I'm dreaming something up for you. You are next in line.\n<@%s> asked me to imagine \n```\n%s\n```",
+			snowflake,
+			item.Request.Input,
+		)
+	} else {
+		return fmt.Sprintf(
+			"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
+			item.pos,
+			snowflake,
+			item.Request.Input,
+		)
+	}
 }
