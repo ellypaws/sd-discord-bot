@@ -254,7 +254,7 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
-		return nil, errors.New(fmt.Sprintf("unexpected status code: %v", response.Status))
+		return nil, fmt.Errorf("unexpected status code: %s", response.Status)
 	}
 
 	body, _ := io.ReadAll(response.Body)
