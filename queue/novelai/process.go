@@ -54,6 +54,8 @@ func (q *NAIQueue) done() {
 func (q *NAIQueue) updateWaiting() {
 	items := len(q.queue)
 	finished := make(chan *NAIQueueItem, items)
+	defer close(finished)
+
 	for range items {
 		go func(item *NAIQueueItem) {
 			item.pos--
