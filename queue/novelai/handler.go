@@ -174,7 +174,7 @@ func (q *NAIQueue) positionString(item *NAIQueueItem) string {
 		snowflake = item.DiscordInteraction.User.ID
 	}
 
-	if item.pos == 0 {
+	if item.pos <= 0 {
 		return fmt.Sprintf(
 			"I'm dreaming something up for you. You are next in line.\n<@%s> asked me to imagine \n```\n%s\n```",
 			snowflake,
