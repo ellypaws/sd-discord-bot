@@ -228,14 +228,6 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		Image:           regeneratedImage.Images[0],
 	}
 
-	jsonReqMessage, _ := json.MarshalIndent(jsonReq, "", "  ")
-	// set image key to value of blank string
-	jsonWithoutImage := make(map[string]any)
-	_ = json.Unmarshal(jsonReqMessage, &jsonWithoutImage)
-	delete(jsonWithoutImage, "image")
-	jsonReqMessage, _ = json.MarshalIndent(jsonWithoutImage, "", "  ")
-	log.Printf(string(jsonReqMessage))
-
 	postURL := api.host + "/sdapi/v1/extra-single-image"
 
 	jsonData, err := json.Marshal(jsonReq)
