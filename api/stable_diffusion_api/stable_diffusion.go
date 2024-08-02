@@ -115,7 +115,7 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 
 func (api *apiImplementation) RefreshCache(cache Cacheable) (Cacheable, error) {
 	if cache == nil {
-		return cache.GetCache(api)
+		return nil, errors.New("cache is nil")
 	}
 	return cache.Refresh(api)
 }
