@@ -21,6 +21,9 @@ import (
 )
 
 func (q *SDQueue) next() error {
+	if len(q.queue) == 0 {
+		return nil
+	}
 	if q.currentImagine != nil {
 		log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
 		return errors.New("currentImagine is not nil")
