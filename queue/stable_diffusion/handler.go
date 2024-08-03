@@ -445,17 +445,17 @@ func (q *SDQueue) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 		default:
 			switch opt.Name {
 			case checkpointOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.CheckpointCache)
+				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.CheckpointCache)
 			case vaeOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.VAECache)
+				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.VAECache)
 			case hypernetworkOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.HypernetworkCache)
+				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.HypernetworkCache)
 			case embeddingOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, input, stable_diffusion_api.EmbeddingCache)
+				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.EmbeddingCache)
 			case controlnetPreprocessor:
-				return q.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModulesCache)
+				return q.autocompleteControlnet(s, i, optionIndex, opt, stable_diffusion_api.ControlnetModulesCache)
 			case controlnetModel:
-				return q.autocompleteControlnet(s, i, optionIndex, opt, input, stable_diffusion_api.ControlnetModelsCache)
+				return q.autocompleteControlnet(s, i, optionIndex, opt, stable_diffusion_api.ControlnetModelsCache)
 			}
 		}
 		break
@@ -464,12 +464,12 @@ func (q *SDQueue) processImagineAutocomplete(s *discordgo.Session, i *discordgo.
 	return nil
 }
 
-func (q *SDQueue) autocompleteModels(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) error {
+func (q *SDQueue) autocompleteModels(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, c stable_diffusion_api.Cacheable) error {
 	log.Printf("Focused option (%v): %v", index, opt.Name)
-	input = opt.StringValue()
 
 	var choices []*discordgo.ApplicationCommandOptionChoice
 
+	input := opt.StringValue()
 	if input != "" {
 		if c == nil {
 			return errors.New("cacheable interface is nil")
@@ -521,9 +521,7 @@ func (q *SDQueue) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 	return handlers.Wrap(err)
 }
 
-func (q *SDQueue) autocompleteControlnet(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, input string, c stable_diffusion_api.Cacheable) error {
-	input = opt.StringValue()
-
+func (q *SDQueue) autocompleteControlnet(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, c stable_diffusion_api.Cacheable) error {
 	// check the Type first
 	optionMap := utils.GetOpts(i.ApplicationCommandData())
 
@@ -554,6 +552,8 @@ func (q *SDQueue) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 	}
 
 	var choices []*discordgo.ApplicationCommandOptionChoice
+
+	input := opt.StringValue()
 	if input != "" {
 		if len(toSearch) == 0 {
 			return fmt.Errorf("no controlnet types found for %v", opt.Name)
