@@ -339,134 +339,133 @@ func (q *SDQueue) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 
 var weightRegex = regexp.MustCompile(`.+\\|\.(?:safetensors|ckpt|pth?)|(:[\d.]+$)`)
 
-func (q *SDQueue) processImagineAutocomplete(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+func (q *SDQueue) processImagineAutocomplete(_ *discordgo.Session, i *discordgo.InteractionCreate) error {
 	data := i.ApplicationCommandData()
 	log.Printf("running autocomplete handler")
 	for optionIndex, opt := range data.Options {
 		if !opt.Focused {
 			continue
 		}
-		input := opt.StringValue()
-		switch {
-		case strings.HasPrefix(opt.Name, loraOption):
-			log.Printf("Focused option (%v): %v", optionIndex, opt.Name)
+		log.Printf("Focused option (%v): %v", optionIndex, opt.Name)
 
-			var choices []*discordgo.ApplicationCommandOptionChoice
-
-			if input != "" {
-				log.Printf("Autocompleting '%v'", input)
-
-				input = sanitizeTooltip(input)
-
-				cache, err := q.stableDiffusionAPI.SDLorasCache()
-				if err != nil {
-					log.Printf("Error retrieving loras cache: %v", err)
-				}
-
-				sanitized := weightRegex.ReplaceAllString(input, "")
-
-				log.Printf("looking up lora: %v", sanitized)
-				results := fuzzy.FindFrom(sanitized, cache)
-
-				for index, result := range results {
-					if index > 25 {
-						break
-					}
-					regExp := regexp.MustCompile(`(?:models\\)?Lora\\(.*)`)
-
-					alias := regExp.FindStringSubmatch((*cache)[result.Index].Path)
-
-					var nameToUse string
-					switch {
-					case alias != nil && alias[1] != "":
-						// replace double slash with single slash
-						regExp := regexp.MustCompile(`\\{2,}`)
-						nameToUse = regExp.ReplaceAllString(alias[1], `\`)
-					default:
-						nameToUse = (*cache)[result.Index].Name
-					}
-
-					choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
-						Name:  nameToUse,
-						Value: (*cache)[result.Index].Name,
-					})
-				}
-
-				weightMatches := weightRegex.FindAllStringSubmatch(input, -1)
-				log.Printf("weightMatches: %v", weightMatches)
-
-				var tooltip string
-				if len(results) > 0 {
-					input = (*cache)[results[0].Index].Name
-					tooltip = fmt.Sprintf("✨%v", input)
-				} else {
-					input = sanitized
-					tooltip = fmt.Sprintf("❌%v", input)
-				}
-
-				if weightMatches != nil && weightMatches[len(weightMatches)-1][1] != "" {
-					weight := weightMatches[len(weightMatches)-1][1]
-					input += weight
-					tooltip += fmt.Sprintf(" 🪄%v", weight)
-				} else {
-					tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
-				}
-
-				log.Printf("Name: (tooltip) %v\nValue: (input) %v", tooltip, input)
-				choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
-					Name:  tooltip,
-					Value: input,
-				})
-			} else {
-				choices = []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Type a lora name. Add a colon after to specify the strength. (e.g. \"clay:0.5\")",
-						Value: "placeholder",
-					},
-				}
-			}
-
-			// make sure we're under 100 char limit and under 25 choices
-			for i, choice := range choices {
-				if len(choice.Name) > 100 {
-					choices[i].Name = choice.Name[:100]
-				}
-			}
-
-			err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-				Type: discordgo.InteractionApplicationCommandAutocompleteResult,
-				Data: &discordgo.InteractionResponseData{
-					Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
-				},
-			})
-			if err != nil {
-				return handlers.Wrap(err)
-			}
-		default:
-			switch opt.Name {
-			case checkpointOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.CheckpointCache)
-			case vaeOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.VAECache)
-			case hypernetworkOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.HypernetworkCache)
-			case embeddingOption:
-				return q.autocompleteModels(s, i, optionIndex, opt, stable_diffusion_api.EmbeddingCache)
-			case controlnetPreprocessor:
-				return q.autocompleteControlnet(s, i, optionIndex, opt, stable_diffusion_api.ControlnetModulesCache)
-			case controlnetModel:
-				return q.autocompleteControlnet(s, i, optionIndex, opt, stable_diffusion_api.ControlnetModelsCache)
-			}
+		if strings.HasPrefix(opt.Name, loraOption) {
+			return q.autocompleteLora(i, opt)
 		}
+		switch opt.Name {
+		case checkpointOption:
+			return q.autocompleteModels(i, opt, stable_diffusion_api.CheckpointCache)
+		case vaeOption:
+			return q.autocompleteModels(i, opt, stable_diffusion_api.VAECache)
+		case hypernetworkOption:
+			return q.autocompleteModels(i, opt, stable_diffusion_api.HypernetworkCache)
+		case embeddingOption:
+			return q.autocompleteModels(i, opt, stable_diffusion_api.EmbeddingCache)
+		case controlnetPreprocessor:
+			return q.autocompleteControlnet(i, opt, stable_diffusion_api.ControlnetModulesCache)
+		case controlnetModel:
+			return q.autocompleteControlnet(i, opt, stable_diffusion_api.ControlnetModelsCache)
+		}
+
 		break
 	}
 
 	return nil
 }
 
-func (q *SDQueue) autocompleteModels(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, c stable_diffusion_api.Cacheable) error {
-	log.Printf("Focused option (%v): %v", index, opt.Name)
+func (q *SDQueue) autocompleteLora(i *discordgo.InteractionCreate, opt *discordgo.ApplicationCommandInteractionDataOption) error {
+	var choices []*discordgo.ApplicationCommandOptionChoice
 
+	input := opt.StringValue()
+	if input != "" {
+		log.Printf("Autocompleting '%v'", input)
+
+		input = sanitizeTooltip(input)
+
+		cache, err := q.stableDiffusionAPI.SDLorasCache()
+		if err != nil {
+			log.Printf("Error retrieving loras cache: %v", err)
+		}
+
+		sanitized := weightRegex.ReplaceAllString(input, "")
+
+		log.Printf("looking up lora: %v", sanitized)
+		results := fuzzy.FindFrom(sanitized, cache)
+
+		for index, result := range results {
+			if index > 25 {
+				break
+			}
+			regExp := regexp.MustCompile(`(?:models\\)?Lora\\(.*)`)
+
+			alias := regExp.FindStringSubmatch((*cache)[result.Index].Path)
+
+			var nameToUse string
+			switch {
+			case alias != nil && alias[1] != "":
+				// replace double slash with single slash
+				regExp := regexp.MustCompile(`\\{2,}`)
+				nameToUse = regExp.ReplaceAllString(alias[1], `\`)
+			default:
+				nameToUse = (*cache)[result.Index].Name
+			}
+
+			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
+				Name:  nameToUse,
+				Value: (*cache)[result.Index].Name,
+			})
+		}
+
+		weightMatches := weightRegex.FindAllStringSubmatch(input, -1)
+		log.Printf("weightMatches: %v", weightMatches)
+
+		var tooltip string
+		if len(results) > 0 {
+			input = (*cache)[results[0].Index].Name
+			tooltip = fmt.Sprintf("✨%v", input)
+		} else {
+			input = sanitized
+			tooltip = fmt.Sprintf("❌%v", input)
+		}
+
+		if weightMatches != nil && weightMatches[len(weightMatches)-1][1] != "" {
+			weight := weightMatches[len(weightMatches)-1][1]
+			input += weight
+			tooltip += fmt.Sprintf(" 🪄%v", weight)
+		} else {
+			tooltip += " 🪄1 (𝗱𝗲𝗳𝗮𝘂𝗹𝘁)"
+		}
+
+		log.Printf("Name: (tooltip) %v\nValue: (input) %v", tooltip, input)
+		choices = append(choices[:min(24, len(choices))], &discordgo.ApplicationCommandOptionChoice{
+			Name:  tooltip,
+			Value: input,
+		})
+	} else {
+		choices = []*discordgo.ApplicationCommandOptionChoice{
+			{
+				Name:  "Type a lora name. Add a colon after to specify the strength. (e.g. \"clay:0.5\")",
+				Value: "placeholder",
+			},
+		}
+	}
+
+	// make sure we're under 100 char limit and under 25 choices
+	for i, choice := range choices {
+		if len(choice.Name) > 100 {
+			choices[i].Name = choice.Name[:100]
+		}
+	}
+
+	err := q.botSession.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
+		Data: &discordgo.InteractionResponseData{
+			Choices: choices[:min(25, len(choices))], // This is basically the whole purpose of autocomplete interaction - return custom options to the user.
+		},
+	})
+	return handlers.Wrap(err)
+}
+
+func (q *SDQueue) autocompleteModels(i *discordgo.InteractionCreate, opt *discordgo.ApplicationCommandInteractionDataOption, c stable_diffusion_api.Cacheable) error {
 	var choices []*discordgo.ApplicationCommandOptionChoice
 
 	input := opt.StringValue()
@@ -512,7 +511,7 @@ func (q *SDQueue) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 		return nil
 	}
 
-	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err := q.botSession.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
 		Data: &discordgo.InteractionResponseData{
 			Choices: choices[:min(25, len(choices))],
@@ -521,7 +520,7 @@ func (q *SDQueue) autocompleteModels(s *discordgo.Session, i *discordgo.Interact
 	return handlers.Wrap(err)
 }
 
-func (q *SDQueue) autocompleteControlnet(s *discordgo.Session, i *discordgo.InteractionCreate, index int, opt *discordgo.ApplicationCommandInteractionDataOption, c stable_diffusion_api.Cacheable) error {
+func (q *SDQueue) autocompleteControlnet(i *discordgo.InteractionCreate, opt *discordgo.ApplicationCommandInteractionDataOption, c stable_diffusion_api.Cacheable) error {
 	// check the Type first
 	optionMap := utils.GetOpts(i.ApplicationCommandData())
 
@@ -530,8 +529,6 @@ func (q *SDQueue) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 		return fmt.Errorf("error retrieving %s cache: %w", opt.Name, err)
 	}
 	controlnets := cache.(*stable_diffusion_api.ControlnetTypes)
-
-	log.Printf("Focused option (%d): %s", index, opt.Name)
 
 	var toSearch []string
 	var controlType = "All"
@@ -595,7 +592,7 @@ func (q *SDQueue) autocompleteControlnet(s *discordgo.Session, i *discordgo.Inte
 		}
 	}
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = q.botSession.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionApplicationCommandAutocompleteResult,
 		Data: &discordgo.InteractionResponseData{
 			Choices: choices[:min(25, len(choices))],
