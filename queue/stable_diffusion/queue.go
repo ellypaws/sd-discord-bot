@@ -268,6 +268,8 @@ func (q *SDQueue) Remove(messageInteraction *discordgo.MessageInteraction) error
 }
 
 func (q *SDQueue) Interrupt(i *discordgo.Interaction) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	if q.currentImagine == nil {
 		return errors.New("there is no generation currently in progress")
 	}

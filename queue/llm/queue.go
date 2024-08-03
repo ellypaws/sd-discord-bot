@@ -86,6 +86,8 @@ func (q *LLMQueue) Remove(messageInteraction *discordgo.MessageInteraction) erro
 }
 
 func (q *LLMQueue) Interrupt(i *discordgo.Interaction) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
 	if q.current == nil {
 		return errors.New("no generation to interrupt")
 	}
