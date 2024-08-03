@@ -550,7 +550,7 @@ func imagineMessageContent(request *entities.ImageGenerationRequest, user *disco
 
 	out.WriteString(fmt.Sprintf(" `%d x %d`", request.Width, request.Height))
 
-	if request.EnableHr == true {
+	if request.EnableHr {
 		// " -> (x %x) = %d x %d"
 		out.WriteString(fmt.Sprintf(" -> (x `%s` by hires.fix) = `%d x %d`",
 			strconv.FormatFloat(request.HrScale, 'f', 1, 64),
@@ -609,24 +609,17 @@ func imagineMessageContent(request *entities.ImageGenerationRequest, user *disco
 func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discordgo.User, progress float64, ram, vram *entities.ReadableMemory) string {
 	var out = strings.Builder{}
 
-	seedString := fmt.Sprintf("%d", request.Seed)
-	if seedString == "-1" {
-		seedString = "at random(-1)"
-	}
-
 	out.WriteString(fmt.Sprintf("<@%s> asked me to imagine", user.ID))
-
 	out.WriteString(fmt.Sprintf(" `%d x %d`", request.Width, request.Height))
 
 	if ram != nil {
 		out.WriteString(fmt.Sprintf(" **RAM**: `%s`/`%s`", ram.Used, ram.Total))
 	}
-
 	if vram != nil {
 		out.WriteString(fmt.Sprintf(" **VRAM**:`%s`/`%s`", vram.Used, vram.Total))
 	}
 
-	if request.EnableHr == true {
+	if request.EnableHr {
 		// " -> (x %x) = %d x %d"
 		if request.HrResizeX == 0 {
 			request.HrResizeX = scaleDimension(request.Width, request.HrScale)
