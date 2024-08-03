@@ -60,27 +60,21 @@ func (q *NAIQueue) done() {
 func (q *NAIQueue) updateWaiting() {
 	items := len(q.queue)
 	finished := make(chan *NAIQueueItem, items)
-	removed := 1
 
-	var wg sync.WaitGroup
+	var position int
 	var updated sync.WaitGroup
-	wg.Add(items)
-	updated.Add(items)
 	for range items {
 		item := <-q.queue
 		if q.cancelled[item.DiscordInteraction.ID] {
 			delete(q.cancelled, item.DiscordInteraction.ID)
-			removed++
-			wg.Done()
-			updated.Done()
 			continue
 		}
+		item.pos = position
+		position++
 		finished <- item
-		wg.Done()
 
+		updated.Add(1)
 		go func(item *NAIQueueItem) {
-			wg.Wait()
-			item.pos = item.pos - removed
 			_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, q.positionString(item), handlers.Components[handlers.Cancel])
 			if err != nil {
 				log.Printf("Error updating queue position for item %v: %v", item.DiscordInteraction.ID, err)
