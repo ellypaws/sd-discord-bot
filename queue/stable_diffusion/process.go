@@ -1,11 +1,23 @@
 package stable_diffusion
 
 import (
+	"cmp"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"strconv"
+	"strings"
+
+	"stable_diffusion_bot/api/stable_diffusion_api"
+	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	p "stable_diffusion_bot/gui/progress"
 	"stable_diffusion_bot/utils"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/sahilm/fuzzy"
 )
 
 func (q *SDQueue) processCurrentImagine() error {
@@ -39,6 +51,315 @@ func (q *SDQueue) processCurrentImagine() error {
 	}
 
 	return nil
+}
+
+func (q *SDQueue) pullNextInQueue() error {
+	if q.currentImagine != nil {
+		log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
+		return errors.New("currentImagine is not nil")
+	}
+	q.currentImagine = <-q.queue
+	defer q.done()
+
+	if q.currentImagine.DiscordInteraction == nil {
+		// If the interaction is nil, we can't respond. Make sure to set the implementation before adding to the queue.
+		// Example: queue.DiscordInteraction = i.Interaction
+		log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.currentImagine)
+	}
+
+	q.mu.Lock()
+	if q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
+		delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
+		return nil
+	}
+	q.mu.Unlock()
+
+	var err error
+	switch q.currentImagine.Type {
+	case ItemTypeImagine, ItemTypeRaw:
+		err = q.processCurrentImagine()
+	case ItemTypeReroll, ItemTypeVariation:
+		err = q.processVariation()
+	case ItemTypeImg2Img:
+		err = q.processImg2ImgImagine()
+	case ItemTypeUpscale:
+		err = q.processUpscaleImagine()
+	default:
+		return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
+	}
+
+	if err != nil {
+		return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("error processing current item: %w", err))
+	}
+
+	return nil
+}
+
+func (q *SDQueue) done() {
+	q.mu.Lock()
+	q.currentImagine = nil
+	q.mu.Unlock()
+}
+
+const DefaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+	"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+	"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+
+func between[T cmp.Ordered](value, minimum, maximum T) T {
+	return min(max(minimum, value), maximum)
+}
+
+func betweenPtr[T cmp.Ordered](value, minimum, maximum T) *T {
+	out := min(max(minimum, value), maximum)
+	return &out
+}
+
+func (q *SDQueue) getPreviousGeneration(queue *SDQueueItem) (*entities.ImageGenerationRequest, error) {
+	if queue.DiscordInteraction == nil {
+		return nil, errors.New("interaction is nil")
+	}
+
+	if queue.DiscordInteraction.Message == nil {
+		return nil, errors.New("interaction message is nil")
+	}
+
+	interactionID := queue.DiscordInteraction.ID
+	sortOrder := queue.InteractionIndex
+	messageID := queue.DiscordInteraction.Message.ID
+
+	log.Printf("Reimagining interaction: %v, Message: %v", interactionID, messageID)
+
+	var err error
+	queue.ImageGenerationRequest, err = q.imageGenerationRepo.GetByMessageAndSort(context.Background(), messageID, sortOrder)
+	if err != nil {
+		log.Printf("Error getting image generation: %v", err)
+
+		return nil, err
+	}
+
+	log.Printf("Found generation: %v", queue.ImageGenerationRequest)
+
+	return queue.ImageGenerationRequest, nil
+}
+
+// Deprecated: use imagineMessageSimple instead
+func imagineMessageContent(request *entities.ImageGenerationRequest, user *discordgo.User, progress float64) string {
+	var out = strings.Builder{}
+
+	seedString := fmt.Sprintf("%d", request.Seed)
+	if seedString == "-1" {
+		seedString = "at random(-1)"
+	}
+
+	out.WriteString(fmt.Sprintf("<@%s> asked me to imagine with step: `%d` cfg: `%s` seed: `%s` sampler: `%s`",
+		user.ID,
+		request.Steps,
+		strconv.FormatFloat(request.CFGScale, 'f', 1, 64),
+		seedString,
+		request.SamplerName,
+	))
+
+	out.WriteString(fmt.Sprintf(" `%d x %d`", request.Width, request.Height))
+
+	if request.EnableHr {
+		// " -> (x %x) = %d x %d"
+		out.WriteString(fmt.Sprintf(" -> (x `%s` by hires.fix) = `%d x %d`",
+			strconv.FormatFloat(request.HrScale, 'f', 1, 64),
+			request.HrResizeX,
+			request.HrResizeY),
+		)
+	}
+
+	if ptrStringNotBlank(request.Checkpoint) {
+		out.WriteString(fmt.Sprintf("\n**Checkpoint**: `%v`", *request.Checkpoint))
+	}
+
+	if ptrStringNotBlank(request.VAE) {
+		out.WriteString(fmt.Sprintf("\n**VAE**: `%v`", *request.VAE))
+	}
+
+	if ptrStringNotBlank(request.Hypernetwork) {
+		if ptrStringNotBlank(request.VAE) {
+			out.WriteString(" ")
+		} else {
+			out.WriteString("\n")
+		}
+		out.WriteString(fmt.Sprintf("**Hypernetwork**: `%v`", *request.Hypernetwork))
+	}
+
+	if progress >= 0 && progress < 1 {
+		out.WriteString(fmt.Sprintf("\n**Progress**:\n```ansi\n%v\n```", p.Get().ViewAs(progress)))
+	}
+
+	out.WriteString(fmt.Sprintf("\n```\n%s\n```", request.Prompt))
+
+	if request.Scripts.ADetailer != nil && len(request.Scripts.ADetailer.Args) > 0 {
+		var models []string
+		for _, v := range request.Scripts.ADetailer.Args {
+			models = append(models, v.AdModel)
+		}
+		out.WriteString(fmt.Sprintf("\n**ADetailer**: [%v]", strings.Join(models, ", ")))
+	}
+
+	if request.Scripts.ControlNet != nil && len(request.Scripts.ControlNet.Args) > 0 {
+		var preprocessor []string
+		var model []string
+		for _, v := range request.Scripts.ControlNet.Args {
+			preprocessor = append(preprocessor, v.Module)
+			model = append(model, v.Model)
+		}
+		out.WriteString(fmt.Sprintf("\n**ControlNet**: [%v]\n**Preprocessor**: [%v]", strings.Join(preprocessor, ", "), strings.Join(model, ", ")))
+	}
+
+	if out.Len() > 2000 {
+		return out.String()[:2000]
+	}
+	return out.String()
+}
+
+func imagineMessageSimple(request *entities.ImageGenerationRequest, user *discordgo.User, progress float64, ram, vram *entities.ReadableMemory) string {
+	var out = strings.Builder{}
+
+	out.WriteString(fmt.Sprintf("<@%s> asked me to imagine", user.ID))
+	out.WriteString(fmt.Sprintf(" `%d x %d`", request.Width, request.Height))
+
+	if ram != nil {
+		out.WriteString(fmt.Sprintf(" **RAM**: `%s`/`%s`", ram.Used, ram.Total))
+	}
+	if vram != nil {
+		out.WriteString(fmt.Sprintf(" **VRAM**:`%s`/`%s`", vram.Used, vram.Total))
+	}
+
+	if request.EnableHr {
+		// " -> (x %x) = %d x %d"
+		if request.HrResizeX == 0 {
+			request.HrResizeX = scaleDimension(request.Width, request.HrScale)
+		}
+		if request.HrResizeY == 0 {
+			request.HrResizeY = scaleDimension(request.Height, request.HrScale)
+		}
+		out.WriteString(fmt.Sprintf(" -> (x `%s` by hires.fix) = `%d x %d`",
+			strconv.FormatFloat(request.HrScale, 'f', 1, 64),
+			request.HrResizeX,
+			request.HrResizeY),
+		)
+	}
+
+	if progress >= 0 && progress < 1 {
+		out.WriteString(fmt.Sprintf("\n**Progress**:\n```ansi\n%v\n```", p.Get().ViewAs(progress)))
+	}
+
+	if out.Len() > 2000 {
+		return out.String()[:2000]
+	}
+	return out.String()
+}
+
+func scaleDimension(dimension int, scale float64) int {
+	return int(float64(dimension) * scale)
+}
+
+// lookupModel searches through []stable_diffusion_api.Cacheable models to find the model to load
+func (q *SDQueue) lookupModel(request *entities.ImageGenerationRequest, config *entities.Config, c []stable_diffusion_api.Cacheable) (POST entities.Config) {
+	for _, c := range c {
+		var toLoad *string
+		var loadedModel *string
+		switch c.(type) {
+		case *stable_diffusion_api.SDModels:
+			toLoad = request.Checkpoint
+			loadedModel = config.SDModelCheckpoint
+			//log.Printf("Checkpoint: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
+		case *stable_diffusion_api.VAEModels:
+			toLoad = request.VAE
+			loadedModel = config.SDVae
+			//log.Printf("VAE: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
+		case *stable_diffusion_api.HypernetworkModels:
+			toLoad = request.Hypernetwork
+			loadedModel = config.SDHypernetwork
+			//log.Printf("Hypernetwork: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
+		}
+
+		if ptrStringCompare(toLoad, loadedModel) {
+			log.Printf("Model %T \"%v\" already loaded as \"%v\"", toLoad, safeDereference(toLoad), safeDereference(loadedModel))
+		}
+
+		if toLoad != nil {
+			switch safeDereference(toLoad) {
+			case "":
+				// set to nil if empty string
+				toLoad = nil
+			case "None":
+				// keep "None" to unload the model
+			default:
+				// lookup from the list of models
+				cache, err := c.GetCache(q.stableDiffusionAPI)
+				if err != nil {
+					log.Println("Failed to get cached models:", err)
+					continue
+				}
+
+				results := fuzzy.FindFrom(*toLoad, cache)
+
+				if len(results) > 0 {
+					firstResult := cache.String(results[0].Index)
+					toLoad = &firstResult
+				} else {
+					log.Printf("Couldn't find model %v", safeDereference(toLoad))
+					//log.Printf("Available models: %v", cache)
+				}
+			}
+		}
+
+		switch c.(type) {
+		case *stable_diffusion_api.SDModels:
+			POST.SDModelCheckpoint = toLoad
+		case *stable_diffusion_api.VAEModels:
+			POST.SDVae = toLoad
+		case *stable_diffusion_api.HypernetworkModels:
+			POST.SDHypernetwork = toLoad
+		}
+	}
+
+	if POST.SDModelCheckpoint != nil || POST.SDVae != nil || POST.SDHypernetwork != nil {
+		marshal, _ := POST.Marshal()
+		log.Printf("Switching models to %#v", string(marshal))
+	}
+	return
+}
+
+func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress float64) string {
+	if fetchProgress >= 0 && fetchProgress <= 1 && upscaleProgress < 1 {
+		if upscaleProgress == 0 {
+			return fmt.Sprintf("Currently upscaling the image for you... Fetch progress: %.0f%%", fetchProgress*100)
+		} else {
+			return fmt.Sprintf("Currently upscaling the image for you... Fetch progress: %.0f%% Upscale progress: %.0f%%",
+				fetchProgress*100, upscaleProgress*100)
+		}
+	} else {
+		return fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
+			user.ID)
+	}
+}
+
+func ptrStringCompare(s1 *string, s2 *string) bool {
+	if s1 == nil || s2 == nil {
+		return s1 == s2
+	}
+	return *s1 == *s2
+}
+
+func ptrStringNotBlank(s *string) bool {
+	if s == nil {
+		return false
+	}
+	return *s != ""
+}
+
+func safeDereference(s *string) string {
+	if s == nil {
+		return "<nil>"
+	}
+	return *s
 }
 
 func calculateDimensions(q *SDQueue, queue *SDQueueItem) (err error) {

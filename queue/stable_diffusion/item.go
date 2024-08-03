@@ -2,11 +2,56 @@ package stable_diffusion
 
 import (
 	"github.com/bwmarrin/discordgo"
+	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/utils"
 	"time"
 )
+
+type SDQueueItem struct {
+	Type ItemType
+
+	*entities.ImageGenerationRequest
+
+	LLMRequest *llm.Request
+	LLMCreated time.Time
+
+	AspectRatio        string
+	InteractionIndex   int
+	DiscordInteraction *discordgo.Interaction
+
+	ADetailerString string // use AppendSegModelByString
+
+	Img2ImgItem
+	ControlnetItem
+
+	Raw *entities.TextToImageRaw // raw JSON input
+
+	Interrupt chan *discordgo.Interaction
+}
+
+type Img2ImgItem struct {
+	Image             *utils.Image
+	DenoisingStrength float64
+}
+
+type ControlnetItem struct {
+	Image        *utils.Image
+	ControlMode  entities.ControlMode
+	ResizeMode   entities.ResizeMode
+	Type         string
+	Preprocessor string // also called the module in entities.ControlNetParameters
+	Model        string
+	Enabled      bool
+}
+
+type ItemType int
+
+func (q *SDQueueItem) Interaction() *discordgo.Interaction {
+	return q.DiscordInteraction
+}
 
 func (q *SDQueue) NewItem(interaction *discordgo.Interaction, options ...func(*SDQueueItem)) *SDQueueItem {
 	item := q.DefaultQueueItem()
