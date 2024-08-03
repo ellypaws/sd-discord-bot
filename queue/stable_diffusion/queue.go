@@ -109,7 +109,7 @@ Polling:
 			break Polling
 		case <-time.After(1 * time.Second):
 			if q.currentImagine == nil {
-				if err := q.pullNextInQueue(); err != nil {
+				if err := q.next(); err != nil {
 					log.Printf("Error processing next item: %v", err)
 				}
 				once = false

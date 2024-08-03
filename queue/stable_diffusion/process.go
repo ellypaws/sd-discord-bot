@@ -20,40 +20,7 @@ import (
 	"github.com/sahilm/fuzzy"
 )
 
-func (q *SDQueue) processCurrentImagine() error {
-	queue := q.currentImagine
-
-	request, err := queue.ImageGenerationRequest, error(nil)
-	if request == nil {
-		return fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type)
-	}
-
-	textToImage := request.TextToImageRequest
-	if textToImage == nil {
-		return fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type)
-	}
-
-	// only set width and height if it is not a raw json request
-	if queue.Type != ItemTypeRaw || (queue.Type == ItemTypeRaw && queue.Raw != nil && queue.Raw.Unsafe) {
-		err = calculateDimensions(q, queue)
-		if err != nil {
-			return fmt.Errorf("error calculating dimensions: %w", err)
-		}
-	}
-
-	fillBlankModels(q, request)
-
-	initializeScripts(queue)
-
-	err = q.processImagineGrid(queue)
-	if err != nil {
-		return fmt.Errorf("error processing imagine grid: %w", err)
-	}
-
-	return nil
-}
-
-func (q *SDQueue) pullNextInQueue() error {
+func (q *SDQueue) next() error {
 	if q.currentImagine != nil {
 		log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
 		return errors.New("currentImagine is not nil")
@@ -95,15 +62,44 @@ func (q *SDQueue) pullNextInQueue() error {
 	return nil
 }
 
+func (q *SDQueue) processCurrentImagine() error {
+	queue := q.currentImagine
+
+	request, err := queue.ImageGenerationRequest, error(nil)
+	if request == nil {
+		return fmt.Errorf("ImageGenerationRequest of type %v is nil", queue.Type)
+	}
+
+	textToImage := request.TextToImageRequest
+	if textToImage == nil {
+		return fmt.Errorf("TextToImageRequest of type %v is nil", queue.Type)
+	}
+
+	// only set width and height if it is not a raw json request
+	if queue.Type != ItemTypeRaw || (queue.Type == ItemTypeRaw && queue.Raw != nil && queue.Raw.Unsafe) {
+		err = calculateDimensions(q, queue)
+		if err != nil {
+			return fmt.Errorf("error calculating dimensions: %w", err)
+		}
+	}
+
+	fillBlankModels(q, request)
+
+	initializeScripts(queue)
+
+	err = q.processImagineGrid(queue)
+	if err != nil {
+		return fmt.Errorf("error processing imagine grid: %w", err)
+	}
+
+	return nil
+}
+
 func (q *SDQueue) done() {
 	q.mu.Lock()
 	q.currentImagine = nil
 	q.mu.Unlock()
 }
-
-const DefaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
-	"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
-	"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
 
 func between[T cmp.Ordered](value, minimum, maximum T) T {
 	return min(max(minimum, value), maximum)

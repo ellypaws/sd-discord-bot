@@ -83,6 +83,10 @@ func WithCurrentModels(api stable_diffusion_api.StableDiffusionAPI) func(*SDQueu
 	}
 }
 
+const DefaultNegative = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
+	"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
+	"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
+
 func (q *SDQueue) DefaultQueueItem() *SDQueueItem {
 	defaultBatchCount, err := q.defaultBatchCount()
 	if err != nil {
