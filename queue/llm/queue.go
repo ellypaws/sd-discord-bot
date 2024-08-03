@@ -95,6 +95,7 @@ func (q *LLMQueue) Interrupt(i *discordgo.Interaction) error {
 		q.current.Interrupt = make(chan *discordgo.Interaction)
 	}
 	q.current.Interrupt <- i
+	close(q.current.Interrupt)
 
 	return nil
 }

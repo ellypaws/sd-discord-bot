@@ -278,6 +278,7 @@ func (q *SDQueue) Interrupt(i *discordgo.Interaction) error {
 		q.currentImagine.Interrupt = make(chan *discordgo.Interaction)
 	}
 	q.currentImagine.Interrupt <- i
+	close(q.currentImagine.Interrupt)
 
 	return nil
 }
