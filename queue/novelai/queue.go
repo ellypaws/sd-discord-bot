@@ -73,7 +73,7 @@ func (q *NAIQueue) Add(item *NAIQueueItem) (int, error) {
 		return -1, errors.New("queue is full")
 	}
 
-	item.pos = len(q.queue) + 1
+	item.pos = len(q.queue)
 	q.queue <- item
 
 	return item.pos, nil
