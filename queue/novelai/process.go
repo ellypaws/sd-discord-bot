@@ -5,6 +5,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"sync"
 	"time"
 )
 
@@ -61,23 +62,33 @@ func (q *NAIQueue) updateWaiting() {
 	finished := make(chan *NAIQueueItem, items)
 	removed := 1
 
+	var wg sync.WaitGroup
+	var updated sync.WaitGroup
+	wg.Add(items)
+	updated.Add(items)
 	for range items {
 		item := <-q.queue
 		if q.cancelled[item.DiscordInteraction.ID] {
 			delete(q.cancelled, item.DiscordInteraction.ID)
 			removed++
+			wg.Done()
+			updated.Done()
 			continue
 		}
-		item.pos = item.pos - removed
 		finished <- item
+		wg.Done()
 
 		go func(item *NAIQueueItem) {
+			wg.Wait()
+			item.pos = item.pos - removed
 			_, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, q.positionString(item), handlers.Components[handlers.Cancel])
 			if err != nil {
 				log.Printf("Error updating queue position for item %v: %v", item.DiscordInteraction.ID, err)
 			}
+			updated.Done()
 		}(item)
 	}
+	updated.Wait()
 
 	timeout := time.NewTimer(30 * time.Second)
 	defer drain(timeout)
