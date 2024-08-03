@@ -18,12 +18,14 @@ func (q *NAIQueue) next() error {
 		q.current = <-q.queue
 		requireInteraction(q.current.DiscordInteraction)
 
+		q.mu.Lock()
 		if q.cancelled[q.current.DiscordInteraction.ID] {
 			// If the item is cancelled, skip it
 			delete(q.cancelled, q.current.DiscordInteraction.ID)
 			q.done()
 			return nil
 		}
+		q.mu.Unlock()
 
 		switch q.current.Type {
 		case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
