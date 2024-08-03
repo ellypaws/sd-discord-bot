@@ -2,7 +2,6 @@ package stable_diffusion
 
 import (
 	"errors"
-	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"os"
 	"sync"
@@ -29,8 +28,6 @@ type SDQueue struct {
 	defaultSettingsRepo default_settings.Repository
 	botDefaultSettings  *entities.DefaultSettings
 	cancelledItems      map[string]bool
-
-	llmConfig *llm.Config
 
 	stop chan os.Signal
 }
@@ -89,11 +86,6 @@ func (q *SDQueue) Add(queue *SDQueueItem) (int, error) {
 	linePosition := len(q.queue)
 
 	return linePosition, nil
-}
-
-func (q *SDQueue) StartPollingWithLLM(botSession *discordgo.Session, config *llm.Config) {
-	q.llmConfig = config
-	q.Start(botSession)
 }
 
 func (q *SDQueue) Start(botSession *discordgo.Session) {
