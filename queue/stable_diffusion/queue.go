@@ -201,50 +201,42 @@ func (q *SDQueue) Stop() {
 }
 
 func (q *SDQueue) pullNextInQueue() error {
-	for len(q.queue) > 0 {
-		// Peek at the next item without blocking
-		if q.currentImagine != nil {
-			log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
-			return errors.New("currentImagine is not nil")
-		}
+	if q.currentImagine != nil {
+		log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
+		return errors.New("currentImagine is not nil")
+	}
+	q.currentImagine = <-q.queue
+	defer q.done()
 
-		var err error
-		select {
-		case q.currentImagine = <-q.queue:
-			defer q.done()
-			if q.currentImagine.DiscordInteraction == nil {
-				// If the interaction is nil, we can't respond. Make sure to set the implementation before adding to the queue.
-				// Example: queue.DiscordInteraction = i.Interaction
-				log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.currentImagine)
-			}
-			if interaction := q.currentImagine.DiscordInteraction; interaction != nil && q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
-				// If the item is cancelled, skip it
-				delete(q.cancelledItems, interaction.ID)
-				return nil
-			}
-			switch q.currentImagine.Type {
-			case ItemTypeImagine, ItemTypeRaw:
-				err = q.processCurrentImagine()
-			case ItemTypeReroll, ItemTypeVariation:
-				err = q.processVariation()
-			case ItemTypeImg2Img:
-				err = q.processImg2ImgImagine()
-			case ItemTypeUpscale:
-				err = q.processUpscaleImagine()
-			default:
-				return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
-			}
-		default:
-			log.Printf("WARNING: we're trying to pull the next item in the queue, but the queue is empty")
-			return nil // Queue is empty
-		}
+	if q.currentImagine.DiscordInteraction == nil {
+		// If the interaction is nil, we can't respond. Make sure to set the implementation before adding to the queue.
+		// Example: queue.DiscordInteraction = i.Interaction
+		log.Panicf("DiscordInteraction is nil! Make sure to set it before adding to the queue. Example: queue.DiscordInteraction = i.Interaction\n%v", q.currentImagine)
+	}
 
-		if err != nil {
-			if q.currentImagine.DiscordInteraction == nil {
-				return err
-			}
-			return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("error processing current item: %w", err))
-		}
+	q.mu.Lock()
+	if q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
+		delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
+		return nil
+	}
+	q.mu.Unlock()
+
+	var err error
+	switch q.currentImagine.Type {
+	case ItemTypeImagine, ItemTypeRaw:
+		err = q.processCurrentImagine()
+	case ItemTypeReroll, ItemTypeVariation:
+		err = q.processVariation()
+	case ItemTypeImg2Img:
+		err = q.processImg2ImgImagine()
+	case ItemTypeUpscale:
+		err = q.processUpscaleImagine()
+	default:
+		return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("unknown item type: %v", q.currentImagine.Type))
+	}
+
+	if err != nil {
+		return handlers.ErrorEdit(q.botSession, q.currentImagine.DiscordInteraction, fmt.Errorf("error processing current item: %w", err))
 	}
 
 	return nil
@@ -252,17 +244,14 @@ func (q *SDQueue) pullNextInQueue() error {
 
 func (q *SDQueue) done() {
 	q.mu.Lock()
-	defer q.mu.Unlock()
-
 	q.currentImagine = nil
+	q.mu.Unlock()
 }
 
 func (q *SDQueue) Remove(messageInteraction *discordgo.MessageInteraction) error {
 	q.mu.Lock()
-	defer q.mu.Unlock()
-
-	// Mark the item as cancelled
 	q.cancelledItems[messageInteraction.ID] = true
+	q.mu.Unlock()
 
 	return nil
 }
