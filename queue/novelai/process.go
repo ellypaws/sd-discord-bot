@@ -10,37 +10,40 @@ import (
 )
 
 func (q *NAIQueue) next() error {
-	for len(q.queue) > 0 {
-		if q.current != nil {
-			log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
-			return fmt.Errorf("currentImagine is not nil")
-		}
-		q.current = <-q.queue
-		requireInteraction(q.current.DiscordInteraction)
-
-		q.mu.Lock()
-		if q.cancelled[q.current.DiscordInteraction.ID] {
-			// If the item is cancelled, skip it
-			delete(q.cancelled, q.current.DiscordInteraction.ID)
-			q.done()
-			return nil
-		}
-		q.mu.Unlock()
-
-		switch q.current.Type {
-		case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
-			interaction, err := q.processCurrentItem()
-			if err != nil {
-				if interaction == nil {
-					return err
-				}
-				return handlers.ErrorEdit(q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
-			}
-		default:
-			q.done()
-			return handlers.ErrorEdit(q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
-		}
+	if len(q.queue) == 0 {
+		return nil
 	}
+
+	if q.current != nil {
+		log.Printf("WARNING: we're trying to pull the next item in the queue, but currentImagine is not yet nil")
+		return fmt.Errorf("currentImagine is not nil")
+	}
+	q.current = <-q.queue
+	requireInteraction(q.current.DiscordInteraction)
+
+	q.mu.Lock()
+	if q.cancelled[q.current.DiscordInteraction.ID] {
+		// If the item is cancelled, skip it
+		delete(q.cancelled, q.current.DiscordInteraction.ID)
+		q.done()
+		return nil
+	}
+	q.mu.Unlock()
+
+	switch q.current.Type {
+	case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
+		interaction, err := q.processCurrentItem()
+		if err != nil {
+			if interaction == nil {
+				return err
+			}
+			return handlers.ErrorEdit(q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
+		}
+	default:
+		q.done()
+		return handlers.ErrorEdit(q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
+	}
+
 	return nil
 }
 
