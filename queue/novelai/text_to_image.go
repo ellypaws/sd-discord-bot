@@ -37,47 +37,61 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 		return item.DiscordInteraction, fmt.Errorf("cost is %d", cost)
 	}
 
-	err := q.processImagineGrid(item)
-	if err != nil {
-		return item.DiscordInteraction, err
+	timeout := time.NewTimer(time.Minute)
+	defer drain(timeout)
+
+	select {
+	case err := <-q.processImagineGrid(item):
+		if err != nil {
+			return item.DiscordInteraction, err
+		}
+	case <-timeout.C:
+		log.Printf("Timeout processing item %s for %s", item.DiscordInteraction.ID, item.user.Username)
+		return item.DiscordInteraction, errors.New("timeout")
 	}
 
 	return item.DiscordInteraction, nil
 }
 
-func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
-	request := item.Request
+func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) <-chan error {
+	promise := make(chan error)
 
-	embed, webhook, err := q.showInitialMessage(item)
-	if err != nil {
-		return err
-	}
+	go func() {
+		request := item.Request
 
-	generationDone := make(chan bool)
-	defer close(generationDone)
-	go q.updateProgressBar(item, generationDone)
-
-	switch item.Type {
-	case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
-		item.Created = time.Now()
-		images, err := q.client.Inference(request)
-		generationDone <- true
+		embed, webhook, err := q.showInitialMessage(item)
 		if err != nil {
-			return fmt.Errorf("error generating image: %w", err)
+			promise <- err
 		}
 
-		message := fmt.Sprintf("%s\n\nUploading image...", imagineMessageSimple(item.Request, item.user))
-		_, err = q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
-			Content: &message,
-		})
-		if err != nil {
-			return err
-		}
+		generationDone := make(chan bool)
+		defer close(generationDone)
+		go q.updateProgressBar(item, generationDone)
 
-		return q.showFinalMessage(item, images, embed, webhook)
-	default:
-		return fmt.Errorf("unknown item type: %s", item.Type)
-	}
+		switch item.Type {
+		case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
+			item.Created = time.Now()
+			images, err := q.client.Inference(request)
+			generationDone <- true
+			if err != nil {
+				promise <- fmt.Errorf("error generating image: %w", err)
+			}
+
+			message := fmt.Sprintf("%s\n\nUploading image...", imagineMessageSimple(item.Request, item.user))
+			_, err = q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
+				Content: &message,
+			})
+			if err != nil {
+				promise <- err
+			}
+
+			promise <- q.showFinalMessage(item, images, embed, webhook)
+		default:
+			promise <- fmt.Errorf("unknown item type: %s", item.Type)
+		}
+	}()
+
+	return promise
 }
 
 func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
