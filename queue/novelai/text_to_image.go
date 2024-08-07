@@ -16,7 +16,6 @@ import (
 )
 
 func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
-	defer q.done()
 	item := q.current
 
 	if item == nil {

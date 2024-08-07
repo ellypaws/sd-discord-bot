@@ -19,13 +19,13 @@ func (q *NAIQueue) next() error {
 		return fmt.Errorf("currentImagine is not nil")
 	}
 	q.current = <-q.queue
+	defer q.done()
 	requireInteraction(q.current.DiscordInteraction)
 
 	q.mu.Lock()
 	if q.cancelled[q.current.DiscordInteraction.ID] {
 		// If the item is cancelled, skip it
 		delete(q.cancelled, q.current.DiscordInteraction.ID)
-		q.done()
 		return nil
 	}
 	q.mu.Unlock()
@@ -40,7 +40,6 @@ func (q *NAIQueue) next() error {
 			return handlers.ErrorEdit(q.botSession, interaction, fmt.Errorf("error processing current item: %w", err))
 		}
 	default:
-		q.done()
 		return handlers.ErrorEdit(q.botSession, q.current.DiscordInteraction, fmt.Errorf("unknown item type: %s", q.current.Type))
 	}
 
