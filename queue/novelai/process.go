@@ -26,6 +26,7 @@ func (q *NAIQueue) next() error {
 	if q.cancelled[q.current.DiscordInteraction.ID] {
 		// If the item is cancelled, skip it
 		delete(q.cancelled, q.current.DiscordInteraction.ID)
+		q.mu.Unlock()
 		return nil
 	}
 	q.mu.Unlock()
