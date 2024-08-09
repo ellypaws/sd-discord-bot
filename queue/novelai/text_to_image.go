@@ -40,7 +40,6 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 	defer drain(timeout)
 
 	promise := make(chan error)
-	defer close(promise)
 	go q.processImagineGrid(item, promise)
 
 	select {
@@ -57,6 +56,7 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 }
 
 func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) {
+	defer close(promise)
 	request := item.Request
 
 	embed, webhook, err := q.showInitialMessage(item)
