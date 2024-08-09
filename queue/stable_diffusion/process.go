@@ -40,6 +40,7 @@ func (q *SDQueue) next() error {
 	q.mu.Lock()
 	if q.cancelledItems[q.currentImagine.DiscordInteraction.ID] {
 		delete(q.cancelledItems, q.currentImagine.DiscordInteraction.ID)
+		q.mu.Unlock()
 		return nil
 	}
 	q.mu.Unlock()
