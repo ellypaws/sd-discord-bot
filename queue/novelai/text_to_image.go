@@ -58,7 +58,7 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) {
 	defer close(promise)
 
-	embed, webhook, err := q.showInitialMessage(item)
+	embed, err := q.showInitialMessage(item)
 	if err != nil {
 		promise <- err
 	}
@@ -84,13 +84,13 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 			promise <- err
 		}
 
-		promise <- q.showFinalMessage(item, images, embed, webhook)
+		promise <- q.showFinalMessage(item, images, embed)
 	default:
 		promise <- fmt.Errorf("unknown item type: %s", item.Type)
 	}
 }
 
-func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
+func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmbed, error) {
 	request := item.Request
 	newContent := imagineMessageSimple(request, item.user)
 
@@ -104,15 +104,15 @@ func (q *NAIQueue) showInitialMessage(item *NAIQueueItem) (*discordgo.MessageEmb
 
 	message, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, webhook)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	err = q.storeMessageInteraction(item, message)
 	if err != nil {
-		return nil, nil, fmt.Errorf("error retrieving message interaction: %v", err)
+		return nil, fmt.Errorf("error retrieving message interaction: %v", err)
 	}
 
-	return embed, webhook, nil
+	return embed, nil
 }
 
 func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan bool) {
@@ -160,7 +160,7 @@ func nextFrame(current, length int) int {
 	return (current + 1) % length
 }
 
-func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.NovelAIResponse, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
+func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.NovelAIResponse, embed *discordgo.MessageEmbed) error {
 	request := item.Request
 	totalImages := int(request.Parameters.ImageCount)
 
@@ -174,7 +174,7 @@ func (q *NAIQueue) showFinalMessage(item *NAIQueueItem, response *entities.Novel
 	}
 
 	mention := fmt.Sprintf("<@%v>", user.ID)
-	webhook = &discordgo.WebhookEdit{
+	webhook := &discordgo.WebhookEdit{
 		Content:    &mention,
 		Components: &[]discordgo.MessageComponent{handlers.Components[handlers.DeleteGeneration]},
 	}
