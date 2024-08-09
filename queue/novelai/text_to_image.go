@@ -61,6 +61,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 	embed, err := q.showInitialMessage(item)
 	if err != nil {
 		promise <- err
+		return
 	}
 
 	generationDone := make(chan bool)
@@ -74,6 +75,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 		generationDone <- true
 		if err != nil {
 			promise <- fmt.Errorf("error generating image: %w", err)
+			return
 		}
 
 		message := fmt.Sprintf("%s\n\nUploading image...", imagineMessageSimple(item.Request, item.user))
@@ -82,6 +84,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 		})
 		if err != nil {
 			promise <- err
+			return
 		}
 
 		promise <- q.showFinalMessage(item, images, embed)
