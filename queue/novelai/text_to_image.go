@@ -57,7 +57,6 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 
 func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) {
 	defer close(promise)
-	request := item.Request
 
 	embed, webhook, err := q.showInitialMessage(item)
 	if err != nil {
@@ -71,7 +70,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 	switch item.Type {
 	case ItemTypeImage, ItemTypeVibeTransfer, ItemTypeImg2Img:
 		item.Created = time.Now()
-		images, err := q.client.Inference(request)
+		images, err := q.client.Inference(item.Request)
 		generationDone <- true
 		if err != nil {
 			promise <- fmt.Errorf("error generating image: %w", err)
