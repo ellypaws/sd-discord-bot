@@ -119,6 +119,8 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 	start := time.Now()
 	visual := spinner.Moon.Frames
 	message := imagineMessageSimple(item.Request, item.user)
+	timeout := time.NewTimer(5 * time.Minute)
+	defer drain(timeout)
 
 	var frame int
 	for {
@@ -144,7 +146,7 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 				return
 			}
 			fmt.Printf("\r%s Time elapsed: %s (%s)", visual[frame], elapsed, item.user.Username)
-		case <-time.After(5 * time.Minute):
+		case <-timeout.C:
 			log.Printf("Generation #%s has been running for 5 minutes, interrupting", item.DiscordInteraction.ID)
 			break
 		}
