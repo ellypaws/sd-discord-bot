@@ -119,24 +119,27 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 	start := time.Now()
 	visual := spinner.Moon.Frames
 	message := imagineMessageSimple(item.Request, item.user)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
 	timeout := time.NewTimer(5 * time.Minute)
 	defer drain(timeout)
 
 	var frame int
+	var elapsed string
 	for {
 		select {
 		case item.DiscordInteraction = <-item.Interrupt:
 			break
 		case <-generationDone:
-			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, time.Since(start).Round(time.Second).String())
+			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, elapsed)
 			return
-		case <-time.After(1 * time.Second):
+		case tick := <-ticker.C:
 			frame = nextFrame(frame, len(visual))
 			if frame >= len(visual) {
 				frame = 0
 			}
 
-			elapsed := time.Since(start).Round(time.Second).String()
+			elapsed = tick.Sub(start).Round(time.Second).String()
 			progress := fmt.Sprintf("\r%s\n\n%s Time elapsed: %s", message, visual[frame], elapsed)
 			_, progressErr := q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
 				Content: &progress,
