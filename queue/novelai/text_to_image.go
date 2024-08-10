@@ -40,7 +40,10 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 	defer drain(timeout)
 
 	promise := make(chan error)
-	go q.processImagineGrid(item, promise)
+	go func() {
+		promise <- q.processImagineGrid(item)
+		close(promise)
+	}()
 
 	select {
 	case err := <-promise:
@@ -55,13 +58,10 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 	return item.DiscordInteraction, nil
 }
 
-func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) {
-	defer close(promise)
-
+func (q *NAIQueue) processImagineGrid(item *NAIQueueItem) error {
 	embed, err := q.showInitialMessage(item)
 	if err != nil {
-		promise <- err
-		return
+		return err
 	}
 
 	generationDone := make(chan bool)
@@ -74,8 +74,7 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 		images, err := q.client.Inference(item.Request)
 		generationDone <- true
 		if err != nil {
-			promise <- fmt.Errorf("error generating image: %w", err)
-			return
+			return fmt.Errorf("error generating image: %w", err)
 		}
 
 		message := fmt.Sprintf("%s\n\nUploading image...", imagineMessageSimple(item.Request, item.user))
@@ -83,13 +82,12 @@ func (q *NAIQueue) processImagineGrid(item *NAIQueueItem, promise chan<- error) 
 			Content: &message,
 		})
 		if err != nil {
-			promise <- err
-			return
+			return err
 		}
 
-		promise <- q.showFinalMessage(item, images, embed)
+		return q.showFinalMessage(item, images, embed)
 	default:
-		promise <- fmt.Errorf("unknown item type: %s", item.Type)
+		return fmt.Errorf("unknown item type: %s", item.Type)
 	}
 }
 
