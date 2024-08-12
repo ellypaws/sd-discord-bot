@@ -90,10 +90,10 @@ func (q *NAIQueue) updateWaiting() {
 	updated.Wait()
 
 	timeout := time.NewTimer(30 * time.Second)
-	defer drain(timeout)
 	for range items {
 		select {
 		case q.queue <- <-finished:
+			drain(timeout)
 		case <-timeout.C:
 			log.Printf("Error updating queue position: timeout")
 			return

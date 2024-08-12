@@ -36,20 +36,19 @@ func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
 		return item.DiscordInteraction, fmt.Errorf("cost is %d", cost)
 	}
 
-	timeout := time.NewTimer(time.Minute)
-	defer drain(timeout)
-
 	promise := make(chan error)
 	go func() {
 		promise <- q.processImagineGrid(item)
 		close(promise)
 	}()
 
+	timeout := time.NewTimer(time.Minute)
 	select {
 	case err := <-promise:
 		if err != nil {
 			return item.DiscordInteraction, err
 		}
+		drain(timeout)
 	case <-timeout.C:
 		log.Printf("Timeout processing item %s for %s", item.DiscordInteraction.ID, item.user.Username)
 		return item.DiscordInteraction, errors.New("timeout")
@@ -123,17 +122,18 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
 	timeout := time.NewTimer(5 * time.Minute)
-	defer drain(timeout)
 
 	var frame int
 	var elapsed string
+
+Ticker:
 	for {
 		select {
 		case item.DiscordInteraction = <-item.Interrupt:
-			break
+			break Ticker
 		case <-generationDone:
 			fmt.Printf("\rFinished generating %s for %s in %s\n", item.DiscordInteraction.ID, item.user.Username, elapsed)
-			return
+			break Ticker
 		case tick := <-ticker.C:
 			frame = nextFrame(frame, len(visual))
 			if frame >= len(visual) {
@@ -146,15 +146,17 @@ func (q *NAIQueue) updateProgressBar(item *NAIQueueItem, generationDone <-chan b
 				Content: &progress,
 			})
 			if progressErr != nil {
-				log.Printf("Error editing interaction: %v", progressErr)
-				return
+				log.Printf("Error editing progress: %v", progressErr)
+				break Ticker
 			}
 			fmt.Printf("\r%s Time elapsed: %s (%s)", visual[frame], elapsed, item.user.Username)
 		case <-timeout.C:
 			log.Printf("Generation #%s has been running for 5 minutes, interrupting", item.DiscordInteraction.ID)
-			break
+			return
 		}
 	}
+
+	drain(timeout)
 }
 
 func nextFrame(current, length int) int {
