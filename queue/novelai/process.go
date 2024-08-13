@@ -93,12 +93,13 @@ func (q *NAIQueue) updateWaiting() {
 	for range items {
 		select {
 		case q.queue <- <-finished:
-			drain(timeout)
 		case <-timeout.C:
 			log.Printf("Error updating queue position: timeout")
 			return
 		}
 	}
+
+	drain(timeout)
 }
 
 func drain(t *time.Timer) {
