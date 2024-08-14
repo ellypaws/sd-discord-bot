@@ -64,6 +64,11 @@ func (q *NAIQueue) done() {
 // updateWaiting updates all queued items with their new position
 func (q *NAIQueue) updateWaiting() {
 	items := len(q.queue)
+
+	if items == 0 {
+		return
+	}
+
 	finished := make(chan *NAIQueueItem, items)
 
 	var position int
