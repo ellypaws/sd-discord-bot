@@ -18,8 +18,6 @@ import (
 	"stable_diffusion_bot/repositories/image_generations"
 	"strings"
 
-	_ "stable_diffusion_bot/pprof"
-
 	openai "github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/joho/godotenv"
 )
