@@ -21,7 +21,6 @@ func (q *SDQueue) processUpscaleImagine() error {
 	queue.ImageGenerationRequest, err = q.getPreviousGeneration(queue)
 	if err != nil {
 		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error getting prompt for upscale: %w", err))
-
 	}
 
 	request := queue.ImageGenerationRequest
@@ -191,7 +190,6 @@ func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan 
 			}
 
 			lastProgress = progress.Progress
-
 			progressContent := upscaleMessageContent(queue.DiscordInteraction.Member.User, fetchProgress, upscaleProgress)
 
 			_, progressErr = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
