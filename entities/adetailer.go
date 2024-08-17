@@ -46,14 +46,6 @@ func (detailer *ADetailer) CreateArgs() ADetailerParameters {
 	return ADetailerParameters{}
 }
 
-func (detailer *ADetailer) InsertArgs(params ...*ADetailerParameters) ADetailerParameters {
-	if len(params) > 0 {
-		detailer.Args = append(detailer.Args, params...)
-	}
-	detailer.Args = []*ADetailerParameters{}
-	return ADetailerParameters{}
-}
-
 // AppendSegModel is a function that adds a new segmentation model to the ADetailer's current list of models.
 func (detailer *ADetailer) AppendSegModel(parameters ADetailerParameters) {
 	detailer.Args = append(detailer.Args, &parameters)
