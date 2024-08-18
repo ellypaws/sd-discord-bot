@@ -112,7 +112,7 @@ func (repo *sqliteRepo) GetByMessage(ctx context.Context, messageID string) (*en
 		return nil, err
 	}
 
-	generation.NewADetailer()
+	generation.Scripts.ADetailer = entities.NewADetailer()
 	err = json.Unmarshal([]byte(alwaysonScriptsString), &generation.Scripts)
 	if err != nil {
 		return nil, err

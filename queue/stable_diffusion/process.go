@@ -417,9 +417,7 @@ func initializeScripts(queue *SDQueueItem) {
 	textToImage := request.TextToImageRequest
 	if queue.ADetailerString != "" {
 		log.Printf("q.currentImagine.ADetailerString: %v", queue.ADetailerString)
-
-		request.NewADetailer()
-
+		request.Scripts.ADetailer = entities.NewADetailer()
 		textToImage.Scripts.ADetailer.AppendSegModelByString(queue.ADetailerString, request)
 	}
 

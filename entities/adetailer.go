@@ -41,9 +41,10 @@ type ADetailerParameters struct {
 	AdControlnetGuidanceEnd    float64 `json:"ad_controlnet_guidance_end,omitempty"`
 }
 
-func (detailer *ADetailer) CreateArgs() ADetailerParameters {
-	detailer.Args = []*ADetailerParameters{}
-	return ADetailerParameters{}
+func NewADetailer() *ADetailer {
+	return &ADetailer{
+		Args: []*ADetailerParameters{},
+	}
 }
 
 // AppendSegModel is a function that adds a new segmentation model to the ADetailer's current list of models.
@@ -96,21 +97,4 @@ func SegModelParameters(segModel string, genProperties *ImageGenerationRequest) 
 
 type ADetailer struct {
 	Args []*ADetailerParameters `json:"args,omitempty"`
-}
-
-// Deprecated: use ImageGenerationRequest.NewADetailer() instead
-func (g *ImageGeneration) NewADetailer() {
-	if g.AlwaysOnScripts == nil {
-		g.NewScripts()
-	}
-	g.AlwaysOnScripts.NewADetailerWithArgs()
-}
-
-func (g *ImageGenerationRequest) NewADetailer() {
-	g.TextToImageRequest.Scripts.NewADetailerWithArgs()
-}
-
-func (s *Scripts) NewADetailerWithArgs() {
-	s.ADetailer = &ADetailer{}
-	s.ADetailer.CreateArgs()
 }

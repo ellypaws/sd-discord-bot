@@ -69,7 +69,7 @@ func (q *SDQueue) upscale(request *entities.ImageGenerationRequest) (*stable_dif
 	textToImage := request.TextToImageRequest
 	// Use face segm model if we're upscaling but there's no ADetailer models
 	if textToImage.Scripts.ADetailer == nil {
-		textToImage.Scripts.NewADetailerWithArgs()
+		textToImage.Scripts.ADetailer = entities.NewADetailer()
 		textToImage.Scripts.ADetailer.AppendSegModelByString("face_yolov8n.pt", request)
 	}
 
