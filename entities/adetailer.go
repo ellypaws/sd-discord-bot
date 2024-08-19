@@ -4,6 +4,10 @@ import (
 	"strings"
 )
 
+type ADetailer struct {
+	Args []*ADetailerParameters `json:"args,omitempty"`
+}
+
 type ADetailerParameters struct {
 	AdModel                    string  `json:"ad_model,omitempty"`
 	AdPrompt                   string  `json:"ad_prompt,omitempty"`
@@ -93,8 +97,4 @@ func SegModelParameters(segModel string, genProperties *ImageGenerationRequest) 
 	}
 
 	return parameters
-}
-
-type ADetailer struct {
-	Args []*ADetailerParameters `json:"args,omitempty"`
 }

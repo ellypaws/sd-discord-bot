@@ -1,5 +1,9 @@
 package entities
 
+type ControlNet struct {
+	Args []*ControlNetParameters `json:"args,omitempty"`
+}
+
 // ControlNetParameters represents the parameters for a ControlNet processing unit. Use /controlnet/control_types endpoint to get both the module and model lists.
 // By using (*stable_diffusion_api.ControlnetTypes).GetCache or stable_diffusion_api.ControlnetTypesCache to access the endpoint and get the lists of modules and models.
 type ControlNetParameters struct {
@@ -34,10 +38,6 @@ const (
 	ResizeModeScaleToFit ResizeMode = "Scale to Fit (Inner Fit)"
 	ResizeModeEnvelope   ResizeMode = "Envelope (Outer Fit)"
 )
-
-type ControlNet struct {
-	Args []*ControlNetParameters `json:"args,omitempty"`
-}
 
 func (s *Scripts) NewControlNet() {
 	s.ControlNet = &ControlNet{}

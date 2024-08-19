@@ -5,6 +5,10 @@ import (
 	"errors"
 )
 
+type CFGRescale struct {
+	Args CFGRescaleParameters `json:"args,omitempty"`
+}
+
 type CFGRescaleParameters struct {
 	CfgRescale   float64 //`json:"1,omitempty"`
 	AutoColorFix bool    //`json:"2,omitempty"`
@@ -52,8 +56,4 @@ func (p *CFGRescaleParameters) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return nil
-}
-
-type CFGRescale struct {
-	Args CFGRescaleParameters `json:"args,omitempty"`
 }
