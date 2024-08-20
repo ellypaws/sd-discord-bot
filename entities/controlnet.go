@@ -23,7 +23,7 @@ type ControlNetParameters struct {
 	PixelPerfect  bool        `json:"pixel_perfect,omitempty"`  // PixelPerfect flag enables the pixel-perfect preprocessor. Defaults to false.
 }
 
-type ControlMode string
+type ControlMode = string
 
 const (
 	ControlModeBalanced ControlMode = "Balanced"
@@ -31,7 +31,7 @@ const (
 	ControlModeControl  ControlMode = "ControlNet is more important"
 )
 
-type ResizeMode string
+type ResizeMode = string
 
 const (
 	ResizeModeJustResize ResizeMode = "Just Resize"
