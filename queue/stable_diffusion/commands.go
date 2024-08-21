@@ -401,15 +401,15 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
 			{
-				Name:  string(entities.ControlModeBalanced),
+				Name:  entities.ControlModeBalanced,
 				Value: entities.ControlModeBalanced,
 			},
 			{
-				Name:  string(entities.ControlModePrompt),
+				Name:  entities.ControlModePrompt,
 				Value: entities.ControlModePrompt,
 			},
 			{
-				Name:  string(entities.ControlModeControl),
+				Name:  entities.ControlModeControl,
 				Value: entities.ControlModeControl,
 			},
 		},
@@ -421,15 +421,15 @@ var commandOptions = map[CommandOption]*discordgo.ApplicationCommandOption{
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
 			{
-				Name:  string(entities.ResizeModeJustResize),
+				Name:  entities.ResizeModeJustResize,
 				Value: entities.ResizeModeJustResize,
 			},
 			{
-				Name:  string(entities.ResizeModeScaleToFit),
+				Name:  entities.ResizeModeScaleToFit,
 				Value: entities.ResizeModeScaleToFit,
 			},
 			{
-				Name:  string(entities.ResizeModeEnvelope),
+				Name:  entities.ResizeModeEnvelope,
 				Value: entities.ResizeModeEnvelope,
 			},
 		},
