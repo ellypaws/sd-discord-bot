@@ -112,15 +112,16 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *SDQueueItem, i
 			Value:  fmt.Sprintf("`%v`", safeDereference(request.Hypernetwork)),
 			Inline: true,
 		},
-		{
+	}
+
+	// only add prompt if 200 or less and not in debug mode
+	if len(queue.Prompt) <= 200 && !(queue.Raw != nil && queue.Raw.Debug) {
+		embed.Fields = append(embed.Fields, &discordgo.MessageEmbedField{
 			Name:  "Prompt",
 			Value: fmt.Sprintf("```\n%s\n```", request.Prompt),
-		},
+		})
 	}
-	if queue.Raw != nil && queue.Raw.Debug {
-		// remove prompt, last item from embed.Fields
-		embed.Fields = embed.Fields[:len(embed.Fields)-1]
-	}
+
 	return embed
 }
 
