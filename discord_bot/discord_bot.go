@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"slices"
 	"sync"
+	"time"
 
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
@@ -229,8 +230,17 @@ func (b *botImpl) Start() error {
 	for _, q := range queues {
 		wg.Add(1)
 		go func(q queue.StartStop) {
-			q.Stop()
-			wg.Done()
+			stopped := make(chan struct{})
+			go func() {
+				q.Stop()
+				close(stopped)
+			}()
+			select {
+			case <-stopped:
+				wg.Done()
+			case <-time.After(10 * time.Second):
+				panic("queue did not stop in time")
+			}
 		}(q)
 	}
 	wg.Wait()
