@@ -229,19 +229,7 @@ func (b *botImpl) Start() error {
 	var wg sync.WaitGroup
 	for _, q := range queues {
 		wg.Add(1)
-		go func(q queue.StartStop) {
-			stopped := make(chan struct{})
-			go func() {
-				q.Stop()
-				close(stopped)
-			}()
-			select {
-			case <-stopped:
-				wg.Done()
-			case <-time.After(10 * time.Second):
-				panic("queue did not stop in time")
-			}
-		}(q)
+		go stopQueue(q, &wg)
 	}
 	wg.Wait()
 
@@ -255,6 +243,20 @@ func (b *botImpl) Start() error {
 
 func IsNil(q queue.StartStop) bool {
 	return q == nil
+}
+
+func stopQueue(q queue.StartStop, wg *sync.WaitGroup) {
+	stopped := make(chan struct{})
+	go func() {
+		q.Stop()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+		wg.Done()
+	case <-time.After(10 * time.Second):
+		panic("queue did not stop in time")
+	}
 }
 
 func (b *botImpl) teardown() error {
