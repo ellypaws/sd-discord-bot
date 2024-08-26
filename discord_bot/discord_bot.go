@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/queue"
 	"stable_diffusion_bot/queue/llm"
@@ -34,13 +33,12 @@ type botImpl struct {
 }
 
 type Config struct {
-	BotToken           string
-	GuildID            string
-	ImagineQueue       queue.Queue[*stable_diffusion.SDQueueItem]
-	NovelAIQueue       queue.Queue[*novelai.NAIQueueItem]
-	LLMQueue           queue.Queue[*llm.LLMItem]
-	RemoveCommands     bool
-	StableDiffusionApi stable_diffusion_api.StableDiffusionAPI
+	BotToken       string
+	GuildID        string
+	ImagineQueue   queue.Queue[*stable_diffusion.SDQueueItem]
+	NovelAIQueue   queue.Queue[*novelai.NAIQueueItem]
+	LLMQueue       queue.Queue[*llm.LLMItem]
+	RemoveCommands bool
 }
 
 func New(cfg *Config) (Bot, error) {

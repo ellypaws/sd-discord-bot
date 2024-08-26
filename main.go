@@ -185,13 +185,12 @@ func main() {
 	}
 
 	bot, err := discord_bot.New(&discord_bot.Config{
-		BotToken:           *botToken,
-		GuildID:            *guildID,
-		ImagineQueue:       imagineQueue,
-		NovelAIQueue:       novelai.New(novelAIToken),
-		LLMQueue:           llm.New(llmConfig),
-		RemoveCommands:     removeCommands,
-		StableDiffusionApi: stableDiffusionAPI,
+		BotToken:       *botToken,
+		GuildID:        *guildID,
+		ImagineQueue:   imagineQueue,
+		NovelAIQueue:   novelai.New(novelAIToken),
+		LLMQueue:       llm.New(llmConfig),
+		RemoveCommands: removeCommands,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)
