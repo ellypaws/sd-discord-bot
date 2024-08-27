@@ -381,7 +381,7 @@ func (q *SDQueue) autocompleteLora(i *discordgo.InteractionCreate, opt *discordg
 
 		input = sanitizeTooltip(input)
 
-		cache, err := q.stableDiffusionAPI.SDLorasCache()
+		cache, err := stable_diffusion_api.LoraCache.GetCache(q.stableDiffusionAPI)
 		if err != nil {
 			log.Printf("Error retrieving loras cache: %v", err)
 		}
@@ -397,7 +397,7 @@ func (q *SDQueue) autocompleteLora(i *discordgo.InteractionCreate, opt *discordg
 			}
 			regExp := regexp.MustCompile(`(?:models\\)?Lora\\(.*)`)
 
-			alias := regExp.FindStringSubmatch((*cache)[result.Index].Path)
+			alias := regExp.FindStringSubmatch((*cache.(*stable_diffusion_api.LoraModels))[result.Index].Path)
 
 			var nameToUse string
 			switch {
@@ -406,12 +406,12 @@ func (q *SDQueue) autocompleteLora(i *discordgo.InteractionCreate, opt *discordg
 				regExp := regexp.MustCompile(`\\{2,}`)
 				nameToUse = regExp.ReplaceAllString(alias[1], `\`)
 			default:
-				nameToUse = (*cache)[result.Index].Name
+				nameToUse = (*cache.(*stable_diffusion_api.LoraModels))[result.Index].Name
 			}
 
 			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
 				Name:  nameToUse,
-				Value: (*cache)[result.Index].Name,
+				Value: (*cache.(*stable_diffusion_api.LoraModels))[result.Index].Name,
 			})
 		}
 
@@ -420,7 +420,7 @@ func (q *SDQueue) autocompleteLora(i *discordgo.InteractionCreate, opt *discordg
 
 		var tooltip string
 		if len(results) > 0 {
-			input = (*cache)[results[0].Index].Name
+			input = (*cache.(*stable_diffusion_api.LoraModels))[results[0].Index].Name
 			tooltip = fmt.Sprintf("✨%v", input)
 		} else {
 			input = sanitized
