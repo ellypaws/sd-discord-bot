@@ -33,13 +33,6 @@ type StableDiffusionAPI interface {
 	POST(postURL string, jsonData []byte) (*http.Response, error)
 	Host() string
 
-	// invidual caches TODO: use Cacheable interface
-	SDCheckpointsCache() (*SDModels, error)            // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDLorasCache() (*LoraModels, error)                // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDVAECache() (*VAEModels, error)                   // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDHypernetworkCache() (*HypernetworkModels, error) // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-	SDEmbeddingCache() (*EmbeddingModels, error)       // Deprecated: use Cacheable interface instead with Cacheable.GetCache() method
-
 	Interrupt() error
 }
 
