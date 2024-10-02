@@ -242,7 +242,7 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
-	client := &http.Client{}
+	client := http.DefaultClient
 
 	response, err := client.Do(request)
 	if err != nil {
@@ -254,7 +254,11 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected status code: %s", response.Status)
+		body, err := io.ReadAll(response.Body)
+		if err != nil {
+			return nil, fmt.Errorf("unexpected status code: %s", response.Status)
+		}
+		return nil, fmt.Errorf("unexpected status code: %s\n```json\n%s\n```", response.Status, string(body))
 	}
 
 	body, _ := io.ReadAll(response.Body)
