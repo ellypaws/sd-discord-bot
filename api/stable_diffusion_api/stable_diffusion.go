@@ -141,7 +141,7 @@ func (api *apiImplementation) TextToImageRaw(req []byte) (*entities.TextToImageR
 	if err != nil {
 		return nil, fmt.Errorf("error with POST request: %w", err)
 	}
-	defer closeResponseBody(response)
+	defer closeResponseBody(response.Body)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -168,7 +168,7 @@ func (api *apiImplementation) ImageToImageRequest(req *entities.ImageToImageRequ
 	if err != nil {
 		return nil, err
 	}
-	defer closeResponseBody(response)
+	defer closeResponseBody(response.Body)
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
@@ -251,6 +251,7 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 		return nil, err
 	}
+	defer closeResponseBody(response.Body)
 
 	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
@@ -335,6 +336,7 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 
 		return nil, err
 	}
+	defer closeResponseBody(response.Body)
 
 	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
@@ -399,17 +401,16 @@ func (api *apiImplementation) UpdateConfiguration(config entities.Config) error 
 	if err != nil {
 		return err
 	}
+	defer closeResponseBody(response.Body)
 
 	log.Printf("Response status: %v", response)
 
 	return nil
 }
 
-func closeResponseBody(response *http.Response) {
-	if response != nil {
-		if err := response.Body.Close(); err != nil {
-			log.Printf("Error closing response body: %v", err)
-		}
+func closeResponseBody(closer io.Closer) {
+	if err := closer.Close(); err != nil {
+		log.Printf("Error closing response body: %v", err)
 	}
 }
 

@@ -64,7 +64,7 @@ func (c *SDModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer closeResponseBody(response)
+	defer closeResponseBody(response.Body)
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
