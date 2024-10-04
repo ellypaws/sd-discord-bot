@@ -2,6 +2,7 @@ package stable_diffusion_api
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,10 +11,12 @@ import (
 	"net/http"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
+	"time"
 )
 
 type apiImplementation struct {
-	host string
+	host   string
+	client *http.Client
 }
 
 type Config struct {
@@ -27,12 +30,14 @@ func New(cfg Config) (StableDiffusionAPI, error) {
 
 	return &apiImplementation{
 		host: cfg.Host,
+		client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}, nil
 }
 
-func (api *apiImplementation) Host() string {
-	return api.host
-}
+func (api *apiImplementation) Client() *http.Client { return api.client }
+func (api *apiImplementation) Host() string         { return api.host }
 
 // Deprecated: Use the entities.ImageToImageResponse instead
 type ImageToImageResponse struct {
@@ -230,30 +235,23 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 	postURL := api.host + "/sdapi/v1/extra-single-image"
 
-	jsonData, err := json.Marshal(jsonReq)
-	if err != nil {
-		return nil, err
-	}
+	var buffer *bytes.Buffer
+	err = json.NewEncoder(buffer).Encode(jsonReq)
 
-	request, err := http.NewRequest("POST", postURL, bytes.NewBuffer(jsonData))
+	request, err := http.NewRequest("POST", postURL, buffer)
 	if err != nil {
 		return nil, err
 	}
 
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
-	client := http.DefaultClient
-
-	response, err := client.Do(request)
+	response, err := api.client.Do(request)
 	if err != nil {
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Error with API Request: %s", string(jsonData))
-
-		return nil, err
+		log.Printf("API URL: %s: error with API request: %v", postURL, err)
+		return nil, fmt.Errorf("could not send request: %w", err)
 	}
 	defer closeResponseBody(response.Body)
 
-	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
 		body, err := io.ReadAll(response.Body)
 		if err != nil {
@@ -262,14 +260,10 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		return nil, fmt.Errorf("unexpected status code: %s\n```json\n%s\n```", response.Status, string(body))
 	}
 
-	body, _ := io.ReadAll(response.Body)
-
 	respStruct := &UpscaleResponse{}
-
-	err = json.Unmarshal(body, respStruct)
+	err = json.NewDecoder(response.Body).Decode(respStruct)
 	if err != nil {
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Unexpected API response: %s", string(body))
+		log.Printf("API URL: %s, unexpected API response could not unmarshal to %T", postURL, respStruct)
 
 		return nil, err
 	}
@@ -328,8 +322,7 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 		request.Header.Set(key, value)
 	}
 
-	client := &http.Client{}
-	response, err := client.Do(request)
+	response, err := api.client.Do(request)
 	if err != nil {
 		log.Printf("API URL: %s", getURL)
 		log.Printf("Error with API Request: %s", getURL)
@@ -338,7 +331,6 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	}
 	defer closeResponseBody(response.Body)
 
-	defer closeResponseBody(response)
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
 		errorString := "(unknown error)"
@@ -362,11 +354,8 @@ func (api *apiImplementation) POST(postURL string, jsonData []byte) (*http.Respo
 	// Set headers
 	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
 
-	// Create an HTTP client
-	client := &http.Client{}
-
 	// Send the POST request
-	response, err := client.Do(request)
+	response, err := api.client.Do(request)
 	if err != nil {
 		log.Printf("API URL: %s", api.host+postURL)
 		log.Printf("Error with API Request: %v", err)
@@ -397,7 +386,6 @@ func (api *apiImplementation) UpdateConfiguration(config entities.Config) error 
 	log.Printf("Passing '%v' to sdapi/v1/options", string(body))
 
 	response, err := api.POST("/sdapi/v1/options", body)
-	defer closeResponseBody(response)
 	if err != nil {
 		return err
 	}
