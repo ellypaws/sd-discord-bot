@@ -235,7 +235,7 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 
 	postURL := api.host + "/sdapi/v1/extra-single-image"
 
-	var buffer *bytes.Buffer
+	buffer := bytes.NewBuffer(nil)
 	err = json.NewEncoder(buffer).Encode(jsonReq)
 
 	request, err := http.NewRequest("POST", postURL, buffer)
