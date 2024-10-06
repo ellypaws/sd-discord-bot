@@ -209,20 +209,18 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		return nil, errors.New("missing request")
 	}
 
-	textToImageReq := upscaleReq.TextToImageRequest
-
-	if textToImageReq == nil {
+	regenerateRequest := upscaleReq.TextToImageRequest
+	if regenerateRequest == nil {
 		return nil, errors.New("missing text to image request")
 	}
+	regenerateRequest.NIter = 1
 
-	textToImageReq.NIter = 1
-
-	regeneratedImage, err := api.TextToImageRequest(textToImageReq)
+	regeneratedImage, err := api.TextToImageRequest(regenerateRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(regeneratedImage.Images) == 0 {
+	if len(regeneratedImage.Images) < 1 {
 		return nil, errors.New("no images returned from text to image request to upscale")
 	}
 
@@ -233,42 +231,13 @@ func (api *apiImplementation) UpscaleImage(upscaleReq *UpscaleRequest) (*Upscale
 		Image:           regeneratedImage.Images[0],
 	}
 
-	postURL := api.host + "/sdapi/v1/extra-single-image"
-
-	buffer := bytes.NewBuffer(nil)
-	err = json.NewEncoder(buffer).Encode(jsonReq)
-
-	request, err := http.NewRequest("POST", postURL, buffer)
+	upscaleResponse := new(UpscaleResponse)
+	err = POST(api.client, api.host+"/sdapi/v1/extra-single-image", jsonReq, upscaleResponse)
 	if err != nil {
 		return nil, err
 	}
 
-	request.Header.Set("Content-Type", "application/json; charset=UTF-8")
-
-	response, err := api.client.Do(request)
-	if err != nil {
-		log.Printf("API URL: %s: error with API request: %v", postURL, err)
-		return nil, fmt.Errorf("could not send request: %w", err)
-	}
-	defer closeResponseBody(response.Body)
-
-	if response.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(response.Body)
-		if err != nil {
-			return nil, fmt.Errorf("unexpected status code: %s", response.Status)
-		}
-		return nil, fmt.Errorf("unexpected status code: %s\n```json\n%s\n```", response.Status, string(body))
-	}
-
-	respStruct := &UpscaleResponse{}
-	err = json.NewDecoder(response.Body).Decode(respStruct)
-	if err != nil {
-		log.Printf("API URL: %s, unexpected API response could not unmarshal to %T", postURL, respStruct)
-
-		return nil, err
-	}
-
-	return respStruct, nil
+	return upscaleResponse, nil
 }
 
 type ProgressResponse struct {
@@ -277,24 +246,14 @@ type ProgressResponse struct {
 }
 
 func (api *apiImplementation) GetCurrentProgress() (*ProgressResponse, error) {
-	getURL := "/sdapi/v1/progress"
+	getURL := api.host + "/sdapi/v1/progress"
 
-	body, err := api.GET(getURL)
+	progress, err := GET[ProgressResponse](api.client, getURL)
 	if err != nil {
 		return nil, err
 	}
 
-	respStruct := &ProgressResponse{}
-
-	err = json.Unmarshal(body, respStruct)
-	if err != nil {
-		log.Printf("API URL: %s", getURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, err
-	}
-
-	return respStruct, nil
+	return progress, nil
 }
 
 // Deprecated: Use entities.Config instead
@@ -344,6 +303,69 @@ func (api *apiImplementation) GET(getURL string) ([]byte, error) {
 	return body, nil
 }
 
+// GET is a generic function to make a GET request to the API
+// It returns the response body as the specified type
+func GET[T any](client *http.Client, url string) (*T, error) {
+	v := new(T)
+	err := Do[T](client, http.MethodGet, url, nil, v)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+// POST is a generic function to make a POST request to the API
+// It writes to v the response body as the specified type
+func POST[T any](client *http.Client, url string, body any, v *T) error {
+	if body == nil {
+		return Do(client, http.MethodPost, url, nil, v)
+	}
+	reader := new(bytes.Buffer)
+	if err := json.NewEncoder(reader).Encode(body); err != nil {
+		return err
+	}
+	return Do(client, http.MethodPost, url, reader, v)
+}
+
+func Do[T any](client *http.Client, method string, url string, body io.Reader, v *T) error {
+	timeout, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	request, err := http.NewRequestWithContext(timeout, method, url, body)
+	if err != nil {
+		return err
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Accept", "application/json")
+
+	response, err := client.Do(request)
+	if err != nil {
+		return err
+	}
+	defer closeResponseBody(response.Body)
+
+	if response.StatusCode != http.StatusOK {
+		responseString := " (unknown error)"
+		body, _ := io.ReadAll(response.Body)
+		if len(body) > 0 {
+			responseString = fmt.Sprintf("\n```json\n%s\n```", body)
+		}
+		return fmt.Errorf("unexpected status code: `%s`%s", response.Status, responseString)
+	}
+
+	if v == nil {
+		return nil
+	}
+
+	err = json.NewDecoder(response.Body).Decode(&v)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (api *apiImplementation) POST(postURL string, jsonData []byte) (*http.Response, error) {
 	// Create a new POST request
 	request, err := http.NewRequest("POST", api.host+postURL, bytes.NewBuffer(jsonData))
@@ -379,19 +401,10 @@ func (api *apiImplementation) UpdateConfiguration(config entities.Config) error 
 		return errors.New(handlers.DeadAPI)
 	}
 
-	body, err := config.Marshal()
-	if err != nil {
-		return errors.New("error marshalling config: " + err.Error())
-	}
-	log.Printf("Passing '%v' to sdapi/v1/options", string(body))
-
-	response, err := api.POST("/sdapi/v1/options", body)
+	err := POST(api.client, api.host+"/sdapi/v1/options", config, (*map[string]any)(nil))
 	if err != nil {
 		return err
 	}
-	defer closeResponseBody(response.Body)
-
-	log.Printf("Response status: %v", response)
 
 	return nil
 }
