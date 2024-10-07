@@ -31,7 +31,7 @@ func New(cfg Config) (StableDiffusionAPI, error) {
 	return &apiImplementation{
 		host: cfg.Host,
 		client: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 10 * time.Minute,
 		},
 	}, nil
 }
@@ -328,7 +328,7 @@ func POST[T any](client *http.Client, url string, body any, v *T) error {
 }
 
 func Do[T any](client *http.Client, method string, url string, body io.Reader, v *T) error {
-	timeout, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	timeout, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
 	request, err := http.NewRequestWithContext(timeout, method, url, body)
