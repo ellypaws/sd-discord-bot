@@ -37,7 +37,13 @@ func New(cfg Config) (StableDiffusionAPI, error) {
 }
 
 func (api *apiImplementation) Client() *http.Client { return api.client }
-func (api *apiImplementation) Host() string         { return api.host }
+func (api *apiImplementation) Host(url ...string) string {
+	if len(url) > 0 {
+		url = slices.Insert(url, 0, api.host)
+		return strings.Join(url, "")
+	}
+	return api.host
+}
 
 // Deprecated: Use the entities.ImageToImageResponse instead
 type ImageToImageResponse struct {
