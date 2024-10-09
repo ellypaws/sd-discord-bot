@@ -138,7 +138,7 @@ func main() {
 	}
 
 	errors := stableDiffusionAPI.PopulateCache()
-	if errors != nil {
+	for _, err := range errors {
 		log.Printf("Failed to populate cache: %v", err)
 	}
 
