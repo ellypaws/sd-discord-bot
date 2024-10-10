@@ -110,14 +110,17 @@ func (api *apiImplementation) PopulateCache() (errors []error) {
 		HypernetworkCache,
 		EmbeddingCache,
 	}
+	if !handlers.CheckAPIAlive(api.host) {
+		return []error{fmt.Errorf("could not populate caches: %s", handlers.DeadAPI)}
+	}
 	for _, cache := range caches {
 		cache, err := cache.GetCache(api)
 		if err != nil {
-			errors = append(errors, err)
+			errors = append(errors, fmt.Errorf("error caching %T: %w", cache, err))
 		}
 		_, err = api.CachePreview(cache)
 		if err != nil {
-			errors = append(errors, err)
+			errors = append(errors, fmt.Errorf("error previewing %T: %w", cache, err))
 		}
 	}
 
