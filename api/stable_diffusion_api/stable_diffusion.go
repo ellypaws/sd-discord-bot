@@ -329,9 +329,18 @@ func POST[T any](client *http.Client, url string, body any, v *T) error {
 	if body == nil {
 		return Do(client, http.MethodPost, url, nil, v)
 	}
-	reader := new(bytes.Buffer)
-	if err := json.NewEncoder(reader).Encode(body); err != nil {
-		return err
+	var reader io.Reader
+	switch body := body.(type) {
+	case *bytes.Buffer:
+		reader = body
+	case []byte:
+		reader = bytes.NewReader(body)
+	default:
+		writer := new(bytes.Buffer)
+		if err := json.NewEncoder(writer).Encode(body); err != nil {
+			return err
+		}
+		reader = writer
 	}
 	return Do(client, http.MethodPost, url, reader, v)
 }
