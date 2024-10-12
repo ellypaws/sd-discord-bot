@@ -8,10 +8,6 @@ package stable_diffusion_api
 
 import (
 	"encoding/json"
-	"errors"
-	"io"
-	"log"
-	"net/http"
 )
 
 type SDModels []SDModel
@@ -58,42 +54,24 @@ func (c *SDModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (c *SDModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
-	postURL := "/sdapi/v1/refresh-checkpoints"
+	postURL := api.Host("/sdapi/v1/refresh-checkpoints")
 
-	response, err := api.POST(postURL, nil)
+	err := POST[error](api.Client(), postURL, nil, nil)
 	if err != nil {
 		return nil, err
-	}
-	defer closeResponseBody(response.Body)
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, errors.New("unexpected API response")
 	}
 
 	return c.apiGET(api)
 }
 
 func (c *SDModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
-	// Make an HTTP request to fetch the stable diffusion models
-	getURL := "/sdapi/v1/sd-models"
+	getURL := api.Host("/sdapi/v1/sd-models")
 
-	body, err := api.GET(getURL)
+	cache, err := GET[SDModels](api.Client(), getURL)
 	if err != nil {
 		return nil, err
 	}
-
-	cache, err := UnmarshalSDModels(body)
-	CheckpointCache = &cache
-	if err != nil {
-		log.Printf("API URL: %s", getURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, err
-	}
+	CheckpointCache = cache
 
 	return CheckpointCache, nil
 }

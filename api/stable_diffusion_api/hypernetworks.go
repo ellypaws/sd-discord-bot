@@ -55,18 +55,13 @@ func (c *HypernetworkModels) Refresh(api StableDiffusionAPI) (Cacheable, error) 
 }
 
 func (c *HypernetworkModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
-	getURL := "/sdapi/v1/hypernetworks"
+	getURL := api.Host("/sdapi/v1/hypernetworks")
 
-	body, err := api.GET(getURL)
+	cache, err := GET[HypernetworkModels](api.Client(), getURL)
 	if err != nil {
 		return nil, err
 	}
-
-	cache, err := UnmarshalHypernetworkModels(body)
-	HypernetworkCache = &cache
-	if err != nil {
-		return nil, err
-	}
+	HypernetworkCache = cache
 
 	return HypernetworkCache, nil
 }

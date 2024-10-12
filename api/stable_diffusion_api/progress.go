@@ -42,13 +42,9 @@ type State struct {
 }
 
 func (api *apiImplementation) GetProgress() (*Progress, error) {
-	resp, err := api.GET("/progress")
+	progress, err := GET[Progress](api.Client(), api.Host("/progress"))
 	if err != nil {
 		return nil, err
 	}
-	progress, err := UnmarshalProgress(resp)
-	if err != nil {
-		return nil, err
-	}
-	return &progress, nil
+	return progress, nil
 }

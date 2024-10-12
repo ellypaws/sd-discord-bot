@@ -29,9 +29,8 @@ type StableDiffusionAPI interface {
 	GetMemoryReadable() (*entities.ReadableMemory, error)
 	GetVRAMReadable() (*entities.ReadableMemory, error)
 
-	GET(string) ([]byte, error)
-	POST(postURL string, jsonData []byte) (*http.Response, error)
-	Host() string
+	Client() *http.Client
+	Host(...string) string
 
 	Interrupt() error
 }

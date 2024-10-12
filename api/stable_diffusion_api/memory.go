@@ -8,17 +8,12 @@ import (
 func (api *apiImplementation) GetMemory() (*entities.Memory, error) {
 	getURL := "/sdapi/v1/memory"
 
-	body, err := api.GET(getURL)
+	memory, err := GET[entities.Memory](api.Client(), api.Host(getURL))
 	if err != nil {
 		return nil, err
 	}
 
-	memory, err := entities.UnmarshalMemory(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return &memory, nil
+	return memory, nil
 }
 
 func (api *apiImplementation) GetMemoryReadable() (*entities.ReadableMemory, error) {

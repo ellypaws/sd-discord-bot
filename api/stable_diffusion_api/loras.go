@@ -8,9 +8,6 @@ package stable_diffusion_api
 
 import (
 	"bytes"
-	"io"
-	"log"
-	"net/http"
 	"regexp"
 )
 import "errors"
@@ -458,41 +455,24 @@ func (c *LoraModels) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (c *LoraModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
-	postURL := "/sdapi/v1/refresh-loras"
+	postURL := api.Host("/sdapi/v1/refresh-loras")
 
-	response, err := api.POST(postURL, nil)
+	err := POST[error](api.Client(), postURL, nil, nil)
 	if err != nil {
 		return nil, err
-	}
-	defer closeResponseBody(response.Body)
-
-	if response.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(response.Body)
-		log.Printf("API URL: %s", postURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, errors.New("unexpected API response")
 	}
 
 	return c.apiGET(api)
 }
 
 func (c *LoraModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
-	getURL := "/sdapi/v1/loras"
+	getURL := api.Host("/sdapi/v1/loras")
 
-	body, err := api.GET(getURL)
+	lora, err := GET[LoraModels](api.Client(), getURL)
 	if err != nil {
 		return nil, err
 	}
-
-	cache, err := UnmarshalLoraModels(body)
-	LoraCache = &cache
-	if err != nil {
-		log.Printf("API URL: %s", getURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
-		return nil, err
-	}
+	LoraCache = lora
 
 	return LoraCache, nil
 }

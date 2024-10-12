@@ -69,18 +69,10 @@ func (c *EmbeddingModels) Refresh(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (c *EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
-	getURL := "/sdapi/v1/embeddings"
+	getURL := api.Host("/sdapi/v1/embeddings")
 
-	body, err := api.GET(getURL)
+	embeddingResponse, err := GET[EmbeddingResponse](api.Client(), getURL)
 	if err != nil {
-		return nil, err
-	}
-
-	embeddingResponse, err := UnmarshalEmbeddingModels(body)
-	if err != nil {
-		log.Printf("API URL: %s", getURL)
-		log.Printf("Unexpected API response: %s", string(body))
-
 		return nil, err
 	}
 
@@ -100,8 +92,7 @@ func (c *EmbeddingModels) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 			EmbeddingInfo: embedding,
 		})
 	}
-	models := EmbeddingModels(cache)
-	EmbeddingCache = &models
 
+	EmbeddingCache = (*EmbeddingModels)(&cache)
 	return EmbeddingCache, nil
 }

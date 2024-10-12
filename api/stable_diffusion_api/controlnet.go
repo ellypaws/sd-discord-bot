@@ -64,18 +64,11 @@ func (c *ControlnetTypes) GetCache(api StableDiffusionAPI) (Cacheable, error) {
 }
 
 func (c *ControlnetTypes) apiGET(api StableDiffusionAPI) (Cacheable, error) {
-	bytes, err := api.GET("/controlnet/control_types")
+	cache, err := GET[ControlnetTypes](api.Client(), api.Host("/controlnet/control_types"))
 	if err != nil {
 		return nil, err
 	}
-
-	if ControlnetTypesCache == nil {
-		ControlnetTypesCache = &ControlnetTypes{}
-	}
-	err = json.Unmarshal(bytes, ControlnetTypesCache)
-	if err != nil {
-		return nil, err
-	}
+	ControlnetTypesCache = cache
 
 	for key, controlType := range ControlnetTypesCache.ControlTypes {
 		for _, module := range controlType.ModuleList {

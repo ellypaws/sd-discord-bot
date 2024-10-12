@@ -13,18 +13,12 @@ import (
 func (api *apiImplementation) GetConfig() (*entities.Config, error) {
 	getURL := "/sdapi/v1/options"
 
-	body, err := api.GET(getURL)
+	config, err := GET[entities.Config](api.Client(), api.Host(getURL))
 	if err != nil {
 		return nil, err
 	}
 
-	var apiConfig entities.Config
-	apiConfig, err = entities.UnmarshalConfig(body)
-	if err != nil {
-		return nil, err
-	}
-
-	return &apiConfig, nil
+	return config, nil
 }
 
 func (api *apiImplementation) GetCheckpoint() (*string, error) {
