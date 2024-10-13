@@ -84,6 +84,24 @@ func (r *Image) MarshalJSON() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
+func (r *Image) Base64() (string, error) {
+	r.flush()
+
+	if r.err != nil {
+		return "", r.err
+	}
+
+	out := bytes.NewBuffer(make([]byte, 0, r.buffer.Len()))
+	encoder := base64.NewEncoder(base64.StdEncoding, out)
+	defer encoder.Close()
+
+	_, err := encoder.Write(r.buffer.Bytes())
+	if err != nil {
+		return "", err
+	}
+	return out.String(), nil
+}
+
 // startDownload starts the download of the image from the given URL.
 // It resets any previous buffered data to overwrite it with the new data.
 // Callers should call reset before calling this method.
