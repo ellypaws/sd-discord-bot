@@ -239,6 +239,17 @@ func Base64ToByteReader(base64Str string) (*bytes.Reader, error) {
 	return bytes.NewReader(data), nil
 }
 
+func GetImageSize(reader io.Reader) (int, int, error) {
+	img, _, err := image.Decode(reader)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	boundSize := img.Bounds().Size()
+
+	return boundSize.X, boundSize.Y, nil
+}
+
 func GetBase64ImageSize(base64Str string) (int, int, error) {
 	// Cut "data:image/*;base64," prefix, if present.
 	before, after, found := strings.Cut(base64Str, ";base64,")
