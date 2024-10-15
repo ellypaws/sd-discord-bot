@@ -1,6 +1,7 @@
 package stable_diffusion
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"stable_diffusion_bot/entities"
@@ -43,9 +44,10 @@ func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToIma
 		return errors.New("no attached images found, skipping img2img generation")
 	}
 
-	width, height, err := utils.GetBase64ImageSize(queue.Img2ImgItem.Image.String())
+	bin := queue.Img2ImgItem.Image.Bytes()
+	width, height, err := utils.GetImageSize(bytes.NewReader(bin))
 	if err != nil {
-		return err
+		return fmt.Errorf("error getting image size: %w", err)
 	}
 
 	//calculate aspect ratio. e.g. 512x768 = 2:3 to the nearest whole number
@@ -54,7 +56,11 @@ func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToIma
 
 	*img2img.Width, *img2img.Height = aspectRatioCalculation(aspectRatio, initializedWidth, initializedHeight)
 
-	img2img.InitImages = append(img2img.InitImages, queue.Img2ImgItem.Image.String())
+	base64, err := queue.Img2ImgItem.Image.Base64()
+	if err != nil {
+		return fmt.Errorf("error converting image to base64: %w", err)
+	}
+	img2img.InitImages = append(img2img.InitImages, base64)
 	return err
 }
 
