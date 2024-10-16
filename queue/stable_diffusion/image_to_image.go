@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
-
-	"github.com/bwmarrin/discordgo"
 )
 
 // TODO: Implement separate processing for Img2Img, possibly use github.com/SpenserCai/sd-webui-go/intersvc
@@ -17,26 +15,21 @@ func (q *SDQueue) processImg2ImgImagine() error {
 	return q.processCurrentImagine()
 }
 
-func (q *SDQueue) imageToImage(generationDone chan bool, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
+func (q *SDQueue) imageToImage() ([]string, error) {
 	queue := q.currentImagine
 	img2img := t2iToImg2Img(queue.TextToImageRequest)
 
 	err := calculateImg2ImgDimensions(queue, &img2img)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := q.stableDiffusionAPI.ImageToImageRequest(&img2img)
-	generationDone <- true
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	err = q.showFinalMessage(queue, &entities.TextToImageResponse{Images: resp.Images}, embed, webhook)
-	if err != nil {
-		return err
-	}
-	return nil
+	return resp.Images, nil
 }
 
 func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToImageRequest) error {

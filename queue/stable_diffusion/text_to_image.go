@@ -44,6 +44,7 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation, ItemTypeRaw:
 		response, err := q.textInference(queue)
 		generationDone <- true
+		close(generationDone)
 		if err != nil {
 			return fmt.Errorf("error inferencing generation: %w", err)
 		}
@@ -59,7 +60,14 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 			return err
 		}
 	case ItemTypeImg2Img:
-		err := q.imageToImage(generationDone, embed, webhook)
+		images, err := q.imageToImage()
+		generationDone <- true
+		close(generationDone)
+		if err != nil {
+			return err
+		}
+
+		err = q.showFinalMessage(queue, &entities.TextToImageResponse{Images: images}, embed, webhook)
 		if err != nil {
 			return err
 		}
