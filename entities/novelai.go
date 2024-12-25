@@ -268,7 +268,7 @@ func (r *NovelAIRequest) GetMaxNSamples() uint8 {
 type models = string
 
 const (
-	ModelDefault    models = "nai-diffusion-4-curated-preview"
+	ModelDefault    models = "nai-diffusion-3"
 	ModelV3         models = "nai-diffusion-3"
 	ModelV4Preview  models = "nai-diffusion-4-curated-preview"
 	ModelV3Inp      models = "nai-diffusion-3-inpainting"
