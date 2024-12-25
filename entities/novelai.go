@@ -212,7 +212,7 @@ func (r *NovelAIRequest) Init() {
 			case UCHumanFocus:
 			default:
 			}
-		case ModelV3, ModelV3Inp:
+		case ModelV4Preview, ModelV3, ModelV3Inp:
 			fallthrough
 		default:
 			switch *r.Parameters.UcPreset {
@@ -268,8 +268,9 @@ func (r *NovelAIRequest) GetMaxNSamples() uint8 {
 type models = string
 
 const (
-	ModelDefault    models = "nai-diffusion-3"
+	ModelDefault    models = "nai-diffusion-4-curated-preview"
 	ModelV3         models = "nai-diffusion-3"
+	ModelV4Preview  models = "nai-diffusion-4-curated-preview"
 	ModelV3Inp      models = "nai-diffusion-3-inpainting"
 	ModelFurryV3    models = "nai-diffusion-furry-3"
 	MovelFurryV3Inp models = "nai-diffusion-furry-3-inpainting"

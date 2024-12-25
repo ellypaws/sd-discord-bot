@@ -84,7 +84,11 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
 			{
-				Name:  "NAI Diffusion Anime V3 (Default)",
+				Name:  "NAI Diffusion Anime V4 Curated Preview (Default)",
+				Value: entities.ModelV4Preview,
+			},
+			{
+				Name:  "NAI Diffusion Anime V3",
 				Value: entities.ModelV3,
 			},
 			{

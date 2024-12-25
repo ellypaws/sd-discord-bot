@@ -115,6 +115,9 @@ func (q *NAIQueue) processNovelAICommand(s *discordgo.Session, i *discordgo.Inte
 		if !ok {
 			return handlers.ErrorEdit(s, i.Interaction, "You need to provide an image to img2img.")
 		}
+		if item.Request.Model == entities.ModelV4Preview {
+			return handlers.ErrorEdit(s, i.Interaction, "Vibe transfer is not yet supported for V4 models.")
+		}
 
 		item.Type = ItemTypeVibeTransfer
 		item.Request.Parameters.VibeTransferImage = attachment.Image
