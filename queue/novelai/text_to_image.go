@@ -285,6 +285,8 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, item *NAIQueueItem, m
 		switch request.Model {
 		case "":
 			break
+		case entities.ModelV4Full:
+			model = "NAI Diffusion Anime V4 Full"
 		case entities.ModelV4Preview:
 			model = "NAI Diffusion Anime V4 Curated Preview"
 		case entities.ModelV3:
