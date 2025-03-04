@@ -10,7 +10,7 @@ type pool[T any] struct {
 
 func New[T any](fn func() T) pool[T] {
 	return pool[T]{
-		pool: sync.Pool{New: func() interface{} { return fn() }},
+		pool: sync.Pool{New: func() any { return fn() }},
 	}
 }
 
