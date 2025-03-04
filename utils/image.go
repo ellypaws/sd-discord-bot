@@ -63,6 +63,9 @@ func (r *Image) Len() int {
 	return r.buffer.Len()
 }
 
+// MarshalJSON encodes the image data in base64.StdEncoding.
+// If the image data is not ready, it will block until it is.
+// Does not drain the buffer, as EmbedImages expects the buffer to still exist to be used as a thumbnail.
 func (r *Image) MarshalJSON() ([]byte, error) {
 	r.flush()
 
