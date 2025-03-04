@@ -175,7 +175,8 @@ func TestConcurrentAccess(t *testing.T) {
 			data := make([]byte, 1024)
 			_, err := image.Read(data)
 			if err != nil && err != io.EOF {
-				t.Fatalf("unexpected error: %v", err)
+				t.Errorf("unexpected error: %v", err)
+				return
 			}
 		}()
 	}
