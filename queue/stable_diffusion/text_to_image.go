@@ -37,6 +37,7 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 	}
 
 	generationDone := make(chan bool)
+	defer close(generationDone)
 
 	go q.updateProgressBar(queue, generationDone, config, originalConfig, webhook)
 
@@ -44,7 +45,6 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation, ItemTypeRaw:
 		response, err := q.textInference(queue)
 		generationDone <- true
-		close(generationDone)
 		if err != nil {
 			return fmt.Errorf("error inferencing generation: %w", err)
 		}
@@ -62,7 +62,6 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 	case ItemTypeImg2Img:
 		images, err := q.imageToImage()
 		generationDone <- true
-		close(generationDone)
 		if err != nil {
 			return err
 		}
@@ -248,36 +247,44 @@ func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest, e
 	return request, nil
 }
 
-func (q *SDQueue) updateProgressBar(queue *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
-	request := queue.ImageGenerationRequest
+func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
+	request := item.ImageGenerationRequest
+	defer func() {
+		for range generationDone {
+			log.Printf("Draining generationDone channel")
+		}
+		err := q.revertModels(config, originalConfig)
+		if err != nil {
+			_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+			return
+		}
+	}()
 	for {
 		select {
-		case queue.DiscordInteraction = <-queue.Interrupt:
+		case <-generationDone:
+			return
+		case _, ok := <-item.Interrupt:
+			if !ok {
+				return
+			}
 			err := q.stableDiffusionAPI.Interrupt()
 			if err != nil {
-				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
+				_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Sprintf("Error interrupting: %v", err))
 				return
 			}
-			message, err := handlers.EditInteractionResponse(q.botSession, queue.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
+			message, err := handlers.EditInteractionResponse(q.botSession, item.DiscordInteraction, "Generation Interrupted", webhook, handlers.Components[handlers.DeleteGeneration])
 			if err != nil {
 				return
 			}
-			if queue.DiscordInteraction.Message == nil && message != nil {
+			if item.DiscordInteraction.Message == nil && message != nil {
 				log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
-				queue.DiscordInteraction.Message = message
+				item.DiscordInteraction.Message = message
 			}
-		case <-generationDone:
-			err := q.revertModels(config, originalConfig)
-			if err != nil {
-				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
-				return
-			}
-			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
 				log.Printf("Error getting current progress: %v", progressErr)
-				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
+				_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 				return
 			}
 
@@ -301,10 +308,10 @@ func (q *SDQueue) updateProgressBar(queue *SDQueueItem, generationDone chan bool
 				ram = mem.RAM.Readable()
 			}
 
-			progressContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, progress.Progress, ram, cuda)
+			progressContent := imagineMessageSimple(request, item.DiscordInteraction.Member.User, progress.Progress, ram, cuda)
 
 			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
-			_, progressErr = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
+			_, progressErr = q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{
 				Content: &progressContent,
 			})
 			if progressErr != nil {
