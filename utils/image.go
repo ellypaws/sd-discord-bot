@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"sync"
 )
 
 // Image is an io.Reader that asynchronously downloads an image from a URL.
@@ -23,12 +22,12 @@ type Image struct {
 	open   bool
 }
 
-var asyncPool = sync.Pool{New: newAsync}
+var asyncPool = New(newAsync)
 
 // AsyncImage returns an *Image that asynchronously downloads the image from the given URL as the object is created.
 // The returned data is in base64 format.
 func AsyncImage(url string) *Image {
-	result := asyncPool.Get().(*Image)
+	result := asyncPool.Get()
 	result.reset()
 
 	go result.startDownload(url)
@@ -178,7 +177,7 @@ func (r *Image) reset() {
 
 var asyncID int
 
-func newAsync() any {
+func newAsync() *Image {
 	async := Image{id: asyncID}
 	asyncID++
 	return &async
