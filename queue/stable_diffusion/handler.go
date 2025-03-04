@@ -787,6 +787,8 @@ func (q *SDQueue) settingsMessageComponents(settings *entities.DefaultSettings) 
 	dimensions := components[DimensionSelect].(discordgo.ActionsRow).Components[0].(discordgo.SelectMenu)
 	dimensions.Options[0].Default = settings.Width == 512 && settings.Height == 512
 	dimensions.Options[1].Default = settings.Width == 768 && settings.Height == 768
+	dimensions.Options[2].Default = settings.Width == 1024 && settings.Height == 1024
+	dimensions.Options[3].Default = settings.Width == 832 && settings.Height == 1216
 	components[DimensionSelect].(discordgo.ActionsRow).Components[0] = dimensions
 
 	batchSlice := []int{1, 2, 4}

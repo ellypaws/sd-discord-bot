@@ -55,6 +55,16 @@ var components = map[customID]discordgo.MessageComponent{
 						Value:   "768_768",
 						Default: false,
 					},
+					{
+						Label:   "Size: 1024x1024",
+						Value:   "1024_1024",
+						Default: false,
+					},
+					{
+						Label:   "Size: 832x1216",
+						Value:   "832_1216",
+						Default: false,
+					},
 				},
 			},
 		},
