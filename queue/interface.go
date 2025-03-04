@@ -20,7 +20,7 @@ type Handler = func(*discordgo.Session, *discordgo.InteractionCreate) error
 
 type Command = string
 type CommandHandlers = map[discordgo.InteractionType]map[Command]Handler
-type Components map[string]Handler
+type Components = map[string]Handler
 
 type Registrar interface {
 	Commands() []*discordgo.ApplicationCommand
