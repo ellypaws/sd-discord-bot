@@ -36,7 +36,7 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 		return fmt.Errorf("error recording to repository: %w", err)
 	}
 
-	generationDone := make(chan bool)
+	generationDone := make(chan bool, 1)
 	defer close(generationDone)
 
 	go q.updateProgressBar(queue, generationDone, config, originalConfig, webhook)
