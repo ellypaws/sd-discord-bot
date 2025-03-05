@@ -277,9 +277,10 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 				return
 			}
 			if item.DiscordInteraction.Message == nil && message != nil {
-				log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
+				log.Printf("Setting item.DiscordInteraction.Message to message from EditInteractionResponse: %v", message)
 				item.DiscordInteraction.Message = message
 			}
+			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
