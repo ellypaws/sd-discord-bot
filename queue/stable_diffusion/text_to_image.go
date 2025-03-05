@@ -74,6 +74,11 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 		return fmt.Errorf("unknown queue type: %v", queue.Type)
 	}
 
+	err = q.revertModels(config, originalConfig)
+	if err != nil {
+		return handlers.ErrorFollowupEphemeral(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
+	}
+
 	return nil
 }
 
@@ -249,16 +254,6 @@ func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest, e
 
 func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
 	request := item.ImageGenerationRequest
-	defer func() {
-		for range generationDone {
-			log.Printf("Draining generationDone channel")
-		}
-		err := q.revertModels(config, originalConfig)
-		if err != nil {
-			_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
-			return
-		}
-	}()
 	for {
 		select {
 		case <-generationDone:
