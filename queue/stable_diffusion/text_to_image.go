@@ -254,6 +254,7 @@ func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest, e
 
 func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool, webhook *discordgo.WebhookEdit) {
 	request := item.ImageGenerationRequest
+	timeout := time.NewTimer(5 * time.Minute)
 	for {
 		select {
 		case <-generationDone:
@@ -314,6 +315,10 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 				log.Printf("Error editing interaction: %v", progressErr)
 				return
 			}
+		case <-timeout.C:
+			log.Printf("Timeout reached")
+			_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, "Timeout reached")
+			return
 		}
 	}
 }

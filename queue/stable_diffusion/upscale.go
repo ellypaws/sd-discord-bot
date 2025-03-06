@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"io"
 	"log"
+	"strings"
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
-	"strings"
-	"time"
 )
 
 func (q *SDQueue) processUpscaleImagine() error {
@@ -151,9 +153,13 @@ func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion
 }
 
 func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan bool) {
-	lastProgress := float64(0)
-	fetchProgress := float64(0)
-	upscaleProgress := float64(0)
+	var (
+		lastProgress    float64
+		fetchProgress   float64
+		upscaleProgress float64
+	)
+
+	timeout := time.NewTimer(5 * time.Minute)
 	for {
 		select {
 		case <-generationDone:
@@ -200,6 +206,10 @@ func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan 
 				log.Printf("Error editing interaction: %v", progressErr)
 				return
 			}
+		case <-timeout.C:
+			log.Printf("Timeout reached")
+			_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, "Timeout reached")
+			return
 		}
 	}
 }
