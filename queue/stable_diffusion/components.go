@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"log"
-	"slices"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/queue"
@@ -388,22 +387,11 @@ func (q *SDQueue) removeImagineFromQueue(s *discordgo.Session, i *discordgo.Inte
 
 // check if the user using the interrupt button is the same user that started the generation
 func (q *SDQueue) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	user := utils.GetUser(i.Interaction)
-
-	var mentionedIDs []string
-	for _, mention := range i.Message.Mentions {
-		mentionedIDs = append(mentionedIDs, mention.ID)
+	if utils.GetUser(i.Interaction).ID != i.Message.InteractionMetadata.User.ID {
+		return handlers.ErrorEphemeral(s, i.Interaction, "You can only interrupt your own generations")
 	}
 
-	if len(mentionedIDs) == 0 {
-		return handlers.ErrorEphemeral(s, i.Interaction, "Could not determine who started the generation as there are no detected mentions")
-	}
-
-	if !slices.Contains(mentionedIDs, user.ID) {
-		return handlers.ErrorEphemeral(s, i.Interaction,
-			// strings.Join with <@ID> and newlines.
-			fmt.Sprintf("You can only interrupt your own generations.\nValid users: <@%v>", strings.Join(mentionedIDs, ">\n<@")))
-	}
+	log.Printf("Interrupting generation: %#v", i.Message.InteractionMetadata)
 
 	err := q.Interrupt(i.Interaction)
 	if err != nil {
