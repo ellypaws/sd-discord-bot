@@ -153,7 +153,7 @@ func (q *NAIQueue) processNovelAICommand(s *discordgo.Session, i *discordgo.Inte
 
 	message, err := handlers.EditInteractionResponse(s, i.Interaction,
 		q.positionString(item),
-		handlers.Components[handlers.Cancel],
+		components[cancel],
 	)
 	if err != nil {
 		return err

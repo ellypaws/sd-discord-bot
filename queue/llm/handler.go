@@ -65,7 +65,7 @@ func (q *LLMQueue) processLLMCommand(s *discordgo.Session, i *discordgo.Interact
 		prompt.StringValue(),
 	)
 
-	message, err := handlers.EditInteractionResponse(s, i.Interaction, queueString, handlers.Components[handlers.Cancel])
+	message, err := handlers.EditInteractionResponse(s, i.Interaction, queueString, components[cancel])
 	if err != nil {
 		return err
 	}
