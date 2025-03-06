@@ -1122,9 +1122,9 @@ func (q *SDQueue) processRawModal(s *discordgo.Session, i *discordgo.Interaction
 	if message, err := q.botSession.InteractionResponse(i.Interaction); err != nil {
 		return handlers.ErrorEdit(s, i.Interaction, "Error retrieving modal data.", err)
 	} else {
-		if p, ok := modalDefault[message.Interaction.ID]; ok {
+		if p, ok := modalDefault[message.InteractionMetadata.ID]; ok {
 			params = p
-			delete(modalDefault, message.Interaction.ID)
+			delete(modalDefault, message.InteractionMetadata.ID)
 		}
 	}
 

@@ -9,6 +9,7 @@ import (
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/queue"
+	"stable_diffusion_bot/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -369,18 +370,18 @@ func (q *SDQueue) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 
 // check if the user using the cancel button is the same user that started the generation, then remove it from the queue
 func (q *SDQueue) removeImagineFromQueue(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	if i.Member.User.ID != i.Message.Interaction.User.ID {
+	if utils.GetUser(i).ID != i.Message.InteractionMetadata.User.ID {
 		return handlers.ErrorEphemeral(s, i.Interaction, "You can only cancel your own generations")
 	}
 
-	log.Printf("Removing imagine from queue: %#v", i.Message.Interaction)
+	log.Printf("Removing imagine from queue: %#v", i.Message.InteractionMetadata)
 
-	err := q.Remove(i.Message.Interaction)
+	err := q.Remove(i.Message.InteractionMetadata)
 	if err != nil {
 		log.Printf("Error removing imagine from queue: %v", err)
 		return handlers.ErrorEdit(s, i.Interaction, "Error removing imagine from queue")
 	}
-	log.Printf("Removed imagine from queue: %#v", i.Message.Interaction)
+	log.Printf("Removed imagine from queue: %#v", i.Message.InteractionMetadata)
 
 	return handlers.UpdateFromComponent(s, i.Interaction, "Generation cancelled", handlers.Components[handlers.DeleteButton])
 }

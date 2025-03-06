@@ -6,6 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"stable_diffusion_bot/queue"
+	"stable_diffusion_bot/utils"
 )
 
 // ComponentHandlers is a map of common component handlers.
@@ -27,11 +28,9 @@ var ComponentHandlers = queue.Components{
 
 		var originalInteractionUser string
 
-		switch {
-		case i.Message.Interaction != nil && i.Message.Interaction.User != nil:
-			originalInteractionUser = i.Message.Interaction.User.ID
-		case i.Message.Interaction != nil && i.Message.Interaction.Member != nil:
-			originalInteractionUser = i.Message.Interaction.Member.User.ID
+		switch u := utils.GetUser(i.Message.InteractionMetadata); {
+		case u != nil:
+			originalInteractionUser = u.ID
 		case len(i.Message.Mentions) > 0:
 			log.Printf("WARN: Using mentions to determine original interaction user")
 			originalInteractionUser = i.Message.Mentions[0].ID
@@ -46,7 +45,7 @@ var ComponentHandlers = queue.Components{
 			return nil
 		}
 
-		if i.Member.User.ID != originalInteractionUser {
+		if utils.GetUser(i).ID != originalInteractionUser {
 			return ErrorEdit(s, i.Interaction, "You can only delete your own generations")
 		}
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
