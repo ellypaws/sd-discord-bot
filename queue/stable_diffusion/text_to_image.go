@@ -39,7 +39,7 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 	generationDone := make(chan bool, 1)
 	defer close(generationDone)
 
-	go q.updateProgressBar(queue, generationDone, config, originalConfig, webhook)
+	go q.updateProgressBar(queue, generationDone, webhook)
 
 	switch queue.Type {
 	case ItemTypeImagine, ItemTypeReroll, ItemTypeVariation, ItemTypeRaw:
@@ -252,7 +252,7 @@ func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest, e
 	return request, nil
 }
 
-func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config, webhook *discordgo.WebhookEdit) {
+func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool, webhook *discordgo.WebhookEdit) {
 	request := item.ImageGenerationRequest
 	for {
 		select {

@@ -45,9 +45,10 @@ func (q *SDQueue) processUpscaleImagine() error {
 		return handlers.Wrap(err)
 	}
 
-	generationDone := make(chan bool)
+	generationDone := make(chan bool, 1)
+	defer close(generationDone)
 
-	go q.updateUpscaleProgress(queue, generationDone, config, originalConfig)
+	go q.updateUpscaleProgress(queue, generationDone)
 
 	resp, err := q.upscale(request)
 	generationDone <- true
@@ -60,6 +61,11 @@ func (q *SDQueue) processUpscaleImagine() error {
 
 	if err := q.finalUpscaleMessage(queue, resp, embed); err != nil {
 		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error finalizing upscale message: %w", err))
+	}
+
+	err = q.revertModels(config, originalConfig)
+	if err != nil {
+		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
 	}
 
 	return nil
@@ -144,12 +150,14 @@ func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion
 	return err
 }
 
-func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan bool, config, originalConfig *entities.Config) {
+func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan bool) {
 	lastProgress := float64(0)
 	fetchProgress := float64(0)
 	upscaleProgress := float64(0)
 	for {
 		select {
+		case <-generationDone:
+			return
 		case queue.DiscordInteraction = <-queue.Interrupt:
 			err := q.stableDiffusionAPI.Interrupt()
 			if err != nil {
@@ -164,13 +172,6 @@ func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan 
 				log.Printf("Setting c.DiscordInteraction.Message to message from channel c.Interrupt: %v", message)
 				queue.DiscordInteraction.Message = message
 			}
-		case <-generationDone:
-			err := q.revertModels(config, originalConfig)
-			if err != nil {
-				_ = handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Sprintf("Error reverting models: %v", err))
-				return
-			}
-			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
