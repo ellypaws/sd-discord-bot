@@ -2,13 +2,15 @@ package llm
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
-	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
-	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/ellypaws/inkbunny-sd/llm"
+
+	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/utils"
 )
 
 const DefaultLLMSystem = `You are an exceptionally detailed AI.

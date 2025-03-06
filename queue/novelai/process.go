@@ -2,11 +2,13 @@ package novelai
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
-	"stable_diffusion_bot/discord_bot/handlers"
 	"sync"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+
+	"stable_diffusion_bot/discord_bot/handlers"
 )
 
 func (q *NAIQueue) next() error {

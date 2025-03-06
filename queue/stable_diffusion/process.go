@@ -268,15 +268,15 @@ func (q *SDQueue) lookupModel(request *entities.ImageGenerationRequest, config *
 		case *stable_diffusion_api.SDModels:
 			toLoad = request.Checkpoint
 			loadedModel = config.SDModelCheckpoint
-			//log.Printf("Checkpoint: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
+			// log.Printf("Checkpoint: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
 		case *stable_diffusion_api.VAEModels:
 			toLoad = request.VAE
 			loadedModel = config.SDVae
-			//log.Printf("VAE: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
+			// log.Printf("VAE: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
 		case *stable_diffusion_api.HypernetworkModels:
 			toLoad = request.Hypernetwork
 			loadedModel = config.SDHypernetwork
-			//log.Printf("Hypernetwork: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
+			// log.Printf("Hypernetwork: %v, loaded: %v", safeDereference(toLoad), safeDereference(loadedModel))
 		}
 
 		if ptrStringCompare(toLoad, loadedModel) {
@@ -305,7 +305,7 @@ func (q *SDQueue) lookupModel(request *entities.ImageGenerationRequest, config *
 					toLoad = &firstResult
 				} else {
 					log.Printf("Couldn't find model %v", safeDereference(toLoad))
-					//log.Printf("Available models: %v", cache)
+					// log.Printf("Available models: %v", cache)
 				}
 			}
 		}

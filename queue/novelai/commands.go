@@ -2,6 +2,7 @@ package novelai
 
 import (
 	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/entities"
 )
 
@@ -21,7 +22,7 @@ func (q *NAIQueue) commands() []*discordgo.ApplicationCommand {
 				commandOptions[novelaiQualityOption],
 				commandOptions[seedOption],
 				commandOptions[cfgScaleOption],
-				//commandOptions[cfgRescaleOption],
+				// commandOptions[cfgRescaleOption],
 				commandOptions[novelaiScheduleOption],
 				commandOptions[novelaiVibeTransfer],
 				commandOptions[novelaiInformation],
@@ -148,26 +149,26 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 				Name:  "Normal Square (1024x1024)",
 				Value: entities.OptionNormalSquare,
 			},
-			//{
+			// {
 			//	Name:  "Large Portrait (1024x1536)",
 			//	Value: entities.OptionLargePortrait,
-			//},
-			//{
+			// },
+			// {
 			//	Name:  "Large Landscape (1536x1024)",
 			//	Value: entities.OptionLargeLandscape,
-			//},
-			//{
+			// },
+			// {
 			//	Name:  "Large Square (1472x1472)",
 			//	Value: entities.OptionLargeSquare,
-			//},
-			//{
+			// },
+			// {
 			//	Name:  "Wallpaper Portrait (1088x1920)",
 			//	Value: entities.OptionWallpaperPortrait,
-			//},
-			//{
+			// },
+			// {
 			//	Name:  "Wallpaper Landscape (1920x1088)",
 			//	Value: entities.OptionWallpaperLandscape,
-			//},
+			// },
 		},
 	},
 

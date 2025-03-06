@@ -3,10 +3,11 @@ package stable_diffusion
 import (
 	"fmt"
 	"log"
-	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
+
+	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/utils"
 
 	"github.com/bwmarrin/discordgo"
 )

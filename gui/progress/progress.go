@@ -18,10 +18,11 @@ package progress
 
 import (
 	"fmt"
-	"github.com/charmbracelet/bubbles/progress"
-	tea "github.com/charmbracelet/bubbletea"
 	"os"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/progress"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 const (
@@ -31,11 +32,11 @@ const (
 
 func newModel() *model {
 	return &model{progress: progress.New(
-		//progress.WithSolidFill("cyan"),
+		// progress.WithSolidFill("cyan"),
 		progress.WithScaledGradient("#FF7CCB", "#FDFF8C"),
 		progress.WithoutPercentage(),
 	)}
-	//return &model{progress: progress.New(progress.WithScaledGradient("#FF7CCB", "#FDFF8C"))}
+	// return &model{progress: progress.New(progress.WithScaledGradient("#FF7CCB", "#FDFF8C"))}
 }
 
 func Get() *model {

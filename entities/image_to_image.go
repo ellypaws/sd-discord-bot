@@ -8,7 +8,9 @@ package entities
 
 import (
 	"encoding/json"
+
 	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/utils"
 )
 

@@ -10,10 +10,10 @@ type CFGRescale struct {
 }
 
 type CFGRescaleParameters struct {
-	CfgRescale   float64 //`json:"1,omitempty"`
-	AutoColorFix bool    //`json:"2,omitempty"`
-	FixStrength  float64 //`json:"3,omitempty"`
-	KeepOriginal bool    //`json:"4,omitempty"`
+	CfgRescale   float64 // `json:"1,omitempty"`
+	AutoColorFix bool    // `json:"2,omitempty"`
+	FixStrength  float64 // `json:"3,omitempty"`
+	KeepOriginal bool    // `json:"4,omitempty"`
 }
 
 func (p CFGRescaleParameters) MarshalJSON() ([]byte, error) {

@@ -3,15 +3,17 @@ package stable_diffusion
 import (
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
+	"strconv"
+	"strings"
+	"time"
+
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/queue"
 	"stable_diffusion_bot/utils"
-	"strconv"
-	"strings"
-	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type customID = string

@@ -1,8 +1,10 @@
 package novelai
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"log"
+
+	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/utils"
 )

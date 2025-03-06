@@ -1,13 +1,15 @@
 package stable_diffusion
 
 import (
+	"log"
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/ellypaws/inkbunny-sd/llm"
-	"log"
+
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
-	"time"
 )
 
 type SDQueueItem struct {

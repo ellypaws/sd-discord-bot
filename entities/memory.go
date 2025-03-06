@@ -8,6 +8,7 @@ package entities
 
 import (
 	"encoding/json"
+
 	"github.com/dustin/go-humanize"
 )
 

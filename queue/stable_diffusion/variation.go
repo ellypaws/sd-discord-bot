@@ -2,8 +2,9 @@ package stable_diffusion
 
 import (
 	"fmt"
-	"stable_diffusion_bot/discord_bot/handlers"
 	"time"
+
+	"stable_diffusion_bot/discord_bot/handlers"
 )
 
 func (q *SDQueue) processVariation() error {

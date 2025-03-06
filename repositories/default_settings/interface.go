@@ -2,6 +2,7 @@ package default_settings
 
 import (
 	"context"
+
 	"stable_diffusion_bot/entities"
 )
 

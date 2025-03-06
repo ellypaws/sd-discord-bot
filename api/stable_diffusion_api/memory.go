@@ -2,6 +2,7 @@ package stable_diffusion_api
 
 import (
 	"github.com/shirou/gopsutil/mem"
+
 	"stable_diffusion_bot/entities"
 )
 

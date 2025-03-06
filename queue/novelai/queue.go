@@ -2,14 +2,16 @@ package novelai
 
 import (
 	"errors"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"os"
+	"sync"
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/api/novelai"
 	"stable_diffusion_bot/composite_renderer"
 	"stable_diffusion_bot/queue"
-	"sync"
-	"time"
 )
 
 func New(token *string) queue.Queue[*NAIQueueItem] {

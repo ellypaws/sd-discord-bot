@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
 )
@@ -11,7 +12,7 @@ import (
 // TODO: Implement separate processing for Img2Img, possibly use github.com/SpenserCai/sd-webui-go/intersvc
 // Deprecated: still using processCurrentImagine
 func (q *SDQueue) processImg2ImgImagine() error {
-	//defer q.done()
+	// defer q.done()
 	return q.processCurrentImagine()
 }
 
@@ -43,7 +44,7 @@ func calculateImg2ImgDimensions(queue *SDQueueItem, img2img *entities.ImageToIma
 		return fmt.Errorf("error getting image size: %w", err)
 	}
 
-	//calculate aspect ratio. e.g. 512x768 = 2:3 to the nearest whole number
+	// calculate aspect ratio. e.g. 512x768 = 2:3 to the nearest whole number
 	gcd := calculateGCD(width, height)
 	aspectRatio := fmt.Sprintf("%d:%d", width/gcd, height/gcd)
 

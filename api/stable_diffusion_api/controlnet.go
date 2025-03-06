@@ -82,7 +82,7 @@ func (c *ControlnetTypes) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 				Default: controlType.DefaultOption == module,
 			})
 		}
-		//c.Modules = ControlnetModulesCache
+		// c.Modules = ControlnetModulesCache
 		for _, model := range controlType.ModelList {
 			if ControlnetModelsCache == nil {
 				ControlnetModelsCache = &ControlnetModels{}
@@ -94,7 +94,7 @@ func (c *ControlnetTypes) apiGET(api StableDiffusionAPI) (Cacheable, error) {
 				Default: controlType.DefaultModel == model,
 			})
 		}
-		//c.Models = ControlnetModelsCache
+		// c.Models = ControlnetModelsCache
 	}
 
 	return ControlnetTypesCache, nil

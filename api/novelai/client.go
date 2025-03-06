@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+
 	"stable_diffusion_bot/entities"
 )
 

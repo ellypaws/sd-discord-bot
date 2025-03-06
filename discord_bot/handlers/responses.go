@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"fmt"
+
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -192,7 +193,7 @@ func contentEdit(webhookEdit *discordgo.WebhookEdit, messages ...any) {
 			webhookEdit.Embeds = &c.Embeds
 			webhookEdit.Components = &c.Components
 		case string:
-			//log.Println("String content: ", c)
+			// log.Println("String content: ", c)
 			webhookEdit.Content = &c
 		case discordgo.MessageEmbed:
 			newEmbeds = append(newEmbeds, &c)

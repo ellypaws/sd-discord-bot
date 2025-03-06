@@ -1,10 +1,12 @@
 package novelai
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
-	"time"
 )
 
 type ItemType = string

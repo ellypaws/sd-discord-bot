@@ -6,13 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ellypaws/novelai-metadata/pkg/meta"
 	"image"
 	"image/png"
 	"io"
 	"math"
 	"math/rand"
 	"reflect"
+
+	"github.com/ellypaws/novelai-metadata/pkg/meta"
+
 	"stable_diffusion_bot/utils"
 )
 

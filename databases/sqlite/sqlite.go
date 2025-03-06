@@ -188,7 +188,7 @@ func execMigration(ctx context.Context, db *sql.DB, migrationNum int) error {
 		return err
 	}
 
-	//nolint
+	// nolint
 	defer tx.Rollback()
 
 	_, err = tx.ExecContext(ctx, migrations[migrationNum-1].migrationQuery)

@@ -1,8 +1,10 @@
 package stable_diffusion_api
 
 import (
-	"github.com/sahilm/fuzzy"
 	"net/http"
+
+	"github.com/sahilm/fuzzy"
+
 	"stable_diffusion_bot/entities"
 )
 

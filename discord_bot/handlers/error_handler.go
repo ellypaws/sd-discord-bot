@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"net/http"
-	"stable_diffusion_bot/utils"
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
+
+	"stable_diffusion_bot/utils"
 )
 
 var Token *string
@@ -97,7 +99,7 @@ func formatError(errorContent ...any) string {
 			errors = append(errors, content.Error())
 		case []any:
 			errors = append(errors, formatError(content...)) // Recursively format the error
-		//case any:
+		// case any:
 		//	errors = append(errors, fmt.Sprintf("%v", content))
 		default:
 			errors = append(errors, fmt.Sprintf("An unknown error has occured\nReceived: %v", content))
@@ -116,7 +118,7 @@ func errorEmbed(i *discordgo.Interaction, errorContent ...any) ([]*discordgo.Mes
 	errorString := formatError(errorContent)
 
 	// decode ED4245 to int = 15548997
-	//color, _ := strconv.ParseInt("ED4245", 16, 64)
+	// color, _ := strconv.ParseInt("ED4245", 16, 64)
 
 	embed := []*discordgo.MessageEmbed{
 		{
@@ -163,8 +165,8 @@ func sanitizeToken(errorString *string) *string {
 		return errorString
 	}
 	if strings.Contains(*errorString, *Token) {
-		//log.Println("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\"")
-		//log.Println("Error message:", errorString)
+		// log.Println("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\"")
+		// log.Println("Error message:", errorString)
 		log.Printf("WARNING: Bot token was found in the error message. Replacing it with \"Bot Token\": %v", *errorString)
 		sanitizedString := strings.ReplaceAll(*errorString, *Token, "[...]")
 		errorString = &sanitizedString

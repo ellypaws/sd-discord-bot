@@ -3,16 +3,18 @@ package novelai
 import (
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"strings"
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/ellypaws/novelai-metadata/pkg/meta"
-	"io"
-	"log"
+
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
-	"strings"
-	"time"
 )
 
 func (q *NAIQueue) processCurrentItem() (*discordgo.Interaction, error) {
@@ -372,26 +374,26 @@ func imagineMessageSimple(request *entities.NovelAIRequest, user *discordgo.User
 
 // storeMessageInteraction stores the message interaction in the database to keep track of the message ID to recreate the message
 func (q *NAIQueue) storeMessageInteraction(item *NAIQueueItem, message *discordgo.Message) (err error) {
-	//request := item.Request
+	// request := item.Request
 	//
-	//if item.DiscordInteraction == nil {
-	//	return fmt.Errorf("item.DiscordInteraction is nil")
-	//}
+	// if item.DiscordInteraction == nil {
+	// 	return fmt.Errorf("item.DiscordInteraction is nil")
+	// }
 	//
-	//if message == nil {
-	//	message, err = q.botSession.InteractionResponse(item.DiscordInteraction)
-	//	if err != nil {
-	//		return err
-	//	}
-	//}
+	// if message == nil {
+	// 	message, err = q.botSession.InteractionResponse(item.DiscordInteraction)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// }
 	//
-	//// store message ID in c.DiscordInteraction.Message
-	//item.DiscordInteraction.Message = message
+	// // store message ID in c.DiscordInteraction.Message
+	// item.DiscordInteraction.Message = message
 	//
-	//request.InteractionID = item.DiscordInteraction.ID
-	//request.MessageID = item.DiscordInteraction.Message.ID
-	//request.MemberID = item.DiscordInteraction.Member.User.ID
-	//request.SortOrder = 0
-	//request.Processed = true
+	// request.InteractionID = item.DiscordInteraction.ID
+	// request.MessageID = item.DiscordInteraction.Message.ID
+	// request.MemberID = item.DiscordInteraction.Member.User.ID
+	// request.SortOrder = 0
+	// request.Processed = true
 	return nil
 }

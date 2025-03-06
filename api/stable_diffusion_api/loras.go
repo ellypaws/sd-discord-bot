@@ -8,10 +8,10 @@ package stable_diffusion_api
 
 import (
 	"bytes"
+	"encoding/json"
+	"errors"
 	"regexp"
 )
-import "errors"
-import "encoding/json"
 
 type LoraModels []LoraModel
 
@@ -29,7 +29,7 @@ type LoraModel struct {
 	Name  string `json:"name"`
 	Alias string `json:"alias"`
 	Path  string `json:"path"`
-	//Metadata Metadata `json:"metadata"`
+	// Metadata Metadata `json:"metadata"`
 }
 
 type Metadata struct {

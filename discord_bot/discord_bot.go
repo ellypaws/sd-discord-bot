@@ -50,7 +50,7 @@ func New(cfg *Config) (Bot, error) {
 	handlers.Token = &cfg.BotToken
 
 	if cfg.GuildID == "" {
-		//return nil, errors.New("missing guild ID")
+		// return nil, errors.New("missing guild ID")
 		log.Printf("Guild ID not provided, commands will be registered globally")
 	}
 
@@ -189,10 +189,10 @@ func (b *botImpl) Start() error {
 		return fmt.Errorf("error opening connection to Discord: %w", err)
 	}
 
-	err = b.registerCommands()
-	if err != nil {
-		return fmt.Errorf("error registering commands: %w", err)
-	}
+	// err = b.registerCommands()
+	// if err != nil {
+	//	return fmt.Errorf("error registering commands: %w", err)
+	// }
 
 	b.registerHandlers()
 

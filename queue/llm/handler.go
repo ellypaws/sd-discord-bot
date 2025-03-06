@@ -3,11 +3,13 @@ package llm
 import (
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
+
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/queue"
 	"stable_diffusion_bot/utils"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 const LLMCommand = "llm"

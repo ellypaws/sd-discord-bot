@@ -58,8 +58,8 @@ const (
 	refreshLoraOption = "refresh_lora"
 	refreshCheckpoint = "refresh_checkpoint"
 	refreshVAEOption  = "refresh_vae"
-	//refreshHypernetworkOption CommandOption = "refresh_hypernetwork"
-	//refreshEmbeddingOption    CommandOption = "refresh_embedding"
+	// refreshHypernetworkOption CommandOption = "refresh_hypernetwork"
+	// refreshEmbeddingOption    CommandOption = "refresh_embedding"
 	refreshAllOption = "refresh_all"
 
 	controlnetImage        = "controlnet_image"
@@ -281,12 +281,12 @@ func (q *SDQueue) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 
 		if _, ok := interfaceConvertAuto[string, string](&item.ControlnetItem.Preprocessor, controlnetPreprocessor, optionMap, parameters); ok {
-			//queue.ControlnetItem.Preprocessor = *preprocessor
+			// queue.ControlnetItem.Preprocessor = *preprocessor
 			item.ControlnetItem.Enabled = true
 		}
 
 		if _, ok := interfaceConvertAuto[string, string](&item.ControlnetItem.Model, controlnetModel, optionMap, parameters); ok {
-			//queue.ControlnetItem.Model = *model
+			// queue.ControlnetItem.Model = *model
 			item.ControlnetItem.Enabled = true
 		}
 
@@ -549,9 +549,9 @@ func (q *SDQueue) autocompleteControlnet(i *discordgo.InteractionCreate, opt *di
 		log.Printf("Autocompleting '%v'", input)
 
 		results := fuzzy.Find(input, toSearch)
-		//log.Printf("Finding from %v: %v", input, cache)
-		//log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
-		//log.Printf("Results: %v", results)
+		// log.Printf("Finding from %v: %v", input, cache)
+		// log.Printf("Cache: %v, cache.len(): %v", cache, cache.Len())
+		// log.Printf("Results: %v", results)
 
 		for index, result := range results {
 			choices = append(choices, &discordgo.ApplicationCommandOptionChoice{
@@ -627,17 +627,17 @@ func (q *SDQueue) processImagineSettingsCommand(s *discordgo.Session, i *discord
 		messageComponents,
 	)
 	return err
-	//err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-	//	Type: discordgo.InteractionResponseChannelMessageWithSource,
-	//	Data: &discordgo.InteractionResponseData{
-	//		Title:      "Settings",
-	//		Content:    "Choose default settings for the imagine command:",
-	//		Components: messageComponents,
-	//	},
-	//})
-	//if err != nil {
-	//	log.Printf("Error responding to interaction: %v", err)
-	//}
+	// err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	// 	Type: discordgo.InteractionResponseChannelMessageWithSource,
+	// 	Data: &discordgo.InteractionResponseData{
+	// 		Title:      "Settings",
+	// 		Content:    "Choose default settings for the imagine command:",
+	// 		Components: messageComponents,
+	// 	},
+	// })
+	// if err != nil {
+	// 	log.Printf("Error responding to interaction: %v", err)
+	// }
 }
 
 func (q *SDQueue) processImagineDimensionSetting(s *discordgo.Session, i *discordgo.InteractionCreate, height, width int) error {
@@ -812,7 +812,7 @@ func (q *SDQueue) settingsMessageComponents(settings *entities.DefaultSettings) 
 		components[VAESelect],
 		components[HypernetworkSelect],
 		components[DimensionSelect],
-		//Components[BatchCountSelect],
+		// Components[BatchCountSelect],
 		components[BatchSizeSelect],
 	}
 }

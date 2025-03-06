@@ -5,15 +5,17 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"io"
 	"log"
+	"strings"
+	"time"
+
+	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/discord_bot/handlers"
 	"stable_diffusion_bot/entities"
 	"stable_diffusion_bot/utils"
-	"strings"
-	"time"
 )
 
 func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {

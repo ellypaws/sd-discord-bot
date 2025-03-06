@@ -2,14 +2,16 @@ package llm
 
 import (
 	"errors"
-	"github.com/bwmarrin/discordgo"
-	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"os"
-	"stable_diffusion_bot/composite_renderer"
-	"stable_diffusion_bot/queue"
 	"sync"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+	"github.com/ellypaws/inkbunny-sd/llm"
+
+	"stable_diffusion_bot/composite_renderer"
+	"stable_diffusion_bot/queue"
 )
 
 func New(host *llm.Config) queue.Queue[*LLMItem] {

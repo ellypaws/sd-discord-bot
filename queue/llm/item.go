@@ -1,9 +1,10 @@
 package llm
 
 import (
+	"time"
+
 	"github.com/bwmarrin/discordgo"
 	"github.com/ellypaws/inkbunny-sd/llm"
-	"time"
 )
 
 type ItemType = string

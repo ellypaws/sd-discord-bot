@@ -2,10 +2,11 @@ package utils
 
 import (
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"regexp"
 	"strings"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func GetOpts(data discordgo.ApplicationCommandInteractionData) map[string]*discordgo.ApplicationCommandInteractionDataOption {

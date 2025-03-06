@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/databases/sqlite"
@@ -103,9 +104,9 @@ func init() {
 func main() {
 	flag.Parse()
 
-	//if guildID == nil || *guildID == "" {
+	// if guildID == nil || *guildID == "" {
 	//	log.Fatalf("Guild ID flag is required")
-	//}
+	// }
 
 	if botToken == nil || *botToken == "" {
 		log.Fatalf("Bot token flag is required")

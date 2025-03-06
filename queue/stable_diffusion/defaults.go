@@ -173,7 +173,7 @@ func (q *SDQueue) UpdateModelName(modelName string) (*entities.DefaultSettings, 
 		return nil, err
 	}
 
-	//defaultSettings.SDModelName = modelName
+	// defaultSettings.SDModelName = modelName
 
 	newDefaultSettings, err := q.defaultSettingsRepo.Upsert(context.Background(), defaultSettings)
 	if err != nil {

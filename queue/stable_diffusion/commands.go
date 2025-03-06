@@ -3,12 +3,14 @@ package stable_diffusion
 import (
 	"cmp"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
 	"sort"
+	"strings"
+
+	"github.com/bwmarrin/discordgo"
+
 	"stable_diffusion_bot/api/stable_diffusion_api"
 	"stable_diffusion_bot/entities"
-	"strings"
 )
 
 func (q *SDQueue) commands() []*discordgo.ApplicationCommand {
@@ -59,10 +61,10 @@ func imagineOptions() (options []*discordgo.ApplicationCommandOption) {
 		commandOptions[samplerOption],
 		commandOptions[batchCountOption],
 		commandOptions[batchSizeOption],
-		//commandOptions[hiresFixOption],
+		// commandOptions[hiresFixOption],
 		commandOptions[hiresFixSize],
 		commandOptions[cfgScaleOption],
-		//commandOptions[restoreFacesOption],
+		// commandOptions[restoreFacesOption],
 		commandOptions[adModelOption],
 		commandOptions[vaeOption],
 		commandOptions[hypernetworkOption],

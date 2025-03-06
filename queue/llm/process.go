@@ -3,6 +3,7 @@ package llm
 import (
 	"fmt"
 	"log"
+
 	"stable_diffusion_bot/discord_bot/handlers"
 )
 

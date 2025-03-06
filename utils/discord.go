@@ -2,8 +2,9 @@ package utils
 
 import (
 	"errors"
-	"github.com/bwmarrin/discordgo"
 	"reflect"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func GetUsername(entities ...any) string {

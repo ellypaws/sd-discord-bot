@@ -3,11 +3,13 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"io"
 	"slices"
-	"stable_diffusion_bot/composite_renderer"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
+
+	"stable_diffusion_bot/composite_renderer"
 )
 
 // EmbedImages modifies the provided webhook to include the provided embed and images.

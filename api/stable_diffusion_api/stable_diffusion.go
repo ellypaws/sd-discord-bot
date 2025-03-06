@@ -10,10 +10,11 @@ import (
 	"log"
 	"net/http"
 	"slices"
-	"stable_diffusion_bot/discord_bot/handlers"
-	"stable_diffusion_bot/entities"
 	"strings"
 	"time"
+
+	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/entities"
 )
 
 type apiImplementation struct {
@@ -92,14 +93,14 @@ func (api *apiImplementation) CachePreview(c Cacheable) (Cacheable, error) {
 	if c == nil {
 		return nil, errors.New("cache is nil")
 	}
-	//_, err := c.GetCache(api)
-	//if err != nil {
+	// _, err := c.GetCache(api)
+	// if err != nil {
 	//	return c, err
-	//}
+	// }
 	if c.Len() > 2 {
 		log.Printf("Successfully cached %v %T from api: %v...", c.Len(), c, c.String(0))
 	}
-	//return cache, nil
+	// return cache, nil
 
 	return c, nil
 }

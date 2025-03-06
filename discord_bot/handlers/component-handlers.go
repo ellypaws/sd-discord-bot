@@ -3,10 +3,12 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bwmarrin/discordgo"
 	"log"
+
 	"stable_diffusion_bot/queue"
 	"stable_diffusion_bot/utils"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 // ComponentHandlers is a map of common component handlers.

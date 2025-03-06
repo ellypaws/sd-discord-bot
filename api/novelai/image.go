@@ -46,21 +46,21 @@ func Unzip(body io.ReadCloser) ([]io.Reader, error) {
 			return nil, err
 		}
 		images[i] = &CloseAfterRead{Reader: reader}
-		//data, err := meta.ExtractMetadata(img)
-		//if err != nil {
+		// data, err := meta.ExtractMetadata(img)
+		// if err != nil {
 		//	continue
-		//}
+		// }
 		//
-		//valid, err := data.IsNovelAI()
-		//if err != nil {
+		// valid, err := data.IsNovelAI()
+		// if err != nil {
 		//	return nil, err
-		//}
+		// }
 		//
-		//if !valid {
+		// if !valid {
 		//	continue
-		//}
+		// }
 		//
-		//images[i].Metadata = data
+		// images[i].Metadata = data
 	}
 	return images, nil
 }
