@@ -131,7 +131,7 @@ func (q *SDQueue) Stop() {
 	close(q.stop)
 }
 
-func (q *SDQueue) Remove(messageInteraction *discordgo.MessageInteraction) error {
+func (q *SDQueue) Remove(messageInteraction *discordgo.MessageInteractionMetadata) error {
 	q.mu.Lock()
 	q.cancelledItems[messageInteraction.ID] = true
 	q.mu.Unlock()

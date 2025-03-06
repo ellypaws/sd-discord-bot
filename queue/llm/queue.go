@@ -75,7 +75,7 @@ func (q *LLMQueue) Add(item *LLMItem) (int, error) {
 	return len(q.queue), nil
 }
 
-func (q *LLMQueue) Remove(messageInteraction *discordgo.MessageInteraction) error {
+func (q *LLMQueue) Remove(messageInteraction *discordgo.MessageInteractionMetadata) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 

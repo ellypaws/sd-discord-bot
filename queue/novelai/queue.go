@@ -79,7 +79,7 @@ func (q *NAIQueue) Add(item *NAIQueueItem) (int, error) {
 	return item.pos, nil
 }
 
-func (q *NAIQueue) Remove(messageInteraction *discordgo.MessageInteraction) error {
+func (q *NAIQueue) Remove(messageInteraction *discordgo.MessageInteractionMetadata) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 

@@ -8,7 +8,7 @@ type Queue[item Item] interface {
 	Start(botSession *discordgo.Session)
 	NewItem(interaction *discordgo.Interaction, options ...func(item)) item
 	Add(item item) (int, error)
-	Remove(message *discordgo.MessageInteraction) error
+	Remove(message *discordgo.MessageInteractionMetadata) error
 	Interrupt(i *discordgo.Interaction) error
 
 	Registrar
