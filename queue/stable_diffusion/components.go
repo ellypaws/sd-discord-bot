@@ -297,7 +297,7 @@ func (q *SDQueue) processImagineReroll(s *discordgo.Session, i *discordgo.Intera
 			GenerationInfo: entities.GenerationInfo{
 				InteractionID: i.Interaction.ID,
 				MessageID:     i.Message.ID,
-				MemberID:      i.Member.User.ID,
+				MemberID:      utils.GetUser(i.Interaction).ID,
 				CreatedAt:     time.Now(),
 			},
 			TextToImageRequest: new(entities.TextToImageRequest),
@@ -346,7 +346,7 @@ func (q *SDQueue) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 			GenerationInfo: entities.GenerationInfo{
 				InteractionID: i.Interaction.ID,
 				MessageID:     i.Message.ID,
-				MemberID:      i.Member.User.ID,
+				MemberID:      utils.GetUser(i.Interaction).ID,
 				SortOrder:     variationIndex,
 				CreatedAt:     time.Now(),
 			},
@@ -370,7 +370,7 @@ func (q *SDQueue) processImagineVariation(s *discordgo.Session, i *discordgo.Int
 
 // check if the user using the cancel button is the same user that started the generation, then remove it from the queue
 func (q *SDQueue) removeImagineFromQueue(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	if utils.GetUser(i).ID != i.Message.InteractionMetadata.User.ID {
+	if utils.GetUser(i.Interaction).ID != i.Message.InteractionMetadata.User.ID {
 		return handlers.ErrorEphemeral(s, i.Interaction, "You can only cancel your own generations")
 	}
 
@@ -388,12 +388,9 @@ func (q *SDQueue) removeImagineFromQueue(s *discordgo.Session, i *discordgo.Inte
 
 // check if the user using the interrupt button is the same user that started the generation
 func (q *SDQueue) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	if i.Member == nil {
-		return handlers.ErrorEphemeral(s, i.Interaction, "Member not found")
-	}
+	user := utils.GetUser(i.Interaction)
 
 	var mentionedIDs []string
-
 	for _, mention := range i.Message.Mentions {
 		mentionedIDs = append(mentionedIDs, mention.ID)
 	}
@@ -402,7 +399,7 @@ func (q *SDQueue) interrupt(s *discordgo.Session, i *discordgo.InteractionCreate
 		return handlers.ErrorEphemeral(s, i.Interaction, "Could not determine who started the generation as there are no detected mentions")
 	}
 
-	if !slices.Contains(mentionedIDs, i.Member.User.ID) {
+	if !slices.Contains(mentionedIDs, user.ID) {
 		return handlers.ErrorEphemeral(s, i.Interaction,
 			// strings.Join with <@ID> and newlines.
 			fmt.Sprintf("You can only interrupt your own generations.\nValid users: <@%v>", strings.Join(mentionedIDs, ">\n<@")))

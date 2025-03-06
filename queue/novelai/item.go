@@ -3,6 +3,7 @@ package novelai
 import (
 	"github.com/bwmarrin/discordgo"
 	"stable_diffusion_bot/entities"
+	"stable_diffusion_bot/utils"
 	"time"
 )
 
@@ -35,13 +36,7 @@ func (q *NAIQueueItem) Interaction() *discordgo.Interaction {
 func (q *NAIQueue) NewItem(interaction *discordgo.Interaction, options ...func(*NAIQueueItem)) *NAIQueueItem {
 	item := q.DefaultQueueItem()
 	item.DiscordInteraction = interaction
-
-	if item.DiscordInteraction.Member != nil {
-		item.user = item.DiscordInteraction.Member.User
-	}
-	if item.DiscordInteraction.User != nil {
-		item.user = item.DiscordInteraction.User
-	}
+	item.user = utils.GetUser(interaction)
 
 	for _, option := range options {
 		option(item)

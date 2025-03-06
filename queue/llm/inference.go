@@ -6,6 +6,7 @@ import (
 	"github.com/ellypaws/inkbunny-sd/llm"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
 )
@@ -53,7 +54,7 @@ func showProcessingLLM(item *LLMItem, q *LLMQueue) (*discordgo.MessageEmbed, *di
 
 	content := fmt.Sprintf(
 		"Processing LLM request for <@%s>",
-		item.DiscordInteraction.Member.User.ID,
+		utils.GetUser(item.DiscordInteraction).ID,
 	)
 	embed := llmEmbed(new(discordgo.MessageEmbed), request, item, item.Interrupt != nil)
 
@@ -75,7 +76,7 @@ func llmResponseEmbed(item *LLMItem, response *llm.Response, embed *discordgo.Me
 	if item.Created.IsZero() {
 		timeSince = "unknown"
 	}
-	mention := fmt.Sprintf("<@%s> generated in %s", item.DiscordInteraction.Member.User.ID, timeSince)
+	mention := fmt.Sprintf("<@%s> generated in %s", utils.GetUser(item.DiscordInteraction).ID, timeSince)
 	message := response.Choices[0].Message.Content
 	if len(message) > 900 {
 		message = fmt.Sprintf("%s ...\n<truncated, see file>", message[:900])
@@ -118,6 +119,7 @@ func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, item *LLMItem
 		log.Printf("WARNING: generationEmbedDetails called with nil %T, creating...", embed)
 		embed = &discordgo.MessageEmbed{}
 	}
+	user := utils.GetUser(item.DiscordInteraction)
 	embed.Title = item.Type
 	if interrupted {
 		embed.Title += " (Interrupted)"
@@ -125,8 +127,8 @@ func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, item *LLMItem
 	embed.Type = discordgo.EmbedTypeArticle
 	embed.URL = "https://github.com/ellypaws/sd-discord-bot/"
 	embed.Author = &discordgo.MessageEmbedAuthor{
-		Name:         item.DiscordInteraction.Member.User.Username,
-		IconURL:      item.DiscordInteraction.Member.User.AvatarURL(""),
+		Name:         user.Username,
+		IconURL:      user.AvatarURL(""),
 		ProxyIconURL: "https://i.keiau.space/data/00144.png",
 	}
 
@@ -135,7 +137,7 @@ func llmEmbed(embed *discordgo.MessageEmbed, request *llm.Request, item *LLMItem
 	}
 
 	embed.Description = fmt.Sprintf("<@%s> asked me to process `%d` tokens",
-		item.DiscordInteraction.Member.User.ID, request.MaxTokens)
+		user.ID, request.MaxTokens)
 
 	embed.Timestamp = time.Now().Format(time.RFC3339)
 	embed.Footer = &discordgo.MessageEmbedFooter{

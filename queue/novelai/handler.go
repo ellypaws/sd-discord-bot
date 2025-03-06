@@ -168,15 +168,7 @@ func (q *NAIQueue) processNovelAICommand(s *discordgo.Session, i *discordgo.Inte
 }
 
 func (q *NAIQueue) positionString(item *NAIQueueItem) string {
-	var snowflake string
-
-	switch {
-	case item.DiscordInteraction.Member != nil:
-		snowflake = item.DiscordInteraction.Member.User.ID
-	case item.DiscordInteraction.User != nil:
-		snowflake = item.DiscordInteraction.User.ID
-	}
-
+	snowflake := utils.GetUser(item.DiscordInteraction).ID
 	if item.pos <= 0 {
 		return fmt.Sprintf(
 			"I'm dreaming something up for you. You are next in line.\n<@%s> asked me to imagine \n```\n%s\n```",

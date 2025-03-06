@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"stable_diffusion_bot/discord_bot/handlers"
+	"stable_diffusion_bot/utils"
 	"strings"
 	"time"
 
@@ -48,8 +49,8 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *SDQueueItem, i
 	embed.Type = discordgo.EmbedTypeImage
 	embed.URL = "https://github.com/ellypaws/sd-discord-bot/"
 	embed.Author = &discordgo.MessageEmbedAuthor{
-		Name:         queue.DiscordInteraction.Member.User.Username,
-		IconURL:      queue.DiscordInteraction.Member.User.AvatarURL(""),
+		Name:         utils.GetUser(queue.DiscordInteraction).Username,
+		IconURL:      utils.GetUser(queue.DiscordInteraction).AvatarURL(""),
 		ProxyIconURL: "https://i.keiau.space/data/00144.png",
 	}
 
@@ -61,7 +62,7 @@ func generationEmbedDetails(embed *discordgo.MessageEmbed, queue *SDQueueItem, i
 	}
 
 	embed.Description = fmt.Sprintf("<@%s> asked me to process `%v` images, `%v` steps in %v, cfg: `%0.1f`, seed: `%v`, sampler: `%s`",
-		queue.DiscordInteraction.Member.User.ID, request.NIter*request.BatchSize, request.Steps, timeSince,
+		utils.GetUser(queue.DiscordInteraction).ID, request.NIter*request.BatchSize, request.Steps, timeSince,
 		request.CFGScale, request.Seed, request.SamplerName)
 
 	var scripts []string

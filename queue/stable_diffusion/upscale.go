@@ -34,7 +34,7 @@ func (q *SDQueue) processUpscaleImagine() error {
 		return handlers.ErrorEdit(q.botSession, queue.DiscordInteraction, fmt.Errorf("error switching to models: %w", err))
 	}
 
-	newContent := upscaleMessageContent(queue.DiscordInteraction.Member.User, 0, 0)
+	newContent := upscaleMessageContent(utils.GetUser(queue.DiscordInteraction), 0, 0)
 	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, queue, queue.Interrupt != nil)
 
 	_, err = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
@@ -125,7 +125,7 @@ func (q *SDQueue) finalUpscaleMessage(queue *SDQueueItem, resp *stable_diffusion
 	}
 
 	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. (seed: %d) Here's the result:%v",
-		queue.DiscordInteraction.Member.User.ID,
+		utils.GetUser(queue.DiscordInteraction).ID,
 		textToImage.Seed,
 		scriptsString,
 	)
@@ -191,7 +191,7 @@ func (q *SDQueue) updateUpscaleProgress(queue *SDQueueItem, generationDone chan 
 			}
 
 			lastProgress = progress.Progress
-			progressContent := upscaleMessageContent(queue.DiscordInteraction.Member.User, fetchProgress, upscaleProgress)
+			progressContent := upscaleMessageContent(utils.GetUser(queue.DiscordInteraction), fetchProgress, upscaleProgress)
 
 			_, progressErr = q.botSession.InteractionResponseEdit(queue.DiscordInteraction, &discordgo.WebhookEdit{
 				Content: &progressContent,

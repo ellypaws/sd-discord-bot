@@ -16,6 +16,7 @@ import (
 	"stable_diffusion_bot/queue/llm"
 	"stable_diffusion_bot/queue/novelai"
 	"stable_diffusion_bot/queue/stable_diffusion"
+	"stable_diffusion_bot/utils"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -142,15 +143,8 @@ func (b *botImpl) registerHandlers() {
 
 		err := handler(session, i)
 
-		var username = "unknown"
-		if i.Member != nil {
-			username = i.Member.User.Username
-		}
-		if i.User != nil {
-			username = i.User.Username
-		}
-
 		if err != nil {
+			username := utils.GetUsername(i.Interaction)
 			if errors.Is(err, handlers.ResponseError) {
 				log.Printf("Error responding to interaction for %s: %v", username, err)
 				return

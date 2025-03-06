@@ -5,6 +5,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 	"log"
 	"net/http"
+	"stable_diffusion_bot/utils"
 	"strings"
 )
 
@@ -182,16 +183,8 @@ func logError(errorString string, i *discordgo.Interaction) {
 	}
 
 	log.Printf("ERROR: %v", errorString)
-	var user *discordgo.User
-	if i.Member != nil {
-		user = i.Member.User
-	}
-	if i.User != nil {
-		user = i.User
-	}
-	if user != nil {
-		log.Printf("User: %s", user.Username)
-	}
+	log.Printf("User: %s", utils.GetUsername(i))
+
 	if i.Type == discordgo.InteractionMessageComponent {
 		log.Printf("Link: https://discord.com/channels/%v/%v/%v", i.GuildID, i.ChannelID, i.Message.ID)
 	}

@@ -309,19 +309,10 @@ func (q *SDQueue) processImagineCommand(s *discordgo.Session, i *discordgo.Inter
 		}
 	}
 
-	var snowflake string
-
-	switch {
-	case i.Member != nil:
-		snowflake = i.Member.User.ID
-	case i.User != nil:
-		snowflake = i.User.ID
-	}
-
 	queueString := fmt.Sprintf(
 		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to imagine \n```\n%s\n```",
 		position,
-		snowflake,
+		utils.GetUser(i.Interaction).ID,
 		item.Prompt,
 	)
 

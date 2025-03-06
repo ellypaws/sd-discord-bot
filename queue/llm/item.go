@@ -21,8 +21,6 @@ type LLMItem struct {
 	InteractionIndex   int
 	DiscordInteraction *discordgo.Interaction
 	Interrupt          chan *discordgo.Interaction
-
-	user *discordgo.User
 }
 
 func (q *LLMItem) Interaction() *discordgo.Interaction {
@@ -32,13 +30,6 @@ func (q *LLMItem) Interaction() *discordgo.Interaction {
 func (q *LLMQueue) NewItem(interaction *discordgo.Interaction, options ...func(*LLMItem)) *LLMItem {
 	item := q.DefaultQueueItem()
 	item.DiscordInteraction = interaction
-
-	if item.DiscordInteraction.Member != nil {
-		item.user = item.DiscordInteraction.Member.User
-	}
-	if item.DiscordInteraction.User != nil {
-		item.user = item.DiscordInteraction.User
-	}
 
 	for _, option := range options {
 		option(item)

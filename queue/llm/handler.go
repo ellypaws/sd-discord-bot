@@ -58,19 +58,10 @@ func (q *LLMQueue) processLLMCommand(s *discordgo.Session, i *discordgo.Interact
 		return handlers.ErrorEdit(s, i.Interaction, "Error adding imagine to queue.", err)
 	}
 
-	var snowflake string
-
-	switch {
-	case i.Member != nil:
-		snowflake = i.Member.User.ID
-	case i.User != nil:
-		snowflake = i.User.ID
-	}
-
 	queueString := fmt.Sprintf(
 		"I'm dreaming something up for you. You are currently #%d in line.\n<@%s> asked me to generate \n```\n%s\n```",
 		position,
-		snowflake,
+		utils.GetUser(i.Interaction).ID,
 		prompt.StringValue(),
 	)
 

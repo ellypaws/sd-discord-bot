@@ -84,7 +84,7 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 
 func showInitialMessage(queue *SDQueueItem, q *SDQueue) (*discordgo.MessageEmbed, *discordgo.WebhookEdit, error) {
 	request := queue.ImageGenerationRequest
-	newContent := imagineMessageSimple(request, queue.DiscordInteraction.Member.User, 0, nil, nil)
+	newContent := imagineMessageSimple(request, utils.GetUser(queue.DiscordInteraction), 0, nil, nil)
 
 	embed := generationEmbedDetails(&discordgo.MessageEmbed{}, queue, queue.Interrupt != nil)
 
@@ -126,7 +126,7 @@ func (q *SDQueue) storeMessageInteraction(queue *SDQueueItem, message *discordgo
 
 	request.InteractionID = queue.DiscordInteraction.ID
 	request.MessageID = queue.DiscordInteraction.Message.ID
-	request.MemberID = queue.DiscordInteraction.Member.User.ID
+	request.MemberID = utils.GetUser(queue.DiscordInteraction).ID
 	request.SortOrder = 0
 	request.Processed = true
 	return nil
@@ -138,7 +138,7 @@ func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextTo
 
 	imageBuffers, thumbnailBuffers := retrieveImagesFromResponse(response, queue)
 
-	mention := fmt.Sprintf("<@%v>", queue.DiscordInteraction.Member.User.ID)
+	mention := fmt.Sprintf("<@%v>", utils.GetUser(queue.DiscordInteraction).ID)
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
 	embed = generationEmbedDetails(embed, queue, queue.Interrupt != nil)
 
@@ -304,7 +304,7 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 				ram = mem.RAM.Readable()
 			}
 
-			progressContent := imagineMessageSimple(request, item.DiscordInteraction.Member.User, progress.Progress, ram, cuda)
+			progressContent := imagineMessageSimple(request, utils.GetUser(item.DiscordInteraction), progress.Progress, ram, cuda)
 
 			// TODO: Use handlers.Responses[handlers.EditInteractionResponse] instead and adjust to return errors
 			_, progressErr = q.botSession.InteractionResponseEdit(item.DiscordInteraction, &discordgo.WebhookEdit{

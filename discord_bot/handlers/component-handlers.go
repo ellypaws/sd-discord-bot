@@ -45,7 +45,7 @@ var ComponentHandlers = queue.Components{
 			return nil
 		}
 
-		if utils.GetUser(i).ID != originalInteractionUser {
+		if utils.GetUser(i.Interaction).ID != originalInteractionUser {
 			return ErrorEdit(s, i.Interaction, "You can only delete your own generations")
 		}
 		err := s.ChannelMessageDelete(i.ChannelID, i.Message.ID)
