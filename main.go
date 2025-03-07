@@ -17,7 +17,6 @@ import (
 	"stable_diffusion_bot/queue/stable_diffusion"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
-	"strings"
 
 	openai "github.com/ellypaws/inkbunny-sd/llm"
 	"github.com/joho/godotenv"
