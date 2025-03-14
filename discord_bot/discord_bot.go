@@ -189,10 +189,10 @@ func (b *botImpl) Start() error {
 		return fmt.Errorf("error opening connection to Discord: %w", err)
 	}
 
-	// err = b.registerCommands()
-	// if err != nil {
-	//	return fmt.Errorf("error registering commands: %w", err)
-	// }
+	err = b.registerCommands()
+	if err != nil {
+		return fmt.Errorf("error registering commands: %w", err)
+	}
 
 	b.registerHandlers()
 
