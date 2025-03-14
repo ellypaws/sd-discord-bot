@@ -175,11 +175,11 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	novelaiSamplerOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        novelaiSamplerOption,
-		Description: "The method to use for sampling. Default is Euler",
+		Description: "The method to use for sampling. Default is Euler ancestral",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
 			{
-				Name:  "Default (Euler)",
+				Name:  "Default (Euler a)",
 				Value: entities.SamplerDefault,
 			},
 			{
@@ -187,7 +187,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 				Value: entities.SamplerEuler,
 			},
 			{
-				Name:  "Euler a",
+				Name:  "Euler ancestral",
 				Value: entities.SamplerEulerAncestral,
 			},
 			{
@@ -244,11 +244,11 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	novelaiScheduleOption: {
 		Type:        discordgo.ApplicationCommandOptionString,
 		Name:        novelaiScheduleOption,
-		Description: "The scheduler when sampling. Default is native.",
+		Description: "The scheduler when sampling. Default is Karras.",
 		Required:    false,
 		Choices: []*discordgo.ApplicationCommandOptionChoice{
 			{
-				Name:  "Default (Native)",
+				Name:  "Default (Karras)",
 				Value: entities.ScheduleDefault,
 			},
 			{

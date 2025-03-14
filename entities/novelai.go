@@ -2,6 +2,7 @@ package entities
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -38,8 +39,8 @@ type Parameters struct {
 	Steps   int64   `json:"steps,omitempty"`
 	Seed    int64   `json:"seed,omitempty"`
 	Sampler string  `json:"sampler,omitempty"`
-	Smea    bool    `json:"sm,omitempty"`     // Smea versions of samplers are modified to perform better at high resolutions.
-	SmeaDyn bool    `json:"sm_dyn,omitempty"` // Dyn variants of Smea samplers often lead to more varied output, but may fail at very high resolutions.
+	Smea    bool    `json:"sm,omitempty"`     // Smea versions of samplers are modified to perform better at high resolutions. Deprecated: Use AutoSmea
+	SmeaDyn bool    `json:"sm_dyn,omitempty"` // Dyn variants of Smea samplers often lead to more varied output, but may fail at very high resolutions. Deprecated: Use AutoSmea
 	Scale   float64 `json:"scale,omitempty"`  // Prompt guidance, also known as CFG Scale
 	// Whether to enable [Decrisper].
 	//
@@ -86,6 +87,38 @@ type Parameters struct {
 	ParamsVersion  int64 `json:"params_version,omitempty"`
 	Legacy         bool  `json:"legacy,omitempty"`
 	LegacyV3Extend bool  `json:"legacy_v3_extend,omitempty"`
+
+	// AutoSmea is an undocumented feature that automatically adjusts the Smea setting based on the image resolution.
+	AutoSmea                    bool    `json:"autoSmea,omitempty"`
+	CFGRescale                  float64 `json:"cfg_rescale"`
+	DeliberateEulerAncestralBug bool    `json:"deliberate_euler_ancestral_bug"`
+	PreferBrownian              bool    `json:"prefer_brownian"`
+	// (Variety+) Enable guidance only after body has been formed, to improve diversity and saturation of samples. May reduce relevance.
+	// Input the number of steps to start at. Default value is 19 if enabled, otherwise null.
+	SkipCFGAboveSigma *int64   `json:"skip_cfg_above_sigma"`
+	V4NegativePrompt  V4Prompt `json:"v4_negative_prompt"` // Prompt for ModelV4Full
+	V4Prompt          V4Prompt `json:"v4_prompt"`          // Prompt for ModelV4Full
+}
+
+type V4Prompt struct {
+	Caption   Caption `json:"caption"`
+	UseCoords bool    `json:"use_coords"`
+	UseOrder  bool    `json:"use_order"`
+}
+
+type Caption struct {
+	BaseCaption  string        `json:"base_caption"`
+	CharCaptions []CharCaption `json:"char_captions"` // Ensure this is never nil, or we might get a 500 error on the API
+}
+
+type CharCaption struct {
+	Centers     []Center `json:"centers"`
+	CharCaption string   `json:"char_caption"`
+}
+
+type Center struct {
+	X int64 `json:"x"`
+	Y int64 `json:"y"`
 }
 
 type NovelAIResponse struct {
@@ -179,11 +212,18 @@ func DefaultNovelAIRequest() *NovelAIRequest {
 			ReferenceInformationExtracted: 1.0,
 			ReferenceStrength:             0.6,
 			Strength:                      0.7,
+
+			ParamsVersion: 3,
+
+			AutoSmea:       true,
+			PreferBrownian: true,
 		},
 	}
 }
 
 func (r *NovelAIRequest) Init() {
+	r.Parameters.ParamsVersion = cmp.Or(r.Parameters.ParamsVersion, 3)
+
 	if r.Parameters.ResolutionPreset != nil {
 		r.Parameters.Width = r.Parameters.ResolutionPreset[0]
 		r.Parameters.Height = r.Parameters.ResolutionPreset[1]
@@ -229,22 +269,45 @@ func (r *NovelAIRequest) Init() {
 		}
 	}
 
+	switch r.Model {
+	case ModelV4Full, ModelV4Preview:
+		r.Parameters.V4Prompt = V4Prompt{
+			Caption: Caption{
+				BaseCaption:  cmp.Or(r.Input, r.Parameters.Prompt),
+				CharCaptions: make([]CharCaption, 0),
+			},
+			UseCoords: false,
+			UseOrder:  true,
+		}
+		r.Parameters.V4NegativePrompt = V4Prompt{
+			Caption: Caption{
+				BaseCaption:  r.Parameters.NegativePrompt,
+				CharCaptions: make([]CharCaption, 0),
+			},
+			UseCoords: false,
+			UseOrder:  true,
+		}
+		r.Parameters.AutoSmea = r.Parameters.Smea
+	}
+
 	if r.Parameters.VibeTransferImage != nil {
-		ifUnset(&r.Parameters.ReferenceInformationExtracted, 1.0)
-		ifUnset(&r.Parameters.ReferenceStrength, 0.6)
+		r.Parameters.ReferenceStrength = cmp.Or(r.Parameters.ReferenceStrength, 0.6)
+		r.Parameters.ReferenceInformationExtracted = cmp.Or(r.Parameters.ReferenceInformationExtracted, 1.0)
 	}
 
 	if r.Parameters.Img2Img != nil {
-		ifUnset(&r.Parameters.Strength, 0.7)
+		r.Parameters.Strength = cmp.Or(r.Parameters.Strength, 0.6)
 	}
 }
 
+// Deprecated: Use cmp.Or
 func ifUnset[T interface{ ~float64 | int }](a *T, b T) {
 	if a == nil {
 		return
 	}
 
-	if *a == 0 {
+	var v T
+	if *a == v {
 		*a = b
 	}
 }
@@ -353,10 +416,10 @@ func (b *Image) ImageBytes(w io.Writer) error {
 }
 
 const (
-	SamplerDefault = SamplerEuler // Euler
+	SamplerDefault = SamplerEulerAncestral // Euler
 
 	SamplerEuler          sampler = "k_euler"              // Euler
-	SamplerEulerAncestral sampler = "k_euler_ancestral"    // Euler Ancestral
+	SamplerEulerAncestral sampler = "k_euler_ancestral"    // Euler Ancestral (recommended for V4)
 	SamplerDPM2SAncestral sampler = "k_dpmpp_2s_ancestral" // DPM++ 2S Ancestral
 	SamplerDPM2M          sampler = "k_dpmpp_2m"           // DPM++ 2M
 	SamplerDPMSDE         sampler = "k_dpmpp_sde"          // DPM++ SDE
@@ -364,10 +427,10 @@ const (
 )
 
 const (
-	ScheduleDefault = ScheduleNative
+	ScheduleDefault = ScheduleKarras
 
 	ScheduleNative          schedule = "native"
-	ScheduleKarras          schedule = "karras"
+	ScheduleKarras          schedule = "karras" // (recommended)
 	ScheduleExponential     schedule = "exponential"
 	SchedulePolyexponential schedule = "polyexponential"
 )
