@@ -284,6 +284,13 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 		Required:    false,
 	},
 
+	novelaiVariety: {
+		Type:        discordgo.ApplicationCommandOptionBoolean,
+		Name:        novelaiVariety,
+		Description: "Enable guidance only after body has been formed, to improve diversity and saturation of samples. May reduce relevance.",
+		Required:    false,
+	},
+
 	novelaiVibeTransfer: {
 		Type:        discordgo.ApplicationCommandOptionAttachment,
 		Name:        novelaiVibeTransfer,

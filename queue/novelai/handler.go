@@ -35,6 +35,8 @@ const (
 	novelaiReference    = "reference_strength"
 	novelaiImg2ImgStr   = "img2img_strength"
 
+	novelaiVariety = "variety+"
+
 	img2imgOption   = "img2img"
 	denoisingOption = "denoising"
 )
@@ -145,6 +147,13 @@ func (q *NAIQueue) processNovelAICommand(s *discordgo.Session, i *discordgo.Inte
 
 		if option, ok := optionMap[novelaiImg2ImgStr]; ok {
 			item.Request.Parameters.Strength = option.FloatValue()
+		}
+	}
+
+	if option, ok := optionMap[novelaiVariety]; ok {
+		if option.BoolValue() {
+			defaultCfgAboveSigma := int64(19)
+			item.Request.Parameters.SkipCFGAboveSigma = &defaultCfgAboveSigma
 		}
 	}
 
