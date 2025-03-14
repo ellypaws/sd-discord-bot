@@ -35,7 +35,7 @@ const (
 	novelaiReference    = "reference_strength"
 	novelaiImg2ImgStr   = "img2img_strength"
 
-	novelaiVariety = "variety+"
+	novelaiVariety = "variety"
 
 	img2imgOption   = "img2img"
 	denoisingOption = "denoising"

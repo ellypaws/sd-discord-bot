@@ -22,6 +22,7 @@ func (q *NAIQueue) commands() []*discordgo.ApplicationCommand {
 				commandOptions[novelaiQualityOption],
 				commandOptions[seedOption],
 				commandOptions[cfgScaleOption],
+				commandOptions[novelaiVariety],
 				// commandOptions[cfgRescaleOption],
 				commandOptions[novelaiScheduleOption],
 				commandOptions[novelaiVibeTransfer],
@@ -287,7 +288,7 @@ var commandOptions = map[string]*discordgo.ApplicationCommandOption{
 	novelaiVariety: {
 		Type:        discordgo.ApplicationCommandOptionBoolean,
 		Name:        novelaiVariety,
-		Description: "Enable guidance only after body has been formed, to improve diversity and saturation of samples. May reduce relevance.",
+		Description: "Enable guidance only after body has been formed, to improve diversity and saturation of samples.",
 		Required:    false,
 	},
 
