@@ -196,7 +196,7 @@ func DefaultNovelAIRequest() *NovelAIRequest {
 	uc := int64(2)
 	return &NovelAIRequest{
 		Action: ActionGenerate,
-		Model:  ModelV4Full,
+		Model:  ModelV45Full,
 		Parameters: Parameters{
 			ResolutionPreset: &ResolutionNormalSquare,
 			Steps:            28,
@@ -254,7 +254,7 @@ func (r *NovelAIRequest) Init() {
 			case UCHumanFocus:
 			default:
 			}
-		case ModelV4Full, ModelV4Preview, ModelV3, ModelV3Inp:
+		case ModelV45Full, ModelV45Curated, ModelV4Full, ModelV4Preview, ModelV3, ModelV3Inp:
 			fallthrough
 		default:
 			switch *r.Parameters.UcPreset {
@@ -270,7 +270,7 @@ func (r *NovelAIRequest) Init() {
 	}
 
 	switch r.Model {
-	case ModelV4Full, ModelV4Preview:
+	case ModelV45Full, ModelV45Curated, ModelV4Full, ModelV4Preview:
 		r.Parameters.V4Prompt = V4Prompt{
 			Caption: Caption{
 				BaseCaption:  cmp.Or(r.Input, r.Parameters.Prompt),
@@ -336,6 +336,8 @@ const (
 	ModelV3         models = "nai-diffusion-3"
 	ModelV4Preview  models = "nai-diffusion-4-curated-preview"
 	ModelV4Full     models = "nai-diffusion-4-full"
+	ModelV45Full    models = "nai-diffusion-4-5-full"
+	ModelV45Curated models = "nai-diffusion-4-5-curated"
 	ModelV3Inp      models = "nai-diffusion-3-inpainting"
 	ModelFurryV3    models = "nai-diffusion-furry-3"
 	MovelFurryV3Inp models = "nai-diffusion-furry-3-inpainting"
