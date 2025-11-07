@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
 
@@ -26,14 +25,14 @@ func (q *SDQueue) processImagineGrid(queue *SDQueueItem) error {
 		return fmt.Errorf("error switching to models: %w", err)
 	}
 
-	log.Printf("Processing imagine #%s: %v\n", queue.DiscordInteraction.ID, textToImage.Prompt)
+	q.logger.Info("Processing imagine", "id", queue.DiscordInteraction.ID, "prompt", textToImage.Prompt)
 
 	embed, webhook, err := showInitialMessage(queue, q)
 	if err != nil {
 		return err
 	}
 
-	request, err = q.recordToRepository(request, err)
+	request, err = q.recordToRepository(request)
 	if err != nil {
 		return fmt.Errorf("error recording to repository: %w", err)
 	}
@@ -136,9 +135,9 @@ func (q *SDQueue) storeMessageInteraction(queue *SDQueueItem, message *discordgo
 
 func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextToImageResponse, embed *discordgo.MessageEmbed, webhook *discordgo.WebhookEdit) error {
 	request := queue.ImageGenerationRequest
-	totalImages := totalImageCount(request)
+	totalImages := q.totalImageCount(request)
 
-	imageBuffers, thumbnailBuffers := retrieveImagesFromResponse(response, queue)
+	imageBuffers, thumbnailBuffers := q.retrieveImagesFromResponse(response, queue)
 
 	mention := fmt.Sprintf("<@%v>", utils.GetUser(queue.DiscordInteraction).ID)
 	// get new embed from generationEmbedDetails as q.imageGenerationRepo.Create has filled in newGeneration.CreatedAt and interrupted
@@ -158,7 +157,7 @@ func (q *SDQueue) showFinalMessage(queue *SDQueueItem, response *entities.TextTo
 }
 
 func (q *SDQueue) recordSeeds(response *entities.TextToImageResponse, request *entities.ImageGenerationRequest, config *entities.Config) {
-	log.Printf("Seeds: %v Subseeds:%v", response.Seeds, response.Subseeds)
+	q.logger.Info("Seed information", "seeds", response.Seeds, "subseeds", response.Subseeds)
 	for idx := range *response.Seeds {
 		subGeneration := request
 		subGeneration.SortOrder = idx + 1
@@ -170,18 +169,18 @@ func (q *SDQueue) recordSeeds(response *entities.TextToImageResponse, request *e
 
 		_, createErr := q.imageGenerationRepo.Create(context.Background(), subGeneration)
 		if createErr != nil {
-			log.Printf("Error creating image generation record: %v\n", createErr)
+			q.logger.Error("Failed to create image generation record", "error", createErr)
 		}
 	}
 }
 
-func totalImageCount(request *entities.ImageGenerationRequest) int {
+func (q *SDQueue) totalImageCount(request *entities.ImageGenerationRequest) int {
 	if request.BatchSize == 0 {
-		log.Printf("Warning: newGeneration.Batchsize == 0")
+		q.logger.Warn("BatchSize is zero", "requestID", request.ID)
 		request.BatchSize = max(request.BatchSize, 1)
 	}
 	if request.NIter == 0 {
-		log.Printf("Warning: newGeneration.NIter == 0")
+		q.logger.Warn("NIter is zero", "requestID", request.ID)
 		request.NIter = max(request.NIter, 1)
 	}
 
@@ -189,13 +188,13 @@ func totalImageCount(request *entities.ImageGenerationRequest) int {
 	return totalImages
 }
 
-func retrieveImagesFromResponse(response *entities.TextToImageResponse, item *SDQueueItem) (images, thumbnails []io.Reader) {
+func (q *SDQueue) retrieveImagesFromResponse(response *entities.TextToImageResponse, item *SDQueueItem) (images, thumbnails []io.Reader) {
 	images = make([]io.Reader, len(response.Images))
 
 	for idx, image := range response.Images {
 		decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)
 		if decodeErr != nil {
-			log.Printf("Error decoding image: %v\n", decodeErr)
+			q.logger.Error("Failed to decode image", "error", decodeErr)
 		}
 
 		images[idx] = bytes.NewBuffer(decodedImage)
@@ -210,9 +209,9 @@ func retrieveImagesFromResponse(response *entities.TextToImageResponse, item *SD
 	}
 
 	generation := item.ImageGenerationRequest
-	totalImages := totalImageCount(generation)
+	totalImages := q.totalImageCount(generation)
 	if len(images) > totalImages {
-		log.Printf("received extra images: len(imageBufs): %v, controlnet: %v", len(images), item.ControlnetItem.Enabled)
+		q.logger.Info("Received extra images", "count", len(images), "controlnet", item.ControlnetItem.Enabled)
 		thumbnails = append(thumbnails, images[totalImages:]...)
 	}
 
@@ -238,17 +237,17 @@ func (q *SDQueue) textInference(queue *SDQueueItem) (response *entities.TextToIm
 	return response, err
 }
 
-func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest, err error) (*entities.ImageGenerationRequest, error) {
+func (q *SDQueue) recordToRepository(request *entities.ImageGenerationRequest) (*entities.ImageGenerationRequest, error) {
 	var ok bool
 	if request.Prompt, ok = strings.CutSuffix(request.Prompt, "{DEBUG}"); ok {
 		byteArr, _ := request.TextToImageRequest.Marshal()
-		log.Printf("{DEBUG} TextToImageRequest: %v", string(byteArr))
+		q.logger.Debug("{DEBUG} TextToImageRequest", "request", string(byteArr))
 	}
 
 	// return newGeneration from image_generations.Create as we need newGeneration.CreatedAt later on
-	request, err = q.imageGenerationRepo.Create(context.Background(), request)
+	request, err := q.imageGenerationRepo.Create(context.Background(), request)
 	if err != nil {
-		log.Printf("Error creating image generation record: %v\n", err)
+		q.logger.Error("Failed to create image generation record", "error", err)
 		return nil, err
 	}
 	return request, nil
@@ -275,14 +274,14 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 				return
 			}
 			if item.DiscordInteraction.Message == nil && message != nil {
-				log.Printf("Setting item.DiscordInteraction.Message to message from EditInteractionResponse: %v", message)
+				q.logger.Debug("Setting discord interaction message", "message", message)
 				item.DiscordInteraction.Message = message
 			}
 			return
 		case <-time.After(1 * time.Second):
 			progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
 			if progressErr != nil {
-				log.Printf("Error getting current progress: %v", progressErr)
+				q.logger.Error("Failed to get generation progress", "error", progressErr)
 				_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, fmt.Sprintf("Error getting current progress: %v", progressErr))
 				return
 			}
@@ -294,7 +293,7 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 			var ram, cuda *entities.ReadableMemory
 			mem, err := q.stableDiffusionAPI.GetMemory()
 			if err != nil {
-				log.Printf("Error getting memory: %v", err)
+				q.logger.Error("Failed to get memory information", "error", err)
 			} else {
 				ram = mem.RAM.Readable()
 				cuda = mem.Cuda.Readable()
@@ -302,7 +301,7 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 
 			mem, err = stable_diffusion_api.GetMemory()
 			if err != nil {
-				log.Printf("Error getting memory: %v", err)
+				q.logger.Error("Failed to get memory information", "error", err)
 			} else {
 				ram = mem.RAM.Readable()
 			}
@@ -314,11 +313,11 @@ func (q *SDQueue) updateProgressBar(item *SDQueueItem, generationDone chan bool,
 				Content: &progressContent,
 			})
 			if progressErr != nil {
-				log.Printf("Error editing interaction: %v", progressErr)
+				q.logger.Error("Failed to edit interaction", "error", progressErr)
 				return
 			}
 		case <-timeout.C:
-			log.Printf("Timeout reached")
+			q.logger.Warn("Generation timeout reached")
 			_ = handlers.ErrorEdit(q.botSession, item.DiscordInteraction, "Timeout reached")
 			return
 		}
@@ -344,11 +343,10 @@ func (q *SDQueue) revertModels(config *entities.Config, originalConfig *entities
 	if !ptrStringCompare(config.SDModelCheckpoint, originalConfig.SDModelCheckpoint) ||
 		!ptrStringCompare(config.SDVae, originalConfig.SDVae) ||
 		!ptrStringCompare(config.SDHypernetwork, originalConfig.SDHypernetwork) {
-		log.Printf("Switching back to original models: %v, %v, %v",
-			safeDereference(originalConfig.SDModelCheckpoint),
-			safeDereference(originalConfig.SDVae),
-			safeDereference(originalConfig.SDHypernetwork),
-		)
+		q.logger.Info("Switching back to original models",
+			"checkpoint", safeDereference(originalConfig.SDModelCheckpoint),
+			"vae", safeDereference(originalConfig.SDVae),
+			"hypernetwork", safeDereference(originalConfig.SDHypernetwork))
 		return q.stableDiffusionAPI.UpdateConfiguration(entities.Config{
 			SDModelCheckpoint: originalConfig.SDModelCheckpoint,
 			SDVae:             originalConfig.SDVae,

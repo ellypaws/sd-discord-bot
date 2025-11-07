@@ -2,7 +2,6 @@ package stable_diffusion
 
 import (
 	"errors"
-	"log"
 	"os"
 	"sync"
 	"time"
@@ -15,6 +14,7 @@ import (
 	"stable_diffusion_bot/repositories/image_generations"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/charmbracelet/log"
 )
 
 type SDQueue struct {
@@ -28,6 +28,7 @@ type SDQueue struct {
 	defaultSettingsRepo default_settings.Repository
 	botDefaultSettings  *entities.DefaultSettings
 	cancelledItems      map[string]bool
+	logger              *log.Logger
 
 	stop chan os.Signal
 }
@@ -58,6 +59,12 @@ func New(cfg Config) (queue.Queue[*SDQueueItem], error) {
 		compositor:          composite_renderer.Compositor(),
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
 		cancelledItems:      make(map[string]bool),
+		logger: log.NewWithOptions(os.Stdout, log.Options{
+			Level:           log.DebugLevel,
+			Prefix:          "[SD]",
+			ReportTimestamp: true,
+			ReportCaller:    true,
+		}),
 	}, nil
 }
 
@@ -93,8 +100,7 @@ func (q *SDQueue) Start(botSession *discordgo.Session) {
 
 	botDefaultSettings, err := q.initializeOrGetBotDefaults()
 	if err != nil {
-		log.Printf("Error getting/initializing bot default settings: %v", err)
-
+		q.logger.Error("Failed to get or initialize bot default settings", "error", err)
 		return
 	}
 
@@ -110,17 +116,17 @@ Polling:
 		case <-time.After(1 * time.Second):
 			if q.currentImagine == nil {
 				if err := q.next(); err != nil {
-					log.Printf("Error processing next item: %v", err)
+					q.logger.Error("Failed to process next item", "error", err)
 				}
 				once = false
 			} else if !once {
-				log.Printf("Waiting for current imagine to finish...\n")
+				q.logger.Info("Waiting for current imagine to finish...")
 				once = true
 			}
 		}
 	}
 
-	log.Println("Polling stopped for Stable Diffusion")
+	q.logger.Info("Polling stopped for Stable Diffusion")
 }
 
 func (q *SDQueue) Stop() {
@@ -147,7 +153,7 @@ func (q *SDQueue) Interrupt(i *discordgo.Interaction) error {
 	}
 
 	// Mark the item as cancelled
-	log.Printf("Interrupting generation #%s\n", q.currentImagine.DiscordInteraction.ID)
+	q.logger.Info("Interrupting generation", "id", q.currentImagine.DiscordInteraction.ID)
 	if q.currentImagine.Interrupt == nil {
 		q.currentImagine.Interrupt = make(chan *discordgo.Interaction)
 	}
